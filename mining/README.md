@@ -1,2 +1,0 @@
-# silkroadchain
-Silk Road Chain
