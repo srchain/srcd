@@ -10,8 +10,10 @@ import (
 	"unicode"
 	"path/filepath"
 
-	"github.com/srchain/srcd/cmd/utils"
-	"github.com/srchain/srcd/node"
+	"srcd/cmd/utils"
+	"srcd/node"
+	"srcd/instance"
+
 	"github.com/naoina/toml"
 
 	"gopkg.in/urfave/cli.v1"
@@ -25,12 +27,12 @@ var (
 )
 
 type config struct {
-	Node      node.Config		// like eth
-	Peer      peer.Config		// like peer
-	Dashboard dashboard.Config
+	Node      node.Config
+	Instance  instance.Config
+	// Dashboard dashboard.Config
 }
 
-func loadConfig(file string, cfg *gethConfig) error {
+func loadConfig(file string, cfg *config) error {
 	f, err := os.Open(file)
 	if err != nil {
 		return err
@@ -49,8 +51,8 @@ func makeConfig(ctx *cli.Context) *config {
 	// Default config.
 	cfg := config{
 		Node:      node.DefaultConfig,
-		Peer:      peer.DefaultConfig,
-		Dashboard: dashboard.DefaultConfig,
+		Instance:  instance.DefaultConfig,
+		// Dashboard: dashboard.DefaultConfig,
 	}
 
 	// Load config file.
@@ -62,16 +64,16 @@ func makeConfig(ctx *cli.Context) *config {
 
 	// Apply flags.
 	utils.SetNodeConfig(ctx, &cfg.Node)
-	utils.SetPeerConfig(ctx, &cfg.Peer)
-	utils.SetDashboardConfig(ctx, &cfg.Dashboard)
+	utils.SetInstanceConfig(ctx, &cfg.Instance)
+	// utils.SetDashboardConfig(ctx, &cfg.Dashboard)
 
 	return &cfg
 }
 
-func makePeer(ctx *cli.Context) *peer.Peer {
+func makeNode(ctx *cli.Context) *node.Node {
 	cfg := makeConfig(ctx)
 
-	peer := peer.New(&cfg.Peer)
+	node := node.New(&cfg.Node)
 
-	return peer
+	return node
 }

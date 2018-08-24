@@ -6,6 +6,7 @@ import (
 
 	"srcd/cmd/utils"
 	"srcd/core/blockchain"
+	"srcd/node"
 
 	"gopkg.in/urfave/cli.v1"
 )
@@ -50,7 +51,7 @@ func initGenesis(ctx *cli.Context) error {
 	}
 
 	// Open an initialise databases
-	peer := makePeer(ctx)
+	node := makeNode(ctx)
 
 	chaindb, err := peer.OpenDatabase("chaindata", 0, 0)
 	if err != nil {

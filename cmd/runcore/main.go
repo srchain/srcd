@@ -20,7 +20,7 @@ func init() {
 	// Initialize the CLI app
 	app.Action = entry
 	app.HideVersion = true
-	app.Copyright = "Copyright 2018 The Shilling Authors"
+	app.Copyright = "Copyright 2018 The SilkRoad Authors"
 	app.Commands = []cli.Command{
 		initCommand,
 	}
