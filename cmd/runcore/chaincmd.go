@@ -53,11 +53,11 @@ func initGenesis(ctx *cli.Context) error {
 	// Open an initialise databases
 	node := makeNode(ctx)
 
-	chaindb, err := peer.OpenDatabase("chaindata", 0, 0)
+	chaindb, err := node.OpenDatabase("chaindata", 0, 0)
 	if err != nil {
 		utils.Fatalf("Failed to open database: %v", err)
 	}
-	_, hash, err := core.SetupGenesisBlock(chaindb, genesis)
+	_, hash, err := blockchain.SetupGenesisBlock(chaindb, genesis)
 	if err != nil {
 		utils.Fatalf("Failed to write genesis block: %v", err)
 	}

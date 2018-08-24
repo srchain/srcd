@@ -12,7 +12,7 @@ import (
 
 	"srcd/cmd/utils"
 	"srcd/node"
-	"srcd/instance"
+	"srcd/entity"
 
 	"github.com/naoina/toml"
 
@@ -28,7 +28,7 @@ var (
 
 type config struct {
 	Node      node.Config
-	Instance  instance.Config
+	Entity    entity.Config
 	// Dashboard dashboard.Config
 }
 
@@ -51,7 +51,7 @@ func makeConfig(ctx *cli.Context) *config {
 	// Default config.
 	cfg := config{
 		Node:      node.DefaultConfig,
-		Instance:  instance.DefaultConfig,
+		Entity:    entity.DefaultConfig,
 		// Dashboard: dashboard.DefaultConfig,
 	}
 
@@ -64,7 +64,7 @@ func makeConfig(ctx *cli.Context) *config {
 
 	// Apply flags.
 	utils.SetNodeConfig(ctx, &cfg.Node)
-	utils.SetInstanceConfig(ctx, &cfg.Instance)
+	utils.SetEntityConfig(ctx, &cfg.Entity)
 	// utils.SetDashboardConfig(ctx, &cfg.Dashboard)
 
 	return &cfg
