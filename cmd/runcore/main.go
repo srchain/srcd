@@ -7,25 +7,27 @@ import (
 	"runtime/debug"
 	"sort"
 
-	"silkroad/cmd/utils"
-	"silkroad/console"
+	"srcd/cmd/utils"
+	"srcd/console"
+
 	"gopkg.in/urfave/cli.v1"
 )
 
 // The app that holds all commands and flags.
-var app = utils.NewApp("", "the silkroad command line interface")
+var app = utils.NewApp("", "the SilkRoad command line interface")
 
 func init() {
 	// Initialize the CLI app
 	app.Action = entry
 	app.HideVersion = true
-	app.Copyright = "Copyright 2018 The silkroad Authors"
+	app.Copyright = "Copyright 2018 The Shilling Authors"
 	app.Commands = []cli.Command{
+		initCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 
-	app.Flags = append(app.Flags, nodeFlags...)
-	app.Flags = append(app.Flags, rpcFlags...)
+	// app.Flags = append(app.Flags, nodeFlags...)
+	// app.Flags = append(app.Flags, rpcFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
 		// Use all processor cores.

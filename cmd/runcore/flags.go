@@ -1,7 +1,7 @@
 package main
 
 import (
-	"silkroad/cmd/utils"
+	"github.com/srchain/srcd/cmd/utils"
 
 	"gopkg.in/urfave/cli.v1"
 )
