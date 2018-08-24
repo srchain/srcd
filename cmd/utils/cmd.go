@@ -5,8 +5,6 @@ import (
 	"io"
 	"os"
 	"runtime"
-
-	// "shilling/peer"
 )
 
 // Fatalf formats a message to standard error and exits the program.

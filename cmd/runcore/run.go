@@ -1,9 +1,6 @@
 package main
 
 import (
-	// "shilling/cmd/utils"
-	// "shilling/peer"
-
 	"gopkg.in/urfave/cli.v1"
 )
 
