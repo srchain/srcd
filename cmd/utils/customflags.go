@@ -11,7 +11,8 @@ import (
 	"path"
 	"strings"
 
-	"silkroad/common/math"
+	"srcd/common/math"
+
 	"gopkg.in/urfave/cli.v1"
 )
 
