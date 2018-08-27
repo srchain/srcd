@@ -3,9 +3,10 @@ package srcdb
 import (
 	"io/ioutil"
 	"os"
-
 	"testing"
 	"bytes"
+
+
 )
 
 func newTestLDB() (*LDBDatabase,func()) {
@@ -90,6 +91,36 @@ func testPutGet(db *LDBDatabase, t *testing.T) {
 		}
 		if !bytes.Equal(data, []byte("?")) {
 			t.Fatalf("get returned wrong result, got %q expected ?", string(data))
+		}
+	}
+
+	for _, v := range test_values {
+		orig, err := db.Get([]byte(v))
+		if err != nil {
+			t.Fatalf("get failed: %v",err)
+		}
+		orig[0] = byte(0xff)
+		data, err := db.Get([]byte(v))
+		if err != nil {
+			t.Fatalf("get failed: %v", err)
+		}
+		if !bytes.Equal(data,[]byte("?")) {
+			t.Fatalf("get returned wrong result, got %q expected ?", string(data))
+		}
+
+	}
+
+	for _, v := range test_values {
+		err := db.Delete([]byte(v))
+		if err != nil {
+			t.Fatalf("delete %q failed: %v",v,err)
+		}
+	}
+
+	for _, v := range test_values {
+		_, err := db.Get([]byte(v))
+		if err == nil {
+			t.Fatalf("got deleted value %q",v)
 		}
 	}
 
