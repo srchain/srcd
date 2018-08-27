@@ -4,7 +4,7 @@ import (
 
 )
 
-// Peer is a container on which services can be registered.
+// Node is a container on which services can be registered.
 type Node struct {
 	eventmux *event.TypeMux 		// Event multiplexer used between the services of a stack
 	config   *Config

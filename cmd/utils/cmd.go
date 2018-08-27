@@ -27,22 +27,22 @@ func Fatalf(format string, args ...interface{}) {
 	os.Exit(1)
 }
 
-// func StartPeer(node *peer.Peer) {
-	// if err := peer.Start(); err != nil {
-		// Fatalf("Error starting protocol peer: %v", err)
-	// }
-	// go func() {
-		// sigc := make(chan os.Signal, 1)
-		// signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
-		// defer signal.Stop(sigc)
-		// <-sigc
-		// log.Info("Got interrupt, shutting down...")
-		// go peer.Stop()
-		// for i := 10; i > 0; i-- {
-			// <-sigc
-			// if i > 1 {
-				// log.Warn("Already shutting down, interrupt more to panic.", "times", i-1)
-			// }
-		// }
-	// }()
-// }
+func StartNode(node *node.Node) {
+	if err := node.Start(); err != nil {
+		Fatalf("Error starting protocol node: %v", err)
+	}
+	go func() {
+		sigc := make(chan os.Signal, 1)
+		signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
+		defer signal.Stop(sigc)
+		<-sigc
+		log.Info("Got interrupt, shutting down...")
+		go node.Stop()
+		for i := 10; i > 0; i-- {
+			<-sigc
+			if i > 1 {
+				log.Warn("Already shutting down, interrupt more to panic.", "times", i-1)
+			}
+		}
+	}()
+}
