@@ -1,21 +1,21 @@
-package srcdb
+package srcdb_test
 
 import (
 	"io/ioutil"
 	"os"
 	"testing"
 	"bytes"
-
-
+	srcdb "github.com/srchain/srcd/database"
 )
 
-func newTestLDB() (*LDBDatabase,func()) {
+func newTestLDB() (*srcdb.LDBDatabase,func()) {
 	dirname, err := ioutil.TempDir(os.TempDir(),"ethdb_test_")
 	if err != nil {
 		panic("failed to create test file" + err.Error())
 	}
 
-	db, err := NewLDBDatabase(dirname,0,0)
+
+	db, err := srcdb.NewLDBDatabase(dirname,0,0)
 	if err != nil {
 		panic("failed to create test database" + err.Error())
 	}
@@ -34,7 +34,7 @@ func TestLDB_PutGet(t *testing.T) {
 
 var test_values = []string{"","a","1251","\x00123\x00"}
 
-func testPutGet(db *LDBDatabase, t *testing.T) {
+func testPutGet(db *srcdb.LDBDatabase, t *testing.T) {
 	t.Parallel()
 
 
