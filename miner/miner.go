@@ -7,7 +7,7 @@ import (
 // Backend wraps all methods required for mining.
 type Backend interface {
 	AccountManager() *accounts.Manager
-	BlockChain() *core.BlockChain
+	BlockChain() *blockchain.BlockChain
 	TxPool() *core.TxPool
 	ChainDb() ethdb.Database
 }
@@ -20,16 +20,16 @@ type Miner struct {
 
 	coinbase common.Address
 	mining   int32
-	node     Backend
+	server   Backend
 	engine   consensus.Engine
 
 	canStart    int32 // can start indicates whether we can start the mining operation
 	shouldStart int32 // should start indicates whether we should start after sync
 }
 
-func New(node Backend, config *params.ChainConfig, mux *event.TypeMux, engine consensus.Engine) *Miner {
+func New(server Backend, config *params.ChainConfig, mux *event.TypeMux, engine consensus.Engine) *Miner {
 	miner := &Miner{
-		node:     node,
+		server:   server,
 		mux:      mux,
 		engine:   engine,
 		worker:   newWorker(config, engine, common.Address{}, eth, mux),
