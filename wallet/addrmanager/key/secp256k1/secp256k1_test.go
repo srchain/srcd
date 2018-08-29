@@ -20,6 +20,6 @@ func TestPublicKey_Toddress(t *testing.T) {
 	if err != nil {
 		log.Fatalf("Generating keypair: %s\n", err)
 	}
-	address := priv.Toddress()
+	address := priv.Toaddress()
 	fmt.Println(address)
 }

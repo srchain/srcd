@@ -5,16 +5,11 @@ import (
 	"fmt"
 	"math/big"
 	"srcd/wallet/addrmanager/key/elliptic"
-	"crypto/sha256"
-	"golang.org/x/crypto/ripemd160"
-	"srcd/wallet/addrmanager/key/base58"
 )
 
 var secp256k1 elliptic.EllipticCurve
 
 func init() {
-	/* See Certicom's SEC2 2.7.1, pg.15 */
-	/* secp256k1 elliptic curve parameters */
 	secp256k1.P, _ = new(big.Int).SetString("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F", 16)
 	secp256k1.A, _ = new(big.Int).SetString("0000000000000000000000000000000000000000000000000000000000000000", 16)
 	secp256k1.B, _ = new(big.Int).SetString("0000000000000000000000000000000000000000000000000000000000000007", 16)
@@ -25,11 +20,7 @@ func init() {
 }
 
 //GenerateKey generates an ECDSA secp256k1 keypair
-func GenerateKey(rand io.Reader) (priv PrivateKey, err error) {
-	/* See Certicom's SEC1 3.2.1, pg.23 */
-	/* See NSA's Suite B Implementer’s Guide to FIPS 186-3 (ECDSA) A.1.1, pg.18 */
-
-	/* Select private key d randomly from [1, n) */
+func GenerateKey(rand io.Reader) (priv PrivateKey,err error) {
 
 	/* Read N bit length random bytes + 64 extra bits  */
 	b := make([]byte, secp256k1.N.BitLen()/8+8)
@@ -50,12 +41,12 @@ func GenerateKey(rand io.Reader) (priv PrivateKey, err error) {
 	/* Derive public key from private key */
 	priv.derive()
 
-	return priv, nil
+	return priv, err
 }
 
-// derive derives a Bitcoin public key from a Bitcoin private key.
+
+// derive derives a Src public key from a Src private key.
 func (priv *PrivateKey) derive() (pub *PublicKey) {
-	/* See Certicom's SEC1 3.2.1, pg.23 */
 
 	/* Derive public key from Q = d*G */
 	Q := secp256k1.ScalarBaseMult(priv.D)
@@ -73,24 +64,24 @@ func (priv *PrivateKey) derive() (pub *PublicKey) {
 
 
 // ToAddress converts a SRC public key to a compressed SRC address string.
-func (pub *PublicKey) Toddress() (address string) {
-
-	/* Convert the public key to bytes */
-	pub_bytes := pub.ToBytes()
-
-	/* SHA256 Hash */
-	sha256_h := sha256.New()
-	sha256_h.Reset()
-	sha256_h.Write(pub_bytes)
-	pub_hash_1 := sha256_h.Sum(nil)
-
-	/* RIPEMD-160 Hash */
-	ripemd160_h := ripemd160.New()
-	ripemd160_h.Reset()
-	ripemd160_h.Write(pub_hash_1)
-	pub_hash_2 := ripemd160_h.Sum(nil)
-
-	/* Convert hash bytes to base58 check encoded sequence */
-	address = base58.B58checkencode(0x00, pub_hash_2)
-	return address
-}
+//func (w *wallet.Wallet) Toaddress() (address string) {
+//
+//	/* Convert the public key to bytes */
+//	pub_bytes := pub.ToBytes()
+//
+//	/* SHA256 Hash */
+//	sha256_h := sha256.New()
+//	sha256_h.Reset()
+//	sha256_h.Write(pub_bytes)
+//	pub_hash_1 := sha256_h.Sum(nil)
+//
+//	/* RIPEMD-160 Hash */
+//	ripemd160_h := ripemd160.New()
+//	ripemd160_h.Reset()
+//	ripemd160_h.Write(pub_hash_1)
+//	pub_hash_2 := ripemd160_h.Sum(nil)
+//
+//	/* Convert hash bytes to base58 check encoded sequence */
+//	address = base58.B58checkencode(0x00, pub_hash_2)
+//	return address
+//}
