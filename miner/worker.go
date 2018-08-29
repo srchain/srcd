@@ -113,6 +113,46 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, coinbase com
 	return worker
 }
 
+func (self *worker) start() {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
+	atomic.StoreInt32(&self.mining, 1)
+
+	// spin up agents
+	for agent := range self.agents {
+		agent.Start()
+	}
+}
+
+func (self *worker) stop() {
+	self.wg.Wait()
+
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	if atomic.LoadInt32(&self.mining) == 1 {
+		for agent := range self.agents {
+			agent.Stop()
+		}
+	}
+	atomic.StoreInt32(&self.mining, 0)
+	atomic.StoreInt32(&self.atWork, 0)
+}
+
+func (self *worker) register(agent Agent) {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	self.agents[agent] = struct{}{}
+	agent.SetReturnCh(self.recv)
+}
+
+func (self *worker) unregister(agent Agent) {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	delete(self.agents, agent)
+	agent.Stop()
+}
+
 func (self *worker) update() {
 	defer self.txsSub.Unsubscribe()
 	defer self.chainHeadSub.Unsubscribe()

@@ -56,7 +56,60 @@ func (self *Miner) Start(coinbase common.Address) {
 	self.worker.commitNewWork()
 }
 
+func (self *Miner) Stop() {
+	self.worker.stop()
+	atomic.StoreInt32(&self.mining, 0)
+	atomic.StoreInt32(&self.shouldStart, 0)
+}
+
+func (self *Miner) Register(agent Agent) {
+	if self.Mining() {
+		agent.Start()
+	}
+	self.worker.register(agent)
+}
+
+func (self *Miner) Unregister(agent Agent) {
+	self.worker.unregister(agent)
+}
+
+func (self *Miner) Mining() bool {
+	return atomic.LoadInt32(&self.mining) > 0
+}
+
 func (self *Miner) SetCoinbase(addr common.Address) {
 	self.coinbase = addr
 	self.worker.setCoinbase(addr)
+}
+
+// update keeps track of the downloader events. Please be aware that this is a one shot type of update loop.
+// It's entered once and as soon as `Done` or `Failed` has been broadcasted the events are unregistered and
+// the loop is exited. This to prevent a major security vuln where external parties can DOS you with blocks
+// and halt your mining operation for as long as the DOS continues.
+func (self *Miner) update() {
+	events := self.mux.Subscribe(downloader.StartEvent{}, downloader.DoneEvent{}, downloader.FailedEvent{})
+out:
+	for ev := range events.Chan() {
+		switch ev.Data.(type) {
+		case downloader.StartEvent:
+			atomic.StoreInt32(&self.canStart, 0)
+			if self.Mining() {
+				self.Stop()
+				atomic.StoreInt32(&self.shouldStart, 1)
+				log.Info("Mining aborted due to sync")
+			}
+		case downloader.DoneEvent, downloader.FailedEvent:
+			shouldStart := atomic.LoadInt32(&self.shouldStart) == 1
+
+			atomic.StoreInt32(&self.canStart, 1)
+			atomic.StoreInt32(&self.shouldStart, 0)
+			if shouldStart {
+				self.Start(self.coinbase)
+			}
+			// unsubscribe. we're only interested in this event once
+			events.Unsubscribe()
+			// stop immediately and ignore all further pending events
+			break out
+		}
+	}
 }
