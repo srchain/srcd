@@ -56,3 +56,47 @@ type TxPool struct {
 
 	homestead bool
 }
+
+// NewTxPool creates a new transaction pool to gather, sort and filter inbound
+// transactions from the network.
+func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain blockChain) *TxPool {
+	// Sanitize the input to ensure no vulnerable gas prices are set
+	config = (&config).sanitize()
+
+	// Create the transaction pool with its initial settings
+	pool := &TxPool{
+		config:      config,
+		chainconfig: chainconfig,
+		chain:       chain,
+		signer:      types.NewEIP155Signer(chainconfig.ChainID),
+		pending:     make(map[common.Address]*txList),
+		queue:       make(map[common.Address]*txList),
+		beats:       make(map[common.Address]time.Time),
+		all:         newTxLookup(),
+		chainHeadCh: make(chan ChainHeadEvent, chainHeadChanSize),
+		gasPrice:    new(big.Int).SetUint64(config.PriceLimit),
+	}
+	pool.locals = newAccountSet(pool.signer)
+	pool.priced = newTxPricedList(pool.all)
+	pool.reset(nil, chain.CurrentBlock().Header())
+
+	// If local transactions and journaling is enabled, load from disk
+	if !config.NoLocals && config.Journal != "" {
+		pool.journal = newTxJournal(config.Journal)
+
+		if err := pool.journal.load(pool.AddLocals); err != nil {
+			log.Warn("Failed to load transaction journal", "err", err)
+		}
+		if err := pool.journal.rotate(pool.local()); err != nil {
+			log.Warn("Failed to rotate transaction journal", "err", err)
+		}
+	}
+	// Subscribe events from blockchain
+	pool.chainHeadSub = pool.chain.SubscribeChainHeadEvent(pool.chainHeadCh)
+
+	// Start the event loop and return
+	pool.wg.Add(1)
+	go pool.loop()
+
+	return pool
+}
