@@ -25,10 +25,10 @@ func startNode(ctx *cli.Context, node *node.Node) {
 
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
-		var entity *entity.Entity
+		var server *server.Server
 
 		// Start mining
-		if err := entity.StartMining(true); err != nil {
+		if err := server.StartMining(true); err != nil {
 			utils.Fatalf("Failed to start mining: %v", err)
 		}
 	}
