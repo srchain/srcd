@@ -4,6 +4,39 @@ import (
 
 )
 
+// DefaultConfig contains default settings for use on main net.
+var DefaultConfig = Config{
+	// SyncMode: downloader.FastSync,
+	Pow: pow.Config{
+		CacheDir:       "pow",
+		CachesInMem:    2,
+		CachesOnDisk:   3,
+		DatasetsInMem:  1,
+		DatasetsOnDisk: 2,
+	},
+	// NetworkId:     1,
+	// LightPeers:    100,
+	DatabaseCache: 768,
+	// TrieCache:     256,
+	// TrieTimeout:   60 * time.Minute,
+
+	TxPool: core.DefaultTxPoolConfig,
+}
+
+func init() {
+	home := os.Getenv("HOME")
+	if home == "" {
+		if user, err := user.Current(); err == nil {
+			home = user.HomeDir
+		}
+	}
+	if runtime.GOOS == "windows" {
+		DefaultConfig.Pow.DatasetDir = filepath.Join(home, "AppData", "Pow")
+	} else {
+		DefaultConfig.Pow.DatasetDir = filepath.Join(home, ".pow")
+	}
+}
+
 type Config struct {
 	// The genesis block, which is inserted if the database is empty.
 	// If nil, main net block is used.

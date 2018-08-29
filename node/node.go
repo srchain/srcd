@@ -6,18 +6,18 @@ import (
 
 // Node is a container on which services can be registered.
 type Node struct {
-	eventmux *event.TypeMux 		// Event multiplexer used between the services of a stack
+	eventmux *event.TypeMux		// Event multiplexer used between the services of a stack
 	config   *Config
 	accman   *accounts.Manager
 
-	ephemeralKeystore string         	// if non-empty, the key directory that will be removed by Stop
-	instanceDirLock   flock.Releaser 	// prevents concurrent use of instance directory
+	ephemeralKeystore string	// if non-empty, the key directory that will be removed by Stop
+	instanceDirLock   flock.Releaser	// prevents concurrent use of instance directory
 
-	serverConfig p2p.Config
-	server       *p2p.Server 		// Currently running P2P networking layer
+	// serverConfig p2p.Config
+	// server       *p2p.Server		// Currently running P2P networking layer
 
-	// serviceFuncs []ServiceConstructor     	// Service constructors (in dependency order)
-	// services     map[reflect.Type]Service 	// Currently running services
+	serviceFuncs []ServiceConstructor	// Service constructors (in dependency order)
+	services     map[reflect.Type]Service	// Currently running services
 
 	// rpcAPIs       []rpc.API   // List of APIs currently provided by the node
 	// inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
@@ -39,6 +39,48 @@ type Node struct {
 	lock sync.RWMutex
 
 	// log log.Logger
+}
+
+// New creates a new P2P node, ready for protocol registration.
+func New(conf *Config) (*Node, error) {
+	// Copy config and resolve the datadir so future changes to the current
+	// working directory don't affect the node.
+	confCopy := *conf
+	conf = &confCopy
+	if conf.DataDir != "" {
+		absdatadir, err := filepath.Abs(conf.DataDir)
+		if err != nil {
+			return nil, err
+		}
+		conf.DataDir = absdatadir
+	}
+	// Ensure that the instance name doesn't cause weird conflicts with
+	// other files in the data directory.
+	if strings.ContainsAny(conf.Name, `/\`) {
+		return nil, errors.New(`Config.Name must not contain '/' or '\'`)
+	}
+	if conf.Name == datadirDefaultKeyStore {
+		return nil, errors.New(`Config.Name cannot be "` + datadirDefaultKeyStore + `"`)
+	}
+	if strings.HasSuffix(conf.Name, ".ipc") {
+		return nil, errors.New(`Config.Name cannot end in ".ipc"`)
+	}
+	// Ensure that the AccountManager method works before the node has started.
+	am, ephemeralKeystore, err := makeAccountManager(conf)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Node{
+		accman:            am,
+		ephemeralKeystore: ephemeralKeystore,
+		config:            conf,
+		serviceFuncs:      []ServiceConstructor{},
+		// ipcEndpoint:       conf.IPCEndpoint(),
+		// httpEndpoint:      conf.HTTPEndpoint(),
+		// wsEndpoint:        conf.WSEndpoint(),
+		eventmux:          new(event.TypeMux),
+	}, nil
 }
 
 // Start create a live P2P node and starts running it.

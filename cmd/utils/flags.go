@@ -59,11 +59,19 @@ var (
 	DataDirFlag = DirectoryFlag{
 		Name:  "datadir",
 		Usage: "Data directory for the databases and keystore",
-		Value: DirectoryString{"~/.gosr/data"},
+		Value: DirectoryString{node.DefaultDataDir()},
+	}
+	KeyStoreDirFlag = DirectoryFlag{
+		Name:  "keystore",
+		Usage: "Directory for the keystore (default = inside the datadir)",
 	}
 	IdentityFlag = cli.StringFlag{
 		Name:  "identity",
 		Usage: "Custom node name",
+	}
+	TestnetFlag = cli.BoolFlag{
+		Name:  "testnet",
+		Usage: "Ropsten network: pre-configured proof-of-work test network",
 	}
 
 	// RPC settings
@@ -83,35 +91,25 @@ var (
 	// }
 )
 
-// // SetPeerConfig applies peer-related command line flags to the config.
-// func SetPeerConfig(ctx *cli.Context, cfg *node.Config) {
-	// // SetP2PConfig(ctx, &cfg.P2P)
-	// // setIPC(ctx, cfg)
-	// // setHTTP(ctx, cfg)
-	// // setWS(ctx, cfg)
-	// // setNodeUserIdent(ctx, cfg)
+// SetNodeConfig applies peer-related command line flags to the config.
+func SetNodeConfig(ctx *cli.context, cfg *node.config) {
+	// setp2pconfig(ctx, &cfg.p2p)
+	// setipc(ctx, cfg)
+	// sethttp(ctx, cfg)
+	// setws(ctx, cfg)
+	// setnodeuserident(ctx, cfg)
 
-	// switch {
-	// case ctx.GlobalIsSet(DataDirFlag.Name):
-		// cfg.DataDir = ctx.GlobalString(DataDirFlag.Name)
-	// case ctx.GlobalBool(DeveloperFlag.Name):
-		// cfg.DataDir = "" // unless explicitly requested, use memory databases
-	// case ctx.GlobalBool(TestnetFlag.Name):
-		// cfg.DataDir = filepath.Join(node.DefaultDataDir(), "testnet")
-	// case ctx.GlobalBool(RinkebyFlag.Name):
-		// cfg.DataDir = filepath.Join(node.DefaultDataDir(), "rinkeby")
-	// }
+	switch {
+	case ctx.GlobalIsSet(DataDirFlag.Name):
+		cfg.DataDir = ctx.GlobalString(DataDirFlag.Name)
+	case ctx.GlobalBool(TestnetFlag.Name):
+		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "testnet")
+	}
 
-	// if ctx.GlobalIsSet(KeyStoreDirFlag.Name) {
-		// cfg.KeyStoreDir = ctx.GlobalString(KeyStoreDirFlag.Name)
-	// }
-	// if ctx.GlobalIsSet(LightKDFFlag.Name) {
-		// cfg.UseLightweightKDF = ctx.GlobalBool(LightKDFFlag.Name)
-	// }
-	// if ctx.GlobalIsSet(NoUSBFlag.Name) {
-		// cfg.NoUSB = ctx.GlobalBool(NoUSBFlag.Name)
-	// }
-// }
+	if ctx.GlobalIsSet(KeyStoreDirFlag.Name) {
+		cfg.KeyStoreDir = ctx.GlobalString(KeyStoreDirFlag.Name)
+	}
+}
 
 // // SetNodeConfig applies node-related command line flags to the config.
 // func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {

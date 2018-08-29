@@ -27,9 +27,8 @@ var (
 )
 
 type config struct {
+	Server    server.Config
 	Node      node.Config
-	Entity    entity.Config
-	// Dashboard dashboard.Config
 }
 
 func loadConfig(file string, cfg *config) error {
@@ -47,12 +46,19 @@ func loadConfig(file string, cfg *config) error {
 	return err
 }
 
+func defaultNodeConfig() node.Config {
+	cfg := node.DefaultConfig
+	cfg.Name = "srcd"
+	cfg.Version = params.Version
+
+	return cfg
+}
+
 func makeConfig(ctx *cli.Context) *config {
 	// Default config.
 	cfg := config{
-		Node:      node.DefaultConfig,
-		Entity:    entity.DefaultConfig,
-		// Dashboard: dashboard.DefaultConfig,
+		Server:    server.DefaultConfig,
+		Node:      defaultNodeConfig,
 	}
 
 	// Load config file.
@@ -63,9 +69,8 @@ func makeConfig(ctx *cli.Context) *config {
 	}
 
 	// Apply flags.
+	// utils.SetServerConfig(ctx, &cfg.Server)
 	utils.SetNodeConfig(ctx, &cfg.Node)
-	utils.SetEntityConfig(ctx, &cfg.Entity)
-	// utils.SetDashboardConfig(ctx, &cfg.Dashboard)
 
 	return &cfg
 }
