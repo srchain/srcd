@@ -77,6 +77,14 @@ func (self *Miner) Mining() bool {
 	return atomic.LoadInt32(&self.mining) > 0
 }
 
+func (self *Miner) SetExtra(extra []byte) error {
+	if uint64(len(extra)) > params.MaximumExtraDataSize {
+		return fmt.Errorf("Extra exceeds max length. %d > %v", len(extra), params.MaximumExtraDataSize)
+	}
+	self.worker.setExtra(extra)
+	return nil
+}
+
 func (self *Miner) SetCoinbase(addr common.Address) {
 	self.coinbase = addr
 	self.worker.setCoinbase(addr)

@@ -113,6 +113,18 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, coinbase com
 	return worker
 }
 
+func (self *worker) setCoinbase(addr common.Address) {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	self.coinbase = addr
+}
+
+func (self *worker) setExtra(extra []byte) {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	self.extra = extra
+}
+
 func (self *worker) start() {
 	self.mu.Lock()
 	defer self.mu.Unlock()
