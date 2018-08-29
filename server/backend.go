@@ -154,7 +154,7 @@ func CreateConsensusEngine(ctx *node.ServiceContext, config *pow.Config, chainCo
 	return engine
 }
 
-func (s *Entity) Coinbase() (cb common.Address, err error) {
+func (s *Server) Coinbase() (cb common.Address, err error) {
 	s.lock.RLock()
 	coinbase := s.coinbase
 	s.lock.RUnlock()
@@ -177,7 +177,7 @@ func (s *Entity) Coinbase() (cb common.Address, err error) {
 	return common.Address{}, fmt.Errorf("coinbase must be explicitly specified")
 }
 
-func (s *Entity) StartMining(local bool) error {
+func (s *Server) StartMining(local bool) error {
 	cb, err := s.Coinbase()
 	if err != nil {
 		log.Error("Cannot start mining without coinbase", "err", err)
@@ -195,4 +195,6 @@ func (s *Entity) StartMining(local bool) error {
 	return nil
 }
 
-func (s *Node) Engine() consensus.Engine           { return s.engine }
+
+func (s *Server) BlockChain() *blockchain.BlockChain	{ return s.blockchain }
+func (s *Server) Engine() consensus.Engine		{ return s.engine }
