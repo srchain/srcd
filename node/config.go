@@ -115,6 +115,26 @@ type Config struct {
 	// Logger log.Logger `toml:",omitempty"`
 }
 
+func (c *Config) name() string {
+	if c.Name == "" {
+		progname := strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
+		if progname == "" {
+			panic("empty executable name, set Config.Name")
+		}
+		return progname
+	}
+	return c.Name
+}
+
+// These resources are resolved differently.
+var isOldGethResource = map[string]bool{
+	"chaindata":          true,
+	// "nodes":              true,
+	// "nodekey":            true,
+	// "static-nodes.json":  true,
+	// "trusted-nodes.json": true,
+}
+
 // resolvePath resolves path in the instance directory.
 func (c *Config) resolvePath(path string) string {
 	if filepath.IsAbs(path) {
@@ -123,11 +143,10 @@ func (c *Config) resolvePath(path string) string {
 	if c.DataDir == "" {
 		return ""
 	}
-	// Backwards-compatibility: ensure that data directory files created
-	// by geth 1.4 are used if they exist.
-	if c.name() == "geth" && isOldGethResource[path] {
+
+	if c.name() == "srcd" && isOldGethResource[path] {
 		oldpath := ""
-		if c.Name == "geth" {
+		if c.Name == "srcd" {
 			oldpath = filepath.Join(c.DataDir, path)
 		}
 		if oldpath != "" && common.FileExist(oldpath) {
@@ -136,6 +155,13 @@ func (c *Config) resolvePath(path string) string {
 		}
 	}
 	return filepath.Join(c.instanceDir(), path)
+}
+
+func (c *Config) instanceDir() string {
+	if c.DataDir == "" {
+		return ""
+	}
+	return filepath.Join(c.DataDir, c.name())
 }
 
 func makeWalletManager() *Wallet {
