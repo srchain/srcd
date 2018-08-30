@@ -69,16 +69,21 @@ func makeConfig(ctx *cli.Context) *config {
 	}
 
 	// Apply flags.
-	// utils.SetServerConfig(ctx, &cfg.Server)
 	utils.SetNodeConfig(ctx, &cfg.Node)
+	node, err := node.New(&cfg.Node)
+	if err != nil {
+		utils.Fatalf("Failed to create the protocol node: %v", err)
+	}
 
-	return &cfg
+	utils.SetServerConfig(ctx, node, &cfg.Server)
+
+	return node, cfg
 }
 
 func makeNode(ctx *cli.Context) *node.Node {
-	cfg := makeConfig(ctx)
+	node, cfg := makeConfigNode(ctx)
 
-	node := node.New(&cfg.Node)
+	utils.RegisterService(node, &cfg.Server)
 
 	return node
 }

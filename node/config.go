@@ -137,3 +137,9 @@ func (c *Config) resolvePath(path string) string {
 	}
 	return filepath.Join(c.instanceDir(), path)
 }
+
+func makeWalletManager() *Wallet {
+	wallet := NewWallet()
+
+	return wallet
+}

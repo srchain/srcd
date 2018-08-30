@@ -8,7 +8,8 @@ import (
 type Node struct {
 	eventmux *event.TypeMux		// Event multiplexer used between the services of a stack
 	config   *Config
-	accman   *accounts.Manager
+	// accman   *accounts.Manager
+	wallet  *Wallet
 
 	ephemeralKeystore string	// if non-empty, the key directory that will be removed by Stop
 	instanceDirLock   flock.Releaser	// prevents concurrent use of instance directory
@@ -66,14 +67,17 @@ func New(conf *Config) (*Node, error) {
 		return nil, errors.New(`Config.Name cannot end in ".ipc"`)
 	}
 	// Ensure that the AccountManager method works before the node has started.
-	am, ephemeralKeystore, err := makeAccountManager(conf)
-	if err != nil {
-		return nil, err
-	}
+	// am, ephemeralKeystore, err := makeAccountManager(conf)
+	// if err != nil {
+		// return nil, err
+	// }
+
+	wallet := makeWalletManager()
 
 	return &Node{
-		accman:            am,
-		ephemeralKeystore: ephemeralKeystore,
+		// accman:            am,
+		// ephemeralKeystore: ephemeralKeystore,
+		wallet:		wallet,
 		config:            conf,
 		serviceFuncs:      []ServiceConstructor{},
 		// ipcEndpoint:       conf.IPCEndpoint(),
@@ -81,6 +85,20 @@ func New(conf *Config) (*Node, error) {
 		// wsEndpoint:        conf.WSEndpoint(),
 		eventmux:          new(event.TypeMux),
 	}, nil
+}
+
+// Register injects a new service into the node's stack. The service created by
+// the passed constructor must be unique in its type with regard to sibling ones.
+func (n *Node) Register(constructor ServiceConstructor) error {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	// if n.server != nil {
+		// return ErrNodeRunning
+	// }
+
+	n.serviceFuncs = append(n.serviceFuncs, constructor)
+	return nil
 }
 
 // Start create a live P2P node and starts running it.
