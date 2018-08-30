@@ -5,13 +5,13 @@ import (
 )
 
 type ProtocolManager struct {
-	networkID uint64
+	// networkID uint64
 
 	fastSync  uint32 // Flag whether fast sync is enabled (gets disabled if we already have blocks)
 	acceptTxs uint32 // Flag whether we're considered synchronised (enables transaction processing)
 
 	txpool      txPool
-	blockchain  *core.BlockChain
+	blockchain  *blockchain.BlockChain
 	chainconfig *params.ChainConfig
 	maxPeers    int
 
@@ -56,7 +56,8 @@ type Server struct {
 
 	eventMux       *event.TypeMux
 	engine         consensus.Engine
-	accountManager *accounts.Manager
+	// accountManager *accounts.Manager
+	wallet		*wallet.Wallet
 
 	// bloomRequests chan chan *bloombits.Retrieval // Channel receiving bloom data retrieval requests
 	// bloomIndexer  *core.ChainIndexer             // Bloom indexer operating during block imports
@@ -89,7 +90,8 @@ func New(ctx *node.ServiceContext, config *Config) (*Entity, error) {
 		chainDb:        chainDb,
 		chainConfig:    chainConfig,
 		eventMux:       ctx.EventMux,
-		accountManager: ctx.AccountManager,
+		// accountManager: ctx.AccountManager,
+		wallet:		ctx.Wallet,
 		engine:         CreateConsensusEngine(ctx, &config.Pow, chainConfig, chainDb),
 		shutdownChan:   make(chan bool),
 		coinbase:       config.Coinbase,

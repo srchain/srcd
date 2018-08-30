@@ -87,15 +87,15 @@ var (
 	}
 )
 
-// setCoinbase retrieves the coinbase either from the directly specified
+// setCoinbase retrieves the etherbase either from the directly specified
 // command line flags or from the keystore if CLI indexed.
-func setCoinbase(ctx *cli.Context, ks *keystore.KeyStore, cfg *eth.Config) {
+func setCoinbase(ctx *cli.Context, wallet *Wallet, cfg *eth.Config) {
 	if ctx.GlobalIsSet(CoinbaseFlag.Name) {
-		account, err := MakeAddress(ks, ctx.GlobalString(CoinbaseFlag.Name))
-		if err != nil {
-			Fatalf("Option %q: %v", CoinbaseFlag.Name, err)
-		}
-		cfg.Coinbase = account.Address
+		// account, err := MakeAddress(ks, ctx.GlobalString(EtherbaseFlag.Name))
+		// if err != nil {
+			// Fatalf("Option %q: %v", EtherbaseFlag.Name, err)
+		// }
+		cfg.Coinbase = wallet.GetAddress()
 	}
 }
 
@@ -115,8 +115,9 @@ func SetNodeConfig(ctx *cli.context, cfg *node.config) {
 
 // SetServerConfig applies server-related command line flags to the config.
 func SetServerConfig(ctx *cli.Context, node *node.Node, cfg *server.Config) {
-	ks := node.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
-	setCoinbase(ctx, ks, cfg)
+	// ks := node.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
+	wallet := node.wallet
+	setCoinbase(ctx, wallet, cfg)
 
 	if ctx.GlobalIsSet(MinerThreadsFlag.Name) {
 		cfg.MinerThreads = ctx.GlobalInt(MinerThreadsFlag.Name)
