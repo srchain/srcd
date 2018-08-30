@@ -14,12 +14,3 @@ func TestGenerateKey(t *testing.T) {
 	}
 	fmt.Println(priv)
 }
-
-func TestPublicKey_Toddress(t *testing.T) {
-	priv, err := GenerateKey(rand.Reader)
-	if err != nil {
-		log.Fatalf("Generating keypair: %s\n", err)
-	}
-	address := priv.Toaddress()
-	fmt.Println(address)
-}
