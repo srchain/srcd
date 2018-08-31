@@ -89,13 +89,96 @@ func SetupGenesisBlock(db db.Database, genesis *Genesis) (*params.ChainConfig, m
 	return newcfg, stored, nil
 }
 
+func (g *Genesis) configOrDefault(ghash common.Hash) *params.ChainConfig {
+	switch {
+	case g != nil:
+		return g.Config
+	case ghash == params.MainnetGenesisHash:
+		return params.MainnetChainConfig
+	case ghash == params.TestnetGenesisHash:
+		return params.TestnetChainConfig
+	default:
+		return params.AllEthashProtocolChanges
+	}
+}
+
+// ToBlock creates the genesis block and writes state of a genesis specification
+// to the given database (or discards it if nil).
+func (g *Genesis) ToBlock(db db.Database) *types.Block {
+	if db == nil {
+		db = db.NewMemDatabase()
+	}
+	statedb, _ := state.New(misc.Hash{}, state.NewDatabase(db))
+	for addr, account := range g.Alloc {
+		statedb.AddBalance(addr, account.Balance)
+		statedb.SetCode(addr, account.Code)
+		statedb.SetNonce(addr, account.Nonce)
+		for key, value := range account.Storage {
+			statedb.SetState(addr, key, value)
+		}
+	}
+	root := statedb.IntermediateRoot(false)
+	head := &types.Header{
+		Number:     new(big.Int).SetUint64(g.Number),
+		Nonce:      types.EncodeNonce(g.Nonce),
+		Time:       new(big.Int).SetUint64(g.Timestamp),
+		ParentHash: g.ParentHash,
+		Extra:      g.ExtraData,
+		Difficulty: g.Difficulty,
+		MixDigest:  g.Mixhash,
+		Coinbase:   g.Coinbase,
+		Root:       root,
+	}
+	if g.Difficulty == nil {
+		head.Difficulty = params.GenesisDifficulty
+	}
+	statedb.Commit(false)
+	statedb.Database().TrieDB().Commit(root, true)
+
+	return types.NewBlock(head, nil, nil, nil)
+}
+
+// Commit writes the block and state of a genesis specification to the database.
+// The block is committed as the canonical head block.
+func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
+	block := g.ToBlock(db)
+	if block.Number().Sign() != 0 {
+		return nil, fmt.Errorf("can't commit genesis block with number > 0")
+	}
+	rawdb.WriteTd(db, block.Hash(), block.NumberU64(), g.Difficulty)
+	rawdb.WriteBlock(db, block)
+	rawdb.WriteReceipts(db, block.Hash(), block.NumberU64(), nil)
+	rawdb.WriteCanonicalHash(db, block.Hash(), block.NumberU64())
+	rawdb.WriteHeadBlockHash(db, block.Hash())
+	rawdb.WriteHeadHeaderHash(db, block.Hash())
+
+	config := g.Config
+	if config == nil {
+		config = params.AllEthashProtocolChanges
+	}
+	rawdb.WriteChainConfig(db, block.Hash(), config)
+	return block, nil
+}
+
 // DefaultGenesisBlock returns the Ethereum main net genesis block.
 func DefaultGenesisBlock() *Genesis {
 	return &Genesis{
 		Config:     params.MainnetChainConfig,
 		Nonce:      6,
-		ExtraData:  hexutil.MustDecode("0x11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa"),
-		Difficulty: big.NewInt(17179869184),
+		ExtraData:  hexutil.MustDecode("0x3535353535353535353535353535353535353535353535353535353535353535"),
+		Difficulty: big.NewInt(1048576),
 		Alloc:      decodePrealloc(mainnetAllocData),
 	}
+}
+
+func decodePrealloc(data string) GenesisAlloc {
+	var p []struct{ Addr, Balance *big.Int }
+	if err := rlp.NewStream(strings.NewReader(data), 0).Decode(&p); err != nil {
+		panic(err)
+	}
+	ga := make(GenesisAlloc, len(p))
+	for _, account := range p {
+		ga[misc.BigToAddress(account.Addr)] = GenesisAccount{Balance: account.Balance}
+	}
+	return ga
 }
