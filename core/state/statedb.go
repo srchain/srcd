@@ -52,3 +52,15 @@ func New(root common.Hash, db Database) (*StateDB, error) {
 		stateObjectsDirty: make(map[common.Address]struct{}),
 	}, nil
 }
+
+// NewDatabase creates a backing store for state. The returned database is safe for
+// concurrent use and retains cached trie nodes in memory. The pool is an optional
+// intermediate trie-node memory pool between the low level storage layer and the
+// high level trie abstraction.
+func NewDatabase(db db.Database) Database {
+	csc, _ := lru.New(codeSizeCacheSize)
+	return &cachingDB{
+		db:            trie.NewDatabase(db),
+		codeSizeCache: csc,
+	}
+}
