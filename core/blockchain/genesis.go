@@ -108,16 +108,11 @@ func (g *Genesis) ToBlock(db db.Database) *types.Block {
 	if db == nil {
 		db = db.NewMemDatabase()
 	}
-	statedb, _ := state.New(misc.Hash{}, state.NewDatabase(db))
-	for addr, account := range g.Alloc {
-		statedb.AddBalance(addr, account.Balance)
-		statedb.SetCode(addr, account.Code)
-		statedb.SetNonce(addr, account.Nonce)
-		for key, value := range account.Storage {
-			statedb.SetState(addr, key, value)
-		}
-	}
-	root := statedb.IntermediateRoot(false)
+
+	// trie op ...
+	// root := statedb.IntermediateRoot(false)
+	root := common.Hash{}
+
 	head := &types.Header{
 		Number:     new(big.Int).SetUint64(g.Number),
 		Nonce:      types.EncodeNonce(g.Nonce),
@@ -132,8 +127,10 @@ func (g *Genesis) ToBlock(db db.Database) *types.Block {
 	if g.Difficulty == nil {
 		head.Difficulty = params.GenesisDifficulty
 	}
-	statedb.Commit(false)
-	statedb.Database().TrieDB().Commit(root, true)
+	// statedb.Commit(false)
+	// statedb.Database().TrieDB().Commit(root, true)
+
+	// trie commit op ...
 
 	return types.NewBlock(head, nil, nil, nil)
 }
