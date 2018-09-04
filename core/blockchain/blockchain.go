@@ -5,10 +5,10 @@ import(
 )
 
 type BlockChain struct {
-	chainConfig *params.ChainConfig // Chain & network configuration
+	// chainConfig *params.ChainConfig // Chain & network configuration
 	// cacheConfig *CacheConfig        // Cache configuration for pruning
 
-	db     ethdb.Database // Low level persistent database to store final content in
+	db            db.Database // Low level persistent database to store final content in
 	// triegc *prque.Prque   // Priority queue mapping block numbers to tries to gc
 	// gcproc time.Duration  // Accumulates canonical block processing for trie dumping
 
@@ -52,7 +52,6 @@ type BlockChain struct {
 // available in the database.
 func NewBlockChain(db ethdb.Database, chainConfig *params.ChainConfig, engine consensus.Engine) (*BlockChain, error) {
 	bc := &BlockChain{
-		chainConfig:  chainConfig,
 		db:           db,
 		quit:         make(chan struct{}),
 		engine:       engine,
@@ -61,7 +60,7 @@ func NewBlockChain(db ethdb.Database, chainConfig *params.ChainConfig, engine co
 	bc.SetProcessor(NewStateProcessor(chainConfig, bc, engine))
 
 	var err error
-	bc.hc, err = NewHeaderChain(db, chainConfig, engine, bc.getProcInterrupt)
+	bc.hc, err = NewHeaderChain(db, engine, bc.getProcInterrupt)
 	if err != nil {
 		return nil, err
 	}
@@ -100,11 +99,12 @@ func (bc *BlockChain) loadLastState() error {
 		return bc.Reset()
 	}
 	// Make sure the state associated with the block is available
-	if _, err := state.New(currentBlock.Root(), bc.stateCache); err != nil {
-		if err := bc.repair(&currentBlock); err != nil {
-			return err
-		}
-	}
+	// if _, err := state.New(currentBlock.Root(), bc.stateCache); err != nil {
+		// if err := bc.repair(&currentBlock); err != nil {
+			// return err
+		// }
+	// }
+
 	// Everything seems to be fine, set as the head block
 	bc.currentBlock.Store(currentBlock)
 
@@ -195,9 +195,9 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 	defer bc.mu.Unlock()
 
 	// Prepare the genesis block and reinitialise the chain
-	if err := bc.hc.WriteTd(genesis.Hash(), genesis.NumberU64(), genesis.Difficulty()); err != nil {
-		log.Crit("Failed to write genesis block TD", "err", err)
-	}
+	// if err := bc.hc.WriteTd(genesis.Hash(), genesis.NumberU64(), genesis.Difficulty()); err != nil {
+		// log.Crit("Failed to write genesis block TD", "err", err)
+	// }
 	rawdb.WriteBlock(bc.db, genesis)
 
 	bc.genesisBlock = genesis

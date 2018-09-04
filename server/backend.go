@@ -40,7 +40,7 @@ type ProtocolManager struct {
 // Server implements the full node service.
 type Server struct {
 	config      *Config
-	chainConfig *params.ChainConfig
+	// chainConfig *params.ChainConfig
 
 	// Channel for shutting down the service
 	shutdownChan chan bool // Channel for shutting down the Ethereum
@@ -79,40 +79,34 @@ func New(ctx *node.ServiceContext, config *Config) (*Entity, error) {
 	if err != nil {
 		return nil, err
 	}
-	chainConfig, genesisHash, genesisErr := blockchain.SetupGenesisBlock(chainDb, config.Genesis)
-	if _, ok := genesisErr.(*params.ConfigCompatError); genesisErr != nil && !ok {
+	genesisHash, genesisErr := blockchain.SetupGenesisBlock(chainDb, config.Genesis)
+	if genesisErr != nil {
 		return nil, genesisErr
 	}
-	log.Info("Initialised chain configuration", "config", chainConfig)
 
 	server := &Server{
 		config:         config,
 		chainDb:        chainDb,
-		chainConfig:    chainConfig,
+		// chainConfig:    chainConfig,
 		eventMux:       ctx.EventMux,
 		// accountManager: ctx.AccountManager,
 		wallet:		ctx.Wallet,
-		engine:         CreateConsensusEngine(ctx, &config.Pow, chainConfig, chainDb),
+		engine:         CreateConsensusEngine(ctx, &config.Pow, chainDb),
 		shutdownChan:   make(chan bool),
 		coinbase:       config.Coinbase,
 	}
 
-	server.blockchain, err = blockchain.NewBlockChain(chainDb, server.chainConfig, server.engine)
+	server.blockchain, err = blockchain.NewBlockChain(chainDb, server.engine)
 	if err != nil {
 		return nil, err
 	}
-	// Rewind the chain in case of an incompatible config upgrade.
-	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
-		log.Warn("Rewinding chain to upgrade configuration", "err", compat)
-		server.blockchain.SetHead(compat.RewindTo)
-		rawdb.WriteChainConfig(chainDb, genesisHash, chainConfig)
-	}
-	server.bloomIndexer.Start(eth.blockchain)
 
-	if config.TxPool.Journal != "" {
-		config.TxPool.Journal = ctx.ResolvePath(config.TxPool.Journal)
-	}
-	server.txPool = core.NewTxPool(config.TxPool, server.chainConfig, server.blockchain)
+	// server.bloomIndexer.Start(eth.blockchain)
+
+	// if config.TxPool.Journal != "" {
+		// config.TxPool.Journal = ctx.ResolvePath(config.TxPool.Journal)
+	// }
+	server.txPool = core.NewTxPool(config.TxPool, server.blockchain)
 
 	if server.protocolManager, err = NewProtocolManager(eth.chainConfig, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb); err != nil {
 		return nil, err
@@ -151,7 +145,7 @@ func CreateDB(ctx *node.ServiceContext, config *Config, name string) (db.Databas
 }
 
 // CreateConsensusEngine creates the required type of consensus engine instance for an Entity service
-func CreateConsensusEngine(ctx *node.ServiceContext, config *pow.Config, chainConfig *params.ChainConfig, db ethdb.Database) consensus.Engine {
+func CreateConsensusEngine(ctx *node.ServiceContext, config *pow.Config, db ethdb.Database) consensus.Engine {
 	engine := pow.New(pow.Config{
 		CacheDir:       ctx.ResolvePath(config.CacheDir),
 		CachesInMem:    config.CachesInMem,

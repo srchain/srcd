@@ -8,9 +8,8 @@ import (
 // core.BlockChain and light.LightChain. It is not usable in itself, only as
 // a part of either structure.
 type HeaderChain struct {
-	config *params.ChainConfig
-
-	chainDb       ethdb.Database
+	// config *params.ChainConfig
+	chainDb       db.Database
 	genesisHeader *types.Header
 
 	currentHeader     atomic.Value // Current head of the header chain (may be above the block chain!)
@@ -27,7 +26,7 @@ type HeaderChain struct {
 }
 
 // NewHeaderChain creates a new HeaderChain structure.
-func NewHeaderChain(chainDb ethdb.Database, config *params.ChainConfig, engine consensus.Engine, procInterrupt func() bool) (*HeaderChain, error) {
+func NewHeaderChain(chainDb db.Database, engine consensus.Engine, procInterrupt func() bool) (*HeaderChain, error) {
 	// Seed a fast but crypto originating random generator
 	seed, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
 	if err != nil {
@@ -35,7 +34,7 @@ func NewHeaderChain(chainDb ethdb.Database, config *params.ChainConfig, engine c
 	}
 
 	hc := &HeaderChain{
-		config:        config,
+		// config:        config,
 		chainDb:       chainDb,
 		procInterrupt: procInterrupt,
 		rand:          mrand.New(mrand.NewSource(seed.Int64())),

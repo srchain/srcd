@@ -16,7 +16,7 @@ type Agent interface {
 // Work is the workers current environment and holds
 // all of the current state information
 type Work struct {
-	config *params.ChainConfig
+	// config *params.ChainConfig
 	signer types.Signer
 
 	state     *state.StateDB // apply state changes here
@@ -42,7 +42,7 @@ type Result struct {
 
 // worker is the main object which takes care of applying messages to the new state
 type worker struct {
-	config *params.ChainConfig
+	// config *params.ChainConfig
 	engine consensus.Engine
 
 	mu sync.Mutex
@@ -85,9 +85,9 @@ type worker struct {
 	atWork int32
 }
 
-func newWorker(config *params.ChainConfig, engine consensus.Engine, coinbase common.Address, server Backend, mux *event.TypeMux) *worker {
+func newWorker(engine consensus.Engine, coinbase common.Address, server Backend, mux *event.TypeMux) *worker {
 	worker := &worker{
-		config:         config,
+		// config:         config,
 		engine:         engine,
 		server:         server,
 		mux:            mux,
