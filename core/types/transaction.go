@@ -26,3 +26,18 @@ type txdata struct {
 	// This is only used when marshaling to JSON.
 	Hash *common.Hash `json:"hash" rlp:"-"`
 }
+
+// Transactions is a Transaction slice type for basic sorting.
+type Transactions []*Transaction
+
+// Len returns the length of s.
+func (s Transactions) Len() int { return len(s) }
+
+// Swap swaps the i'th and the j'th element in s.
+func (s Transactions) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+// GetRlp implements Rlpable and returns the i'th element of s in rlp.
+func (s Transactions) GetRlp(i int) []byte {
+	enc, _ := rlp.EncodeToBytes(s[i])
+	return enc
+}

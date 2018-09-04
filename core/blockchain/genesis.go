@@ -34,9 +34,9 @@ type GenesisAccount struct {
 }
 
 // SetupGenesisBlock writes or updates the genesis block in db.
-func SetupGenesisBlock(db db.Database, genesis *Genesis) (*params.ChainConfig, misc.Hash, error) {
+func SetupGenesisBlock(db db.Database, genesis *Genesis) (common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
-		return params.AllEthashProtocolChanges, misc.Hash{}, errGenesisNoConfig
+		return common.Hash{}, errGenesisNoConfig
 	}
 
 	// Just commit the new block if there is no stored genesis block.
@@ -127,12 +127,8 @@ func (g *Genesis) ToBlock(db db.Database) *types.Block {
 	if g.Difficulty == nil {
 		head.Difficulty = params.GenesisDifficulty
 	}
-	// statedb.Commit(false)
-	// statedb.Database().TrieDB().Commit(root, true)
 
-	// trie commit op ...
-
-	return types.NewBlock(head, nil, nil, nil)
+	return types.NewBlock(head, nil)
 }
 
 // Commit writes the block and state of a genesis specification to the database.
@@ -142,17 +138,11 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	if block.Number().Sign() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with number > 0")
 	}
-	rawdb.WriteTd(db, block.Hash(), block.NumberU64(), g.Difficulty)
 	rawdb.WriteBlock(db, block)
-	rawdb.WriteReceipts(db, block.Hash(), block.NumberU64(), nil)
 	rawdb.WriteCanonicalHash(db, block.Hash(), block.NumberU64())
 	rawdb.WriteHeadBlockHash(db, block.Hash())
 	rawdb.WriteHeadHeaderHash(db, block.Hash())
 
-	config := g.Config
-	if config == nil {
-		config = params.AllEthashProtocolChanges
-	}
 	rawdb.WriteChainConfig(db, block.Hash(), config)
 	return block, nil
 }
