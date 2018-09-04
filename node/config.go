@@ -1,7 +1,13 @@
 package node
 
 import (
+	"strings"
+	"os"
 	"path/filepath"
+
+	"srcd/common/common"
+	"srcd/wallet"
+	// "srcd/p2p"
 )
 
 const (
@@ -36,7 +42,7 @@ type Config struct {
 	DataDir string
 
 	// Configuration of peer-to-peer networking.
-	P2P p2p.Config
+	// P2P p2p.Config
 
 	// KeyStoreDir is the file system folder that contains private keys. The directory can
 	// be specified as a relative path, in which case it is resolved relative to the
@@ -164,8 +170,8 @@ func (c *Config) instanceDir() string {
 	return filepath.Join(c.DataDir, c.name())
 }
 
-func makeWalletManager() *Wallet {
-	wallet := NewWallet()
+func makeWalletManager() *wallet.Wallet {
+	wallet := wallet.NewWallet()
 
 	return wallet
 }
