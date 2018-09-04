@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"runtime"
+
+	"srcd/node"
 )
 
 // Fatalf formats a message to standard error and exits the program.

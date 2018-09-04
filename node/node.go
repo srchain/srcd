@@ -209,6 +209,24 @@ func (n *Node) Wait() {
 	<-stop
 }
 
+// Service retrieves a currently running service registered of a specific type.
+func (n *Node) Service(service interface{}) error {
+	n.lock.RLock()
+	defer n.lock.RUnlock()
+
+	// Short circuit if the node's not running
+	if n.server == nil {
+		return ErrNodeStopped
+	}
+	// Otherwise try to find the service to return
+	element := reflect.ValueOf(service).Elem()
+	if running, ok := n.services[element.Type()]; ok {
+		element.Set(reflect.ValueOf(running))
+		return nil
+	}
+	return ErrServiceUnknown
+}
+
 // OpenDatabase opens an existing database with the given name (or creates one if no
 // previous can be found) from within the node's instance directory. If the node is
 // ephemeral, a memory database is returned.

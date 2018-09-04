@@ -27,6 +27,10 @@ func startNode(ctx *cli.Context, node *node.Node) {
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
 		var server *server.Server
 
+		if err := stack.Service(&server); err != nil {
+			utils.Fatalf("Srcd service not running: %v", err)
+		}
+
 		// Start mining
 		if err := server.StartMining(true); err != nil {
 			utils.Fatalf("Failed to start mining: %v", err)
