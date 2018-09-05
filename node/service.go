@@ -1,7 +1,9 @@
 package node
 
 import (
+	"reflect"
 
+	"srcd/wallet"
 )
 
 // ServiceContext is a collection of service independent options inherited from
@@ -10,7 +12,7 @@ import (
 type ServiceContext struct {
 	config         *Config
 	services       map[reflect.Type]Service // Index of the already constructed services
-	EventMux       *event.TypeMux           // Event multiplexer used for decoupled notifications
+	// EventMux       *event.TypeMux           // Event multiplexer used for decoupled notifications
 	// AccountManager *accounts.Manager        // Account manager created by the node.
 	Wallet		*wallet.Wallet
 }

@@ -1,15 +1,25 @@
 package node
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
+	"sync"
 
+	"srcd/wallet"
+	"srcd/database"
+
+	"github.com/prometheus/prometheus/util/flock"
 )
 
 // Node is a container on which services can be registered.
 type Node struct {
-	eventmux *event.TypeMux		// Event multiplexer used between the services of a stack
+	// eventmux *event.TypeMux		// Event multiplexer used between the services of a stack
 	config   *Config
 	// accman   *accounts.Manager
-	wallet  *Wallet
+	wallet  *wallet.Wallet
 
 	ephemeralKeystore string	// if non-empty, the key directory that will be removed by Stop
 	instanceDirLock   flock.Releaser	// prevents concurrent use of instance directory
@@ -83,7 +93,7 @@ func New(conf *Config) (*Node, error) {
 		// ipcEndpoint:       conf.IPCEndpoint(),
 		// httpEndpoint:      conf.HTTPEndpoint(),
 		// wsEndpoint:        conf.WSEndpoint(),
-		eventmux:          new(event.TypeMux),
+		// eventmux:          new(event.TypeMux),
 	}, nil
 }
 
@@ -230,9 +240,9 @@ func (n *Node) Service(service interface{}) error {
 // OpenDatabase opens an existing database with the given name (or creates one if no
 // previous can be found) from within the node's instance directory. If the node is
 // ephemeral, a memory database is returned.
-func (n *Node) OpenDatabase(name string, cache, handles int) (ethdb.Database, error) {
+func (n *Node) OpenDatabase(name string, cache, handles int) (db.Database, error) {
 	if n.config.DataDir == "" {
-		return ethdb.NewMemDatabase(), nil
+		return db.NewMemDatabase(), nil
 	}
-	return ethdb.NewLDBDatabase(n.config.resolvePath(name), cache, handles)
+	return db.NewLDBDatabase(n.config.resolvePath(name), cache, handles)
 }
