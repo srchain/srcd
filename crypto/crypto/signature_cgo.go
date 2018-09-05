@@ -1,3 +1,5 @@
+// +build !nacl,!js,!nocgo
+
 package crypto
 
 import (
