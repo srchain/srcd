@@ -116,29 +116,29 @@ func (n *Node) Start() error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	// Short circuit if the node's already running
-	if n.server != nil {
-		return ErrNodeRunning
-	}
-	if err := n.openDataDir(); err != nil {
-		return err
-	}
+	// // Short circuit if the node's already running
+	// if n.server != nil {
+		// return ErrNodeRunning
+	// }
+	// if err := n.openDataDir(); err != nil {
+		// return err
+	// }
 
-	// init p2p server config
+	// // init p2p server config
 
-	// create p2p server
-	running := &p2p.Server{Config: n.serverConfig}
+	// // create p2p server
+	// running := &p2p.Server{Config: n.serverConfig}
 
-	// run p2p server
-	if err := running.Start(); err != nil {
-		return convertFileLockError(err)
-	}
+	// // run p2p server
+	// if err := running.Start(); err != nil {
+		// return convertFileLockError(err)
+	// }
 
-	// rpc
+	// // rpc
 
-	// Finish initializing the startup
-	n.server = running
-	n.stop = make(chan struct{})
+	// // Finish initializing the startup
+	// n.server = running
+	// n.stop = make(chan struct{})
 
 	return nil
 }
@@ -168,39 +168,39 @@ func (n *Node) Stop() error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	// Short circuit if the node's not running
-	if n.server == nil {
-		return ErrNodeStopped
-	}
-
-	// Terminate the API, services and the p2p server.
-	// peer.stopWS()
-	// peer.stopHTTP()
-	// peer.stopIPC()
-	// peer.rpcAPIs = nil
-
-	// failure := &StopError{
-		// Services: make(map[reflect.Type]error),
+	// // Short circuit if the node's not running
+	// if n.server == nil {
+		// return ErrNodeStopped
 	// }
-	// for kind, service := range n.services {
-		// if err := service.Stop(); err != nil {
-			// failure.Services[kind] = err
+
+	// // Terminate the API, services and the p2p server.
+	// // peer.stopWS()
+	// // peer.stopHTTP()
+	// // peer.stopIPC()
+	// // peer.rpcAPIs = nil
+
+	// // failure := &StopError{
+		// // Services: make(map[reflect.Type]error),
+	// // }
+	// // for kind, service := range n.services {
+		// // if err := service.Stop(); err != nil {
+			// // failure.Services[kind] = err
+		// // }
+	// // }
+	// n.server.Stop()
+	// n.services = nil
+	// n.server = nil
+
+	// // Release instance directory lock.
+	// if n.instanceDirLock != nil {
+		// if err := n.instanceDirLock.Release(); err != nil {
+			// n.log.Error("Can't release datadir lock", "err", err)
 		// }
+		// n.instanceDirLock = nil
 	// }
-	n.server.Stop()
-	n.services = nil
-	n.server = nil
 
-	// Release instance directory lock.
-	if n.instanceDirLock != nil {
-		if err := n.instanceDirLock.Release(); err != nil {
-			n.log.Error("Can't release datadir lock", "err", err)
-		}
-		n.instanceDirLock = nil
-	}
-
-	// unblock peer.Wait
-	close(n.stop)
+	// // unblock peer.Wait
+	// close(n.stop)
 
 	return nil
 }
@@ -208,15 +208,15 @@ func (n *Node) Stop() error {
 // Wait blocks the thread until the node is stopped. If the node is not running
 // at the time of invocation, the method immediately returns.
 func (n *Node) Wait() {
-	n.lock.RLock()
-	if n.server == nil {
-		n.lock.RUnlock()
-		return
-	}
-	stop := n.stop
-	n.lock.RUnlock()
+	// n.lock.RLock()
+	// if n.server == nil {
+		// n.lock.RUnlock()
+		// return
+	// }
+	// stop := n.stop
+	// n.lock.RUnlock()
 
-	<-stop
+	// <-stop
 }
 
 // Service retrieves a currently running service registered of a specific type.
@@ -224,17 +224,21 @@ func (n *Node) Service(service interface{}) error {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
 
-	// Short circuit if the node's not running
-	if n.server == nil {
-		return ErrNodeStopped
-	}
-	// Otherwise try to find the service to return
-	element := reflect.ValueOf(service).Elem()
-	if running, ok := n.services[element.Type()]; ok {
-		element.Set(reflect.ValueOf(running))
-		return nil
-	}
-	return ErrServiceUnknown
+	// // Short circuit if the node's not running
+	// if n.server == nil {
+		// return ErrNodeStopped
+	// }
+	// // Otherwise try to find the service to return
+	// element := reflect.ValueOf(service).Elem()
+	// if running, ok := n.services[element.Type()]; ok {
+		// element.Set(reflect.ValueOf(running))
+		// return nil
+	// }
+	// return ErrServiceUnknown
+
+
+	// only for return
+	return nil
 }
 
 // OpenDatabase opens an existing database with the given name (or creates one if no
