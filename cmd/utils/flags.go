@@ -3,8 +3,11 @@ package utils
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"srcd/params"
+	"srcd/node"
+	"srcd/server"
 
 	"gopkg.in/urfave/cli.v1"
 )
@@ -89,7 +92,7 @@ var (
 
 // setCoinbase retrieves the etherbase either from the directly specified
 // command line flags or from the keystore if CLI indexed.
-func setCoinbase(ctx *cli.Context, wallet *Wallet, cfg *eth.Config) {
+func setCoinbase(ctx *cli.Context, wallet *Wallet, cfg *server.Config) {
 	if ctx.GlobalIsSet(CoinbaseFlag.Name) {
 		// account, err := MakeAddress(ks, ctx.GlobalString(EtherbaseFlag.Name))
 		// if err != nil {

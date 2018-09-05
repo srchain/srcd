@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 
 	"srcd/node"
 )
