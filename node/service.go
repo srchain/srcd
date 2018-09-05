@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"srcd/wallet"
+	"srcd/database"
 )
 
 // ServiceContext is a collection of service independent options inherited from
