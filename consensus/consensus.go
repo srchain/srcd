@@ -2,13 +2,16 @@ package consensus
 
 import (
 	"math/big"
+
+	"srcd/core/types"
+	"srcd/common/common"
 )
 
 // ChainReader defines a small collection of methods needed to access the local
 // blockchain during header and/or uncle verification.
 type ChainReader interface {
 	// Config retrieves the blockchain's chain configuration.
-	Config() *params.ChainConfig
+	// Config() *params.ChainConfig
 
 	// CurrentHeader retrieves the current header from the local chain.
 	CurrentHeader() *types.Header
@@ -60,8 +63,7 @@ type Engine interface {
 	// and assembles the final block.
 	// Note: The block header and state database might be updated to reflect any
 	// consensus rules that happen at finalization (e.g. block rewards).
-	Finalize(chain ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
-		uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error)
+	Finalize(chain ChainReader, header *types.Header, txs []*types.Transaction) (*types.Block, error)
 
 	// Seal generates a new block for the given input block with the local miner's
 	// seal place on top.
@@ -72,7 +74,7 @@ type Engine interface {
 	CalcDifficulty(chain ChainReader, time uint64, parent *types.Header) *big.Int
 
 	// APIs returns the RPC APIs this consensus engine provides.
-	APIs(chain ChainReader) []rpc.API
+	// APIs(chain ChainReader) []rpc.API
 }
 
 // PoW is a consensus engine based on proof-of-work.
