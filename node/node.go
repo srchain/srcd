@@ -244,9 +244,9 @@ func (n *Node) Service(service interface{}) error {
 // OpenDatabase opens an existing database with the given name (or creates one if no
 // previous can be found) from within the node's instance directory. If the node is
 // ephemeral, a memory database is returned.
-func (n *Node) OpenDatabase(name string, cache, handles int) (db.Database, error) {
+func (n *Node) OpenDatabase(name string, cache, handles int) (database.Database, error) {
 	if n.config.DataDir == "" {
-		return db.NewMemDatabase(), nil
+		return database.NewMemDatabase(), nil
 	}
-	return db.NewLDBDatabase(n.config.resolvePath(name), cache, handles)
+	return database.NewLDBDatabase(n.config.resolvePath(name), cache, handles)
 }
