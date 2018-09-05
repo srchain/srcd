@@ -2,15 +2,18 @@ package server
 
 import (
 	"fmt"
+
+	"srcd/core/mempool"
+	"srcd/core/blockchain"
 )
 
 type ProtocolManager struct {
 	// networkID uint64
 
-	fastSync  uint32 // Flag whether fast sync is enabled (gets disabled if we already have blocks)
+	// fastSync  uint32 // Flag whether fast sync is enabled (gets disabled if we already have blocks)
 	acceptTxs uint32 // Flag whether we're considered synchronised (enables transaction processing)
 
-	txpool      txPool
+	txpool      mempool.txPool
 	blockchain  *blockchain.BlockChain
 	chainconfig *params.ChainConfig
 	maxPeers    int
@@ -39,23 +42,22 @@ type ProtocolManager struct {
 
 // Server implements the full node service.
 type Server struct {
-	config      *Config
+	config          *Config
 	// chainConfig *params.ChainConfig
 
 	// Channel for shutting down the service
 	shutdownChan chan bool // Channel for shutting down the Ethereum
 
 	// Handlers
-	txPool          *core.TxPool
+	// txPool          *core.TxPool
 	blockchain      *blockchain.BlockChain
 	protocolManager *ProtocolManager
-	// lesServer       LesServer
 
 	// DB interfaces
-	chainDb ethdb.Database // Block chain database
+	chainDb         database.Database // Block chain database
 
-	eventMux       *event.TypeMux
-	engine         consensus.Engine
+	// eventMux       *event.TypeMux
+	engine          consensus.Engine
 	// accountManager *accounts.Manager
 	wallet		*wallet.Wallet
 
@@ -64,21 +66,22 @@ type Server struct {
 
 	// APIBackend *EthAPIBackend
 
-	miner     *miner.Miner
-	coinbase  common.Address
+	miner           *miner.Miner
+	coinbase        common.Address
 
 	// networkID     uint64
 	// netRPCService *ethapi.PublicNetAPI
 
-	lock sync.RWMutex
+	lock            sync.RWMutex
 }
 
-// New creates a new Entity object
-func New(ctx *node.ServiceContext, config *Config) (*Entity, error) {
+// New creates a new Server object
+func New(ctx *node.ServiceContext, config *Config) (*Server, error) {
 	chainDb, err := CreateDB(ctx, config, "chaindata")
 	if err != nil {
 		return nil, err
 	}
+
 	genesisHash, genesisErr := blockchain.SetupGenesisBlock(chainDb, config.Genesis)
 	if genesisErr != nil {
 		return nil, genesisErr
@@ -135,13 +138,8 @@ func makeExtraData(extra []byte) []byte {
 }
 
 // CreateDB creates the chain database.
-func CreateDB(ctx *node.ServiceContext, config *Config, name string) (db.Database, error) {
-	db, err := ctx.OpenDatabase(name, config.DatabaseCache, config.DatabaseHandles)
-	if err != nil {
-		return nil, err
-	}
-
-	return db, nil
+func CreateDB(ctx *node.ServiceContext, config *Config, name string) (database.Database, error) {
+	return ctx.OpenDatabase(name, config.DatabaseCache, config.DatabaseHandles)
 }
 
 // CreateConsensusEngine creates the required type of consensus engine instance for an Entity service
@@ -199,6 +197,46 @@ func (s *Server) StartMining(local bool) error {
 	return nil
 }
 
-
 func (s *Server) BlockChain() *blockchain.BlockChain	{ return s.blockchain }
 func (s *Server) Engine() consensus.Engine		{ return s.engine }
+
+// Start implements node.Service, starting all internal goroutines needed by the
+// Server protocol implementation.
+// func (s *Server) Start(srvr *p2p.Server) error {
+func (s *Server) Start() error {
+	// // Start the bloom bits servicing goroutines
+	// s.startBloomHandlers()
+
+	// // Start the RPC service
+	// s.netRPCService = ethapi.NewPublicNetAPI(srvr, s.NetVersion())
+
+	// // Figure out a max peers count based on the server limits
+	// maxPeers := srvr.MaxPeers
+	// if s.config.LightServ > 0 {
+		// if s.config.LightPeers >= srvr.MaxPeers {
+			// return fmt.Errorf("invalid peer config: light peer count (%d) >= total peer count (%d)", s.config.LightPeers, srvr.MaxPeers)
+		// }
+		// maxPeers -= s.config.LightPeers
+	// }
+
+	// Start the networking layer and the light server if requested
+	s.protocolManager.Start(10)
+
+	return nil
+}
+
+// Stop implements node.Service, terminating all internal goroutines used by the
+// Server protocol.
+func (s *Server) Stop() error {
+	// s.bloomIndexer.Close()
+	s.blockchain.Stop()
+	s.protocolManager.Stop()
+	// s.txPool.Stop()
+	s.miner.Stop()
+	// s.eventMux.Stop()
+
+	s.chainDb.Close()
+	close(s.shutdownChan)
+
+	return nil
+}

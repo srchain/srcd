@@ -1,7 +1,14 @@
 package types
 
 import (
-	"time"
+	"encoding/binary"
+	"math/big"
+	"sync/atomic"
+
+	"srcd/common/common"
+	"srcd/common/hexutil"
+	"srcd/crypto/sha3"
+	"srcd/rlp"
 )
 
 var EmptyRootHash  = DeriveSha(Transactions{})
@@ -104,6 +111,33 @@ func NewBlock(header *Header, txs []*Transaction) *Block {
 	return b
 }
 
+// NewBlockWithHeader creates a block with the given header data. The
+// header data is copied, changes to header and to the field values
+// will not affect the block.
+func NewBlockWithHeader(header *Header) *Block {
+	return &Block{header: CopyHeader(header)}
+}
+
+// CopyHeader creates a deep copy of a block header to prevent side effects from
+// modifying a header variable.
+func CopyHeader(h *Header) *Header {
+	cpy := *h
+	if cpy.Time = new(big.Int); h.Time != nil {
+		cpy.Time.Set(h.Time)
+	}
+	if cpy.Difficulty = new(big.Int); h.Difficulty != nil {
+		cpy.Difficulty.Set(h.Difficulty)
+	}
+	if cpy.Number = new(big.Int); h.Number != nil {
+		cpy.Number.Set(h.Number)
+	}
+	if len(h.Extra) > 0 {
+		cpy.Extra = make([]byte, len(h.Extra))
+		copy(cpy.Extra, h.Extra)
+	}
+	return &cpy
+}
+
 func (b *Block) Transactions() Transactions { return b.transactions }
 
 func (b *Block) Transaction(hash common.Hash) *Transaction {
@@ -128,11 +162,10 @@ func (b *Block) ParentHash() common.Hash  { return b.header.ParentHash }
 func (b *Block) TxHash() common.Hash      { return b.header.TxHash }
 func (b *Block) Extra() []byte            { return common.CopyBytes(b.header.Extra) }
 
-func (b *Block) Header() *Header { return CopyHeader(b.header) }
+func (b *Block) Header() *Header	  { return CopyHeader(b.header) }
 
-func (b *Block) HashNoNonce() common.Hash {
-	return b.header.HashNoNonce()
-}
+// Body returns the non-header content of the block.
+func (b *Block) Body() *Body { return &Body{b.transactions} }
 
 // Size returns the true RLP encoded storage size of the block, either by encoding
 // and returning it, or returning a previsouly cached value.
@@ -146,6 +179,24 @@ func (b *Block) Size() common.StorageSize {
 	return common.StorageSize(c)
 }
 
+type writeCounter common.StorageSize
+
+func (c *writeCounter) Write(b []byte) (int, error) {
+	*c += writeCounter(len(b))
+	return len(b), nil
+}
+
+// WithBody returns a new block with the given transaction.
+func (b *Block) WithBody(transactions []*Transaction) *Block {
+	block := &Block{
+		header:       CopyHeader(b.header),
+		transactions: make([]*Transaction, len(transactions)),
+	}
+	copy(block.transactions, transactions)
+
+	return block
+}
+
 // Hash returns the keccak256 hash of b's header.
 // The hash is computed on the first call and cached thereafter.
 func (b *Block) Hash() common.Hash {
@@ -156,3 +207,5 @@ func (b *Block) Hash() common.Hash {
 	b.hash.Store(v)
 	return v
 }
+
+type Blocks []*Block

@@ -118,7 +118,6 @@ func SetNodeConfig(ctx *cli.context, cfg *node.config) {
 
 // SetServerConfig applies server-related command line flags to the config.
 func SetServerConfig(ctx *cli.Context, node *node.Node, cfg *server.Config) {
-	// ks := node.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
 	wallet := node.wallet
 	setCoinbase(ctx, wallet, cfg)
 
@@ -130,9 +129,9 @@ func SetServerConfig(ctx *cli.Context, node *node.Node, cfg *server.Config) {
 // RegisterService adds an srcd client to the node.
 func RegisterService(node *node.Node, cfg *server.Config) {
 	err := node.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		fullNode, err := server.New(ctx, cfg)
+		server, err := server.New(ctx, cfg)
 
-		return fullNode, err
+		return server, err
 	})
 
 	if err != nil {

@@ -1,7 +1,14 @@
 package blockchain
 
 import (
+	mrand "math/rand"
+	"sync/atomic"
 
+	"srcd/core/types"
+	"srcd/core/rawdb"
+	"srcd/database"
+	"srcd/common/common"
+	"srcd/consensus"
 )
 
 // HeaderChain implements the basic block header chain logic that is shared by
@@ -9,7 +16,7 @@ import (
 // a part of either structure.
 type HeaderChain struct {
 	// config *params.ChainConfig
-	chainDb       db.Database
+	chainDb       database.Database
 	genesisHeader *types.Header
 
 	currentHeader     atomic.Value // Current head of the header chain (may be above the block chain!)
@@ -26,7 +33,7 @@ type HeaderChain struct {
 }
 
 // NewHeaderChain creates a new HeaderChain structure.
-func NewHeaderChain(chainDb db.Database, engine consensus.Engine, procInterrupt func() bool) (*HeaderChain, error) {
+func NewHeaderChain(chainDb database.Database, engine consensus.Engine, procInterrupt func() bool) (*HeaderChain, error) {
 	// Seed a fast but crypto originating random generator
 	seed, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
 	if err != nil {

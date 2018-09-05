@@ -1,7 +1,8 @@
 package pow
 
 import (
-
+	"sync"
+	"math/rand"
 )
 
 // Config are the configuration parameters of the ethash.

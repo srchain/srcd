@@ -17,9 +17,9 @@ import (
 // Node is a container on which services can be registered.
 type Node struct {
 	// eventmux *event.TypeMux		// Event multiplexer used between the services of a stack
-	config   *Config
+	config            *Config
 	// accman   *accounts.Manager
-	wallet  *wallet.Wallet
+	wallet            *wallet.Wallet
 
 	ephemeralKeystore string	// if non-empty, the key directory that will be removed by Stop
 	instanceDirLock   flock.Releaser	// prevents concurrent use of instance directory
@@ -65,6 +65,7 @@ func New(conf *Config) (*Node, error) {
 		}
 		conf.DataDir = absdatadir
 	}
+
 	// Ensure that the instance name doesn't cause weird conflicts with
 	// other files in the data directory.
 	if strings.ContainsAny(conf.Name, `/\`) {
@@ -87,7 +88,7 @@ func New(conf *Config) (*Node, error) {
 	return &Node{
 		// accman:            am,
 		// ephemeralKeystore: ephemeralKeystore,
-		wallet:		wallet,
+		wallet:		   wallet,
 		config:            conf,
 		serviceFuncs:      []ServiceConstructor{},
 		// ipcEndpoint:       conf.IPCEndpoint(),
@@ -116,29 +117,76 @@ func (n *Node) Start() error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	// // Short circuit if the node's already running
+	// Short circuit if the node's already running
 	// if n.server != nil {
 		// return ErrNodeRunning
 	// }
-	// if err := n.openDataDir(); err != nil {
-		// return err
-	// }
+	if err := n.openDataDir(); err != nil {
+		return err
+	}
 
-	// // init p2p server config
+	// init p2p server config
 
-	// // create p2p server
+	// create p2p server
 	// running := &p2p.Server{Config: n.serverConfig}
 
-	// // run p2p server
+	// Otherwise copy and specialize the P2P configuration
+	services := make(map[reflect.Type]Service)
+	for _, constructor := range n.serviceFuncs {
+		// Create a new context for the particular service
+		ctx := &ServiceContext{
+			config:         n.config,
+			services:       make(map[reflect.Type]Service),
+			Wallet:         n.wallet,
+		}
+		// copy needed for threaded access
+		for kind, s := range services {
+			ctx.services[kind] = s
+		}
+		// Construct and save the service
+		service, err := constructor(ctx)
+		if err != nil {
+			return err
+		}
+		kind := reflect.TypeOf(service)
+		if _, exists := services[kind]; exists {
+			return &DuplicateServiceError{Kind: kind}
+		}
+		services[kind] = service
+	}
+	// Gather the protocols and start the freshly assembled P2P server
+	// for _, service := range services {
+		// running.Protocols = append(running.Protocols, service.Protocols()...)
+	// }
+
+	// run p2p server
 	// if err := running.Start(); err != nil {
 		// return convertFileLockError(err)
 	// }
 
-	// // rpc
+	// Start each of the services
+	started := []reflect.Type{}
+	for kind, service := range services {
+		// Start the next service, stopping all previous upon failure
+		// if err := service.Start(running); err != nil {
+		if err := service.Start(); err != nil {
+			for _, kind := range started {
+				services[kind].Stop()
+			}
+			// running.Stop()
 
-	// // Finish initializing the startup
+			return err
+		}
+		// Mark the service started for potential cleanup
+		started = append(started, kind)
+	}
+
+	// rpc
+
+	// Finish initializing the startup
+	n.services = services
 	// n.server = running
-	// n.stop = make(chan struct{})
+	n.stop = make(chan struct{})
 
 	return nil
 }

@@ -10,12 +10,11 @@ import (
 	"unicode"
 	"path/filepath"
 
-	"srcd/cmd/utils"
 	"srcd/node"
-	"srcd/entity"
+	"srcd/server"
+	"srcd/cmd/utils"
 
 	"github.com/naoina/toml"
-
 	"gopkg.in/urfave/cli.v1"
 )
 

@@ -38,5 +38,3 @@ type ConfigCompatError struct {
 	// the block number to which the local chain must be rewound to correct the error
 	RewindTo uint64
 }
-
-

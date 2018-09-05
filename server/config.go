@@ -1,7 +1,11 @@
 package server
 
 import (
+	"os"
 
+	"srcd/common/common"
+	"srcd/core/blockchain"
+	"srcd/consensus/pow"
 )
 
 // DefaultConfig contains default settings for use on main net.
@@ -20,7 +24,7 @@ var DefaultConfig = Config{
 	// TrieCache:     256,
 	// TrieTimeout:   60 * time.Minute,
 
-	TxPool: core.DefaultTxPoolConfig,
+	// TxPool: core.DefaultTxPoolConfig,
 }
 
 func init() {
@@ -40,7 +44,7 @@ func init() {
 type Config struct {
 	// The genesis block, which is inserted if the database is empty.
 	// If nil, main net block is used.
-	Genesis *blockchain.Genesis `toml:",omitempty"`
+	Genesis          *blockchain.Genesis `toml:",omitempty"`
 
 	// Protocol options
 	// NetworkId uint64 // Network ID to use for selecting peers to connect to
@@ -49,21 +53,21 @@ type Config struct {
 
 	// Database options
 	// SkipBcVersionCheck bool `toml:"-"`
-	DatabaseHandles    int  `toml:"-"`
-	DatabaseCache      int
-	// TrieCache          int
-	// TrieTimeout        time.Duration
+	DatabaseHandles  int  `toml:"-"`
+	DatabaseCache    int
+	// TrieCache     int
+	// TrieTimeout   time.Duration
 
 	// Mining-related options
-	Coinbase    common.Address `toml:",omitempty"`
-	MinerThreads int            `toml:",omitempty"`
-	ExtraData    []byte         `toml:",omitempty"`
+	Coinbase         common.Address `toml:",omitempty"`
+	MinerThreads     int            `toml:",omitempty"`
+	ExtraData        []byte         `toml:",omitempty"`
 
 	// PoW options
-	Pow pow.Config
+	Pow              pow.Config
 
 	// Transaction pool options
-	TxPool core.TxPoolConfig
+	// TxPool core.TxPoolConfig
 
 	// Gas Price Oracle options
 	// GPO gasprice.Config
