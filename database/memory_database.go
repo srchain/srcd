@@ -3,7 +3,7 @@ package db
 import (
 	"sync"
 	"errors"
-	"srcd/common/misc"
+	"srcd/common/common"
 )
 
 // This is a test memory database. Do not use for any production it does not get persisted
@@ -28,7 +28,7 @@ func (db *MemDatabase) Put(key []byte, value []byte) error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
-	db.db[string(key)] = misc.CopyBytes(value)
+	db.db[string(key)] = common.CopyBytes(value)
 	return nil
 }
 
@@ -45,7 +45,7 @@ func (db *MemDatabase) Get(key []byte) ([]byte, error) {
 	defer db.lock.RUnlock()
 
 	if entry, ok := db.db[string(key)]; ok {
-		return misc.CopyBytes(entry), nil
+		return common.CopyBytes(entry), nil
 	}
 	return nil, errors.New("not found")
 }
@@ -86,13 +86,13 @@ type memBatch struct {
 }
 
 func (b *memBatch) Put(key, value []byte) error {
-	b.writes = append(b.writes, kv{misc.CopyBytes(key), misc.CopyBytes(value)})
+	b.writes = append(b.writes, kv{common.CopyBytes(key), common.CopyBytes(value)})
 	b.size += len(value)
 	return nil
 }
 
 func (b *memBatch) Delete(key []byte) error {
-	b.writes = append(b.writes, kv{misc.CopyBytes(key), nil})
+	b.writes = append(b.writes, kv{common.CopyBytes(key), nil})
 	return nil
 }
 
