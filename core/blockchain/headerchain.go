@@ -15,7 +15,6 @@ import (
 // core.BlockChain and light.LightChain. It is not usable in itself, only as
 // a part of either structure.
 type HeaderChain struct {
-	// config *params.ChainConfig
 	chainDb       database.Database
 	genesisHeader *types.Header
 
@@ -41,7 +40,6 @@ func NewHeaderChain(chainDb database.Database, engine consensus.Engine, procInte
 	}
 
 	hc := &HeaderChain{
-		// config:        config,
 		chainDb:       chainDb,
 		procInterrupt: procInterrupt,
 		rand:          mrand.New(mrand.NewSource(seed.Int64())),
@@ -128,10 +126,10 @@ type DeleteCallback func(rawdb.DatabaseDeleter, common.Hash, uint64)
 // will be deleted and the new one set.
 func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 	height := uint64(0)
-
 	if hdr := hc.CurrentHeader(); hdr != nil {
 		height = hdr.Number.Uint64()
 	}
+
 	batch := hc.chainDb.NewBatch()
 	for hdr := hc.CurrentHeader(); hdr != nil && hdr.Number.Uint64() > head; hdr = hc.CurrentHeader() {
 		hash := hdr.Hash()
@@ -140,11 +138,10 @@ func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 			delFn(batch, hash, num)
 		}
 		rawdb.DeleteHeader(batch, hash, num)
-		rawdb.DeleteTd(batch, hash, num)
 
 		hc.currentHeader.Store(hc.GetHeader(hdr.ParentHash, hdr.Number.Uint64()-1))
 	}
-	// Roll back the canonical chain numbering
+
 	for i := height; i > head; i-- {
 		rawdb.DeleteCanonicalHash(batch, i)
 	}
@@ -156,4 +153,9 @@ func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 	hc.currentHeaderHash = hc.CurrentHeader().Hash()
 
 	rawdb.WriteHeadHeaderHash(hc.chainDb, hc.currentHeaderHash)
+}
+
+// SetGenesis sets a new genesis block header for the chain
+func (hc *HeaderChain) SetGenesis(head *types.Header) {
+	hc.genesisHeader = head
 }
