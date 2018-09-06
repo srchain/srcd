@@ -116,6 +116,7 @@ func WriteHeader(db DatabaseWriter, header *types.Header) {
 	if err := db.Put(key, encoded); err != nil {
 		log.Crit("Failed to store hash to number mapping", "err", err)
 	}
+
 	// Write the encoded header
 	data, err := rlp.EncodeToBytes(header)
 	if err != nil {
@@ -173,11 +174,12 @@ func ReadBody(db DatabaseReader, hash common.Hash, number uint64) *types.Body {
 }
 
 // WriteBody storea a block body into the database.
-func WriteBody(db DatabaseWriter, hash common.Hash, number uint64, body *types.Body) {
-	data, err := rlp.EncodeToBytes(body)
+func WriteBody(db DatabaseWriter, hash common.Hash, number uint64, txs *types.Transactions) {
+	data, err := rlp.EncodeToBytes(txs)
 	if err != nil {
 		log.Crit("Failed to RLP encode body", "err", err)
 	}
+
 	WriteBodyRLP(db, hash, number, data)
 }
 
@@ -208,8 +210,8 @@ func ReadBlock(db DatabaseReader, hash common.Hash, number uint64) *types.Block 
 
 // WriteBlock serializes a block into the database, header and body separately.
 func WriteBlock(db DatabaseWriter, block *types.Block) {
-	WriteBody(db, block.Hash(), block.NumberU64(), block.Body())
 	WriteHeader(db, block.Header())
+	WriteBody(db, block.Hash(), block.NumberU64(), block.Transactions())
 }
 
 // DeleteBlock removes all block data associated with a hash.

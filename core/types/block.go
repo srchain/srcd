@@ -44,7 +44,7 @@ func (n *BlockNonce) UnmarshalText(input []byte) error {
 type Header struct {
 	ParentHash  common.Hash    `json:"parentHash"       gencodec:"required"`
 	Coinbase    common.Address `json:"miner"            gencodec:"required"`
-	Root        common.Hash    `json:"stateRoot"        gencodec:"required"`
+	// Root        common.Hash    `json:"stateRoot"        gencodec:"required"`
 	TxHash      common.Hash    `json:"transactionsRoot" gencodec:"required"`
 	// ReceiptHash common.Hash    `json:"receiptsRoot"     gencodec:"required"`
 	// Bloom       Bloom          `json:"logsBloom"        gencodec:"required"`
@@ -52,7 +52,7 @@ type Header struct {
 	Number      *big.Int       `json:"number"           gencodec:"required"`
 	Time        *big.Int       `json:"timestamp"        gencodec:"required"`
 	Extra       []byte         `json:"extraData"        gencodec:"required"`
-	MixDigest   common.Hash    `json:"mixHash"          gencodec:"required"`
+	// MixDigest   common.Hash    `json:"mixHash"          gencodec:"required"`
 	Nonce       BlockNonce     `json:"nonce"            gencodec:"required"`
 }
 
@@ -67,13 +67,6 @@ func rlpHash(x interface{}) (h common.Hash) {
 	rlp.Encode(hw, x)
 	hw.Sum(h[:0])
 	return h
-}
-
-// Body is a simple (mutable, non-safe) data container for storing and moving
-// a block's data contents (transactions and uncles) together.
-type Body struct {
-	Transactions []*Transaction
-	// Uncles       []*Header
 }
 
 type Block struct {
@@ -94,12 +87,11 @@ type Block struct {
 	// ReceivedFrom interface{}
 }
 
-// NewBlock creates a new block. The input data is copied,
-// changes to header and to the field values will not affect the
-// block.
+// NewBlock creates a new block.
 func NewBlock(header *Header, txs []*Transaction) *Block {
 	b := &Block{header: CopyHeader(header)}
 
+	// make TxHash
 	if len(txs) == 0 {
 		b.header.TxHash = EmptyRootHash
 	} else {
@@ -138,8 +130,6 @@ func CopyHeader(h *Header) *Header {
 	return &cpy
 }
 
-func (b *Block) Transactions() Transactions { return b.transactions }
-
 func (b *Block) Transaction(hash common.Hash) *Transaction {
 	for _, transaction := range b.transactions {
 		if transaction.Hash() == hash {
@@ -149,23 +139,20 @@ func (b *Block) Transaction(hash common.Hash) *Transaction {
 	return nil
 }
 
-func (b *Block) Number() *big.Int     { return new(big.Int).Set(b.header.Number) }
-func (b *Block) Difficulty() *big.Int { return new(big.Int).Set(b.header.Difficulty) }
-func (b *Block) Time() *big.Int       { return new(big.Int).Set(b.header.Time) }
+func (b *Block) Transactions() Transactions { return b.transactions }
 
-func (b *Block) NumberU64() uint64        { return b.header.Number.Uint64() }
-func (b *Block) MixDigest() common.Hash   { return b.header.MixDigest }
-func (b *Block) Nonce() uint64            { return binary.BigEndian.Uint64(b.header.Nonce[:]) }
-func (b *Block) Coinbase() common.Address { return b.header.Coinbase }
-func (b *Block) Root() common.Hash        { return b.header.Root }
-func (b *Block) ParentHash() common.Hash  { return b.header.ParentHash }
-func (b *Block) TxHash() common.Hash      { return b.header.TxHash }
-func (b *Block) Extra() []byte            { return common.CopyBytes(b.header.Extra) }
+func (b *Block) Number() *big.Int           { return new(big.Int).Set(b.header.Number) }
+func (b *Block) Difficulty() *big.Int       { return new(big.Int).Set(b.header.Difficulty) }
+func (b *Block) Time() *big.Int             { return new(big.Int).Set(b.header.Time) }
 
-func (b *Block) Header() *Header	  { return CopyHeader(b.header) }
+func (b *Block) NumberU64() uint64          { return b.header.Number.Uint64() }
+func (b *Block) Nonce() uint64              { return binary.BigEndian.Uint64(b.header.Nonce[:]) }
+func (b *Block) Coinbase() common.Address   { return b.header.Coinbase }
+func (b *Block) ParentHash() common.Hash    { return b.header.ParentHash }
+func (b *Block) TxHash() common.Hash        { return b.header.TxHash }
+func (b *Block) Extra() []byte              { return common.CopyBytes(b.header.Extra) }
 
-// Body returns the non-header content of the block.
-func (b *Block) Body() *Body { return &Body{b.transactions} }
+func (b *Block) Header() *Header	    { return CopyHeader(b.header) }
 
 // Size returns the true RLP encoded storage size of the block, either by encoding
 // and returning it, or returning a previsouly cached value.
@@ -209,3 +196,26 @@ func (b *Block) Hash() common.Hash {
 }
 
 type Blocks []*Block
+
+type BlockBy func(b1, b2 *Block) bool
+
+func (self BlockBy) Sort(blocks Blocks) {
+	bs := blockSorter{
+		blocks: blocks,
+		by:     self,
+	}
+	sort.Sort(bs)
+}
+
+type blockSorter struct {
+	blocks Blocks
+	by     func(b1, b2 *Block) bool
+}
+
+func (self blockSorter) Len() int { return len(self.blocks) }
+func (self blockSorter) Swap(i, j int) {
+	self.blocks[i], self.blocks[j] = self.blocks[j], self.blocks[i]
+}
+func (self blockSorter) Less(i, j int) bool { return self.by(self.blocks[i], self.blocks[j]) }
+
+func Number(b1, b2 *Block) bool { return b1.header.Number.Cmp(b2.header.Number) < 0 }
