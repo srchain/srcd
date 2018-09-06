@@ -5,6 +5,9 @@ import (
 
 	"srcd/core/mempool"
 	"srcd/core/blockchain"
+	"srcd/database"
+	"srcd/consensus"
+	"srcd/consensus/pow"
 )
 
 type ProtocolManager struct {
@@ -46,7 +49,7 @@ type Server struct {
 	// chainConfig *params.ChainConfig
 
 	// Channel for shutting down the service
-	shutdownChan chan bool // Channel for shutting down the Ethereum
+	shutdownChan chan bool
 
 	// Handlers
 	// txPool          *core.TxPool
@@ -90,11 +93,8 @@ func New(ctx *node.ServiceContext, config *Config) (*Server, error) {
 	server := &Server{
 		config:         config,
 		chainDb:        chainDb,
-		// chainConfig:    chainConfig,
-		eventMux:       ctx.EventMux,
-		// accountManager: ctx.AccountManager,
 		wallet:		ctx.Wallet,
-		engine:         CreateConsensusEngine(ctx, &config.Pow, chainDb),
+		engine:         CreateConsensusEngine(),
 		shutdownChan:   make(chan bool),
 		coinbase:       config.Coinbase,
 	}
@@ -142,17 +142,11 @@ func CreateDB(ctx *node.ServiceContext, config *Config, name string) (database.D
 	return ctx.OpenDatabase(name, config.DatabaseCache, config.DatabaseHandles)
 }
 
-// CreateConsensusEngine creates the required type of consensus engine instance for an Entity service
-func CreateConsensusEngine(ctx *node.ServiceContext, config *pow.Config, db ethdb.Database) consensus.Engine {
-	engine := pow.New(pow.Config{
-		CacheDir:       ctx.ResolvePath(config.CacheDir),
-		CachesInMem:    config.CachesInMem,
-		CachesOnDisk:   config.CachesOnDisk,
-		DatasetDir:     config.DatasetDir,
-		DatasetsInMem:  config.DatasetsInMem,
-		DatasetsOnDisk: config.DatasetsOnDisk,
-	})
+// CreateConsensusEngine creates the required type of consensus engine instance for Server
+func CreateConsensusEngine() consensus.Engine {
+	engine := pow.new()
 	engine.SetThreads(1)
+
 	return engine
 }
 
