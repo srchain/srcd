@@ -310,8 +310,26 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 	return n, err
 }
 
+// CurrentHeader retrieves the current head header of the canonical chain. The
+// header is retrieved from the HeaderChain's internal cache.
+func (bc *BlockChain) CurrentHeader() *types.Header {
+	return bc.hc.CurrentHeader()
+}
+
+// GetHeader retrieves a block header from the database by hash and number,
+// caching it if found.
+func (bc *BlockChain) GetHeader(hash common.Hash, number uint64) *types.Header {
+	return bc.hc.GetHeader(hash, number)
+}
+
 // GetHeaderByHash retrieves a block header from the database by hash, caching it if
 // found.
 func (bc *BlockChain) GetHeaderByHash(hash common.Hash) *types.Header {
 	return bc.hc.GetHeaderByHash(hash)
+}
+
+// GetHeaderByNumber retrieves a block header from the database by number,
+// caching it (associated with its hash) if found.
+func (bc *BlockChain) GetHeaderByNumber(number uint64) *types.Header {
+	return bc.hc.GetHeaderByNumber(number)
 }

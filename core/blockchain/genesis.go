@@ -6,6 +6,8 @@ import (
 	"srcd/core/types"
 	"srcd/core/rawdb"
 	"srcd/common/common"
+	"srcd/log"
+	"srcd/params"
 )
 
 // Genesis specifies the header fields, state of a genesis block.
@@ -14,7 +16,7 @@ type Genesis struct {
 	Timestamp  uint64              `json:"timestamp"`
 	ExtraData  []byte              `json:"extraData"`
 	Difficulty *big.Int            `json:"difficulty" gencodec:"required"`
-	Mixhash    common.Hash         `json:"mixHash"`
+	// Mixhash    common.Hash         `json:"mixHash"`
 	Coinbase   common.Address      `json:"coinbase"`
 	// Alloc      GenesisAlloc        `json:"alloc"      gencodec:"required"`
 
@@ -74,14 +76,10 @@ func SetupGenesisBlock(db database.Database, genesis *Genesis) (common.Hash, err
 
 // ToBlock creates the genesis block and writes state of a genesis specification
 // to the given database (or discards it if nil).
-func (g *Genesis) ToBlock(database db.Database) *types.Block {
+func (g *Genesis) ToBlock(db database.Database) *types.Block {
 	if db == nil {
 		db = db.NewMemDatabase()
 	}
-
-	// trie op ...
-	// root := statedb.IntermediateRoot(false)
-	root := common.Hash{}
 
 	head := &types.Header{
 		Number:     new(big.Int).SetUint64(g.Number),
@@ -90,9 +88,9 @@ func (g *Genesis) ToBlock(database db.Database) *types.Block {
 		ParentHash: g.ParentHash,
 		Extra:      g.ExtraData,
 		Difficulty: g.Difficulty,
-		MixDigest:  g.Mixhash,
+		// MixDigest:  g.Mixhash,
 		Coinbase:   g.Coinbase,
-		Root:       root,
+		// root:       root,
 	}
 	if g.Difficulty == nil {
 		head.Difficulty = params.GenesisDifficulty
@@ -102,12 +100,12 @@ func (g *Genesis) ToBlock(database db.Database) *types.Block {
 }
 
 // Commit writes the block and state of a genesis specification to the database.
-// The block is committed as the canonical head block.
 func (g *Genesis) Commit(db database.Database) (*types.Block, error) {
 	block := g.ToBlock(db)
 	if block.Number().Sign() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with number > 0")
 	}
+
 	rawdb.WriteBlock(db, block)
 	rawdb.WriteCanonicalHash(db, block.Hash(), block.NumberU64())
 	rawdb.WriteHeadBlockHash(db, block.Hash())
