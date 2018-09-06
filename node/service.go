@@ -32,6 +32,13 @@ func (ctx *ServiceContext) OpenDatabase(name string, cache int, handles int) (da
 	return db, nil
 }
 
+// ResolvePath resolves a user path into the data directory if that was relative
+// and if the user actually uses persistent storage. It will return an empty string
+// for emphemeral storage and the user's own input for absolute paths.
+func (ctx *ServiceContext) ResolvePath(path string) string {
+	return ctx.config.resolvePath(path)
+}
+
 // ServiceConstructor is the function signature of the constructors needed to be
 // registered for service instantiation.
 type ServiceConstructor func(ctx *ServiceContext) (Service, error)
