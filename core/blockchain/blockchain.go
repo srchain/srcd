@@ -295,9 +295,7 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 	return n, err
 }
 
-// insertChain will execute the actual chain insertion and event aggregation. The
-// only reason this method exists as a separate one is to make locking cleaner
-// with deferred statements.
+// insertChain will execute the actual chain insertion and event aggregation.
 func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*types.Log, error) {
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
@@ -310,8 +308,9 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			log.Error("Non contiguous block insert", "number", chain[i].Number(), "hash", chain[i].Hash(),
 				"parent", chain[i].ParentHash(), "prevnumber", chain[i-1].Number(), "prevhash", chain[i-1].Hash())
 
-			return 0, nil, nil, fmt.Errorf("non contiguous insert: item %d is #%d [%x…], item %d is #%d [%x…] (parent [%x…])", i-1, chain[i-1].NumberU64(),
-				chain[i-1].Hash().Bytes()[:4], i, chain[i].NumberU64(), chain[i].Hash().Bytes()[:4], chain[i].ParentHash().Bytes()[:4])
+			return 0, nil, nil, fmt.Errorf("non contiguous insert: item %d is #%d [%x…], item %d is #%d [%x…] (parent [%x…])",
+				i-1, chain[i-1].NumberU64(), chain[i-1].Hash().Bytes()[:4], i, chain[i].NumberU64(),
+				chain[i].Hash().Bytes()[:4], chain[i].ParentHash().Bytes()[:4])
 		}
 	}
 	// Pre-checks passed, start the full block imports
@@ -388,38 +387,38 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			stats.queued++
 			continue
 
-		case err == consensus.ErrPrunedAncestor:
-			// Block competing with the canonical chain, store in the db, but don't process
-			// until the competitor TD goes above the canonical TD
-			currentBlock := bc.CurrentBlock()
-			localTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
-			externTd := new(big.Int).Add(bc.GetTd(block.ParentHash(), block.NumberU64()-1), block.Difficulty())
-			if localTd.Cmp(externTd) > 0 {
-				if err = bc.WriteBlockWithoutState(block, externTd); err != nil {
-					return i, events, coalescedLogs, err
-				}
-				continue
-			}
-			// Competitor chain beat canonical, gather all blocks from the common ancestor
-			var winner []*types.Block
+		// case err == consensus.ErrPrunedAncestor:
+			// // Block competing with the canonical chain, store in the db, but don't process
+			// // until the competitor TD goes above the canonical TD
+			// currentBlock := bc.CurrentBlock()
+			// localTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
+			// externTd := new(big.Int).Add(bc.GetTd(block.ParentHash(), block.NumberU64()-1), block.Difficulty())
+			// if localTd.Cmp(externTd) > 0 {
+				// if err = bc.WriteBlockWithoutState(block, externTd); err != nil {
+					// return i, events, coalescedLogs, err
+				// }
+				// continue
+			// }
+			// // Competitor chain beat canonical, gather all blocks from the common ancestor
+			// var winner []*types.Block
 
-			parent := bc.GetBlock(block.ParentHash(), block.NumberU64()-1)
-			for !bc.HasState(parent.Root()) {
-				winner = append(winner, parent)
-				parent = bc.GetBlock(parent.ParentHash(), parent.NumberU64()-1)
-			}
-			for j := 0; j < len(winner)/2; j++ {
-				winner[j], winner[len(winner)-1-j] = winner[len(winner)-1-j], winner[j]
-			}
-			// Import all the pruned blocks to make the state available
-			bc.chainmu.Unlock()
-			_, evs, logs, err := bc.insertChain(winner)
-			bc.chainmu.Lock()
-			events, coalescedLogs = evs, logs
+			// parent := bc.GetBlock(block.ParentHash(), block.NumberU64()-1)
+			// for !bc.HasState(parent.Root()) {
+				// winner = append(winner, parent)
+				// parent = bc.GetBlock(parent.ParentHash(), parent.NumberU64()-1)
+			// }
+			// for j := 0; j < len(winner)/2; j++ {
+				// winner[j], winner[len(winner)-1-j] = winner[len(winner)-1-j], winner[j]
+			// }
+			// // Import all the pruned blocks to make the state available
+			// bc.chainmu.Unlock()
+			// _, evs, logs, err := bc.insertChain(winner)
+			// bc.chainmu.Lock()
+			// events, coalescedLogs = evs, logs
 
-			if err != nil {
-				return i, events, coalescedLogs, err
-			}
+			// if err != nil {
+				// return i, events, coalescedLogs, err
+			// }
 
 		case err != nil:
 			bc.reportBlock(block, nil, err)
