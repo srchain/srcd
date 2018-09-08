@@ -64,7 +64,7 @@ type BlockChain struct {
 	// processor Processor // block processor interface
 	validator Validator // block validator interface
 
-	// badBlocks *lru.Cache // Bad block cache
+	badBlocks *lru.Cache // Bad block cache
 }
 
 // NewBlockChain returns a fully initialised block chain using information
