@@ -2,8 +2,8 @@ package transaction
 
 import (
 	"io"
-	"github.com/bytom/encoding/blockchain"
 	"srcd/errors"
+	"srcd/protocol/transaction/extend"
 )
 
 // TxInput is the top level struct of tx input.
@@ -22,14 +22,15 @@ type (
 
 
 func (t *TxInput) writeTo(w io.Writer) error {
-	if _, err := blockchain.WriteVarint63(w, t.AssetVersion); err != nil {
+	if _, err := extend.WriteVarint63(w, t.AssetVersion); err != nil {
 		return errors.New("write byte error")
 	}
-	if _, err := blockchain.WriteExtensibleString(w, t.CommitmentSuffix, t.writeInputCommitment); err != nil {
+	if _, err := extend.WriteExtensibleString(w, t.CommitmentSuffix, t.writeInputCommitment); err != nil {
 		return errors.New("write byte error")
 	}
-	//_, err := blockchain.WriteExtensibleString(w, t.WitnessSuffix, t.writeInputWitness)
-	return errors.New("write byte error")
+	_, err := extend.WriteExtensibleString(w, t.WitnessSuffix, t.writeInputWitness)
+
+	return err
 }
 
 func (t *TxInput)writeInputCommitment(w io.Writer)(err error){
@@ -42,5 +43,13 @@ func (t *TxInput)writeInputCommitment(w io.Writer)(err error){
 		return inp.SpendCommitment.writeExtensibleString(w, inp.SpendCommitmentSuffix, t.AssetVersion)
 	}
 
+	return nil
+}
+func (t *TxInput) writeInputWitness(w io.Writer) error {
+	switch inp := t.TypedInput.(type) {
+	case *SpendInput:
+		_, err := extend.WriteVarstrList(w, inp.Arguments)
+		return err
+	}
 	return nil
 }

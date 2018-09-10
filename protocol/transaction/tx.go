@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"io"
 	"github.com/bytom/errors"
-	"github.com/bytom/encoding/blockchain"
+	"srcd/protocol/transaction/extend"
 )
 
 // Tx is a wrapper for the entries-based representation of a transaction.
@@ -93,24 +93,24 @@ func (tx *TxData) writeTo(w io.Writer, serflags byte) error {
 	if _, err := w.Write([]byte{serflags}); err != nil {
 		return errors.New("write byte error")
 	}
-	if _, err := blockchain.WriteVarint63(w, tx.Version); err != nil {
+	if _, err := extend.WriteVarint63(w, tx.Version); err != nil {
 		return errors.Wrap(err, "writing transaction version")
 	}
-	if _, err := blockchain.WriteVarint63(w, tx.TimeRange); err != nil {
+	if _, err := extend.WriteVarint63(w, tx.TimeRange); err != nil {
 		return errors.Wrap(err, "writing transaction maxtime")
 	}
 
-	if _, err := blockchain.WriteVarint31(w, uint64(len(tx.Inputs))); err != nil {
+	if _, err := extend.WriteVarint31(w, uint64(len(tx.Inputs))); err != nil {
 		return errors.Wrap(err, "writing tx input count")
 	}
 
-	//for i, ti := range tx.Inputs {
-	//	if err := ti.writeTo(w); err != nil {
-	//		return errors.Wrapf(err, "writing tx input %d", i)
-	//	}
-	//}
+	for i, ti := range tx.Inputs {
+		if err := ti.writeTo(w); err != nil {
+			return errors.Wrapf(err, "writing tx input %d", i)
+		}
+	}
 
-	if _, err := blockchain.WriteVarint31(w, uint64(len(tx.Outputs))); err != nil {
+	if _, err := extend.WriteVarint31(w, uint64(len(tx.Outputs))); err != nil {
 		return errors.Wrap(err, "writing tx output count")
 	}
 
