@@ -37,7 +37,11 @@ func NewHash(b32 [32]byte) (h Hash) {
 	h.V3 = binary.BigEndian.Uint64(b32[24:32])
 	return h
 }
-
+// Bytes returns the byte representation
+func (h Hash) Bytes() []byte {
+	b32 := h.Byte32()
+	return b32[:]
+}
 func (h *Hash)ReadFrom(r io.Reader)(int64,error)  {
 	var b32 [32]byte
 	n, err := io.ReadFull(r, b32[:])
@@ -47,14 +51,25 @@ func (h *Hash)ReadFrom(r io.Reader)(int64,error)  {
 	*h = NewHash(b32)
 	return int64(n), nil
 }
-
+// Byte32 return the byte array representation
+func (h Hash) Byte32() (b32 [32]byte) {
+	binary.BigEndian.PutUint64(b32[0:8], h.V0)
+	binary.BigEndian.PutUint64(b32[8:16], h.V1)
+	binary.BigEndian.PutUint64(b32[16:24], h.V2)
+	binary.BigEndian.PutUint64(b32[24:32], h.V3)
+	return b32
+}
 func (m *Hash) Reset()         { *m = Hash{} }
 func (m *Hash) String() string { return proto.CompactTextString(m) }
 func (*Hash) ProtoMessage()    {}
 func (*Hash) Descriptor() ([]byte, []int) {
 	return fileDescriptor_tx_dcb76708e2c2a44f, []int{0}
 }
-
+// WriteTo satisfies the io.WriterTo interface.
+func (h Hash) WriteTo(w io.Writer) (int64, error) {
+	n, err := w.Write(h.Bytes())
+	return int64(n), err
+}
 var xxx_messageInfo_Hash proto.InternalMessageInfo
 
 func (m *Hash) GetV0() uint64 {

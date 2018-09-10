@@ -68,3 +68,20 @@ func (xprv XPrv) XPub() (xpub XPub) {
 func (xpub XPub) PublicKey() ed25519.PublicKey {
 	return ed25519.PublicKey(xpub[:32])
 }
+
+func (xprv XPrv)Sign(msg []byte) []byte {
+	return Ed25519InnerSign(xprv.ExpandedPrivateKey(), msg)
+	//return nil
+}
+// ExpandedPrivateKey generates a 64-byte key where
+// the first half is the scalar copied from xprv,
+// and the second half is the `prefix` is generated via PRF
+// from the xprv.
+func (xprv XPrv) ExpandedPrivateKey() ExpandedPrivateKey {
+	var res [64]byte
+	h := hmac.New(sha512.New, []byte{'E', 'x', 'p', 'a', 'n', 'd'})
+	h.Write(xprv[:])
+	h.Sum(res[:0])
+	copy(res[:32], xprv[:32])
+	return res[:]
+}

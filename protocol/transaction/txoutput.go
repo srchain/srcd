@@ -1,6 +1,5 @@
-package types
+package transaction
 
-// TxOutput is the top level struct of tx output.
 type TxOutput struct {
 	AssetVersion uint64
 	OutputCommitment
@@ -8,9 +7,8 @@ type TxOutput struct {
 	CommitmentSuffix []byte
 }
 
-// OutputCommitment contains the commitment data for a transaction output.
 type OutputCommitment struct {
-	//bc.AssetAmount
+	AssetAmount
 	VMVersion      uint64
 	ControlProgram []byte
 }
