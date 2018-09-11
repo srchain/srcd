@@ -1,7 +1,8 @@
 package mempool
 
 import (
-
+	"time"
+	"sync"
 )
 
 // TxPoolConfig are the configuration parameters of the transaction pool.

@@ -1,7 +1,9 @@
 package blockchain
 
 import(
-
+	"time"
+	"sync"
+	"sync/atomic"
 )
 
 type BlockChain struct {

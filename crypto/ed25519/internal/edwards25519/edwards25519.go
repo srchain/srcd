@@ -1770,3 +1770,4 @@ func ScReduce(out *[32]byte, s *[64]byte) {
 	out[30] = byte(s11 >> 9)
 	out[31] = byte(s11 >> 17)
 }
+
