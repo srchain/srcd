@@ -1,7 +1,21 @@
 package node
 
 import (
+	"strings"
+	"os"
 	"path/filepath"
+
+	"srcd/common/common"
+	"srcd/wallet"
+	// "srcd/p2p"
+)
+
+const (
+	// datadirPrivateKey      = "nodekey"            // Path within the datadir to the node's private key
+	datadirDefaultKeyStore = "keystore"           // Path within the datadir to the keystore
+	// datadirStaticNodes     = "static-nodes.json"  // Path within the datadir to the static node list
+	// datadirTrustedNodes    = "trusted-nodes.json" // Path within the datadir to the trusted node list
+	// datadirNodeDatabase    = "nodes"              // Path within the datadir to store the node infos
 )
 
 // Config represents a small collection of configuration values to fine tune the
@@ -28,7 +42,7 @@ type Config struct {
 	DataDir string
 
 	// Configuration of peer-to-peer networking.
-	P2P p2p.Config
+	// P2P p2p.Config
 
 	// KeyStoreDir is the file system folder that contains private keys. The directory can
 	// be specified as a relative path, in which case it is resolved relative to the
@@ -107,6 +121,26 @@ type Config struct {
 	// Logger log.Logger `toml:",omitempty"`
 }
 
+func (c *Config) name() string {
+	if c.Name == "" {
+		progname := strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
+		if progname == "" {
+			panic("empty executable name, set Config.Name")
+		}
+		return progname
+	}
+	return c.Name
+}
+
+// These resources are resolved differently.
+var isOldGethResource = map[string]bool{
+	"chaindata":          true,
+	// "nodes":              true,
+	// "nodekey":            true,
+	// "static-nodes.json":  true,
+	// "trusted-nodes.json": true,
+}
+
 // resolvePath resolves path in the instance directory.
 func (c *Config) resolvePath(path string) string {
 	if filepath.IsAbs(path) {
@@ -115,11 +149,10 @@ func (c *Config) resolvePath(path string) string {
 	if c.DataDir == "" {
 		return ""
 	}
-	// Backwards-compatibility: ensure that data directory files created
-	// by geth 1.4 are used if they exist.
-	if c.name() == "geth" && isOldGethResource[path] {
+
+	if c.name() == "srcd" && isOldGethResource[path] {
 		oldpath := ""
-		if c.Name == "geth" {
+		if c.Name == "srcd" {
 			oldpath = filepath.Join(c.DataDir, path)
 		}
 		if oldpath != "" && common.FileExist(oldpath) {
@@ -128,4 +161,17 @@ func (c *Config) resolvePath(path string) string {
 		}
 	}
 	return filepath.Join(c.instanceDir(), path)
+}
+
+func (c *Config) instanceDir() string {
+	if c.DataDir == "" {
+		return ""
+	}
+	return filepath.Join(c.DataDir, c.name())
+}
+
+func makeWalletManager() *wallet.Wallet {
+	wallet := wallet.NewWallet()
+
+	return wallet
 }

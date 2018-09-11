@@ -1,15 +1,19 @@
 package main
 
 import (
+	"srcd/node"
+	"srcd/server"
+	"srcd/cmd/utils"
+
 	"gopkg.in/urfave/cli.v1"
 )
 
 // It creates a default peer based on the command line arguments and runs it in
 // blocking mode, waiting for it to be shut down.
 func entry(ctx *cli.Context) error {
-	// peer := makePeer(ctx)
-	// startPeer(ctx, peer)
-	// peer.Wait()
+	node := makeNode(ctx)
+	startNode(ctx, node)
+	node.Wait()
 
 	return nil
 }
@@ -17,19 +21,23 @@ func entry(ctx *cli.Context) error {
 // startPeer boots up the system peer and all registered protocols, after which
 // it unlocks any requested accounts, and starts the RPC/IPC interfaces and the
 // miner.
-// func startPeer(ctx *cli.Context, peer *peer.Peer) {
-	// // Start up the node itself
-	// utils.StartPeer(peer)
+func startNode(ctx *cli.Context, node *node.Node) {
+	// Start up the node itself
+	utils.StartNode(node)
 
-	// // wallet op ...
+	// wallet op ...
 
-	// // Start auxiliary services if enabled
-	// if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
-		// var node node.Node
+	// Start auxiliary services if enabled
+	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
+		var server *server.Server
 
-		// // Start mining
-		// if err := node.StartMining(true); err != nil {
-			// utils.Fatalf("Failed to start mining: %v", err)
-		// }
-	// }
-// }
+		if err := stack.Service(&server); err != nil {
+			utils.Fatalf("Srcd service not running: %v", err)
+		}
+
+		// Start mining
+		if err := server.StartMining(true); err != nil {
+			utils.Fatalf("Failed to start mining: %v", err)
+		}
+	}
+}

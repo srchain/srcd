@@ -10,12 +10,11 @@ import (
 	"unicode"
 	"path/filepath"
 
-	"srcd/cmd/utils"
 	"srcd/node"
-	"srcd/instance"
+	"srcd/server"
+	"srcd/cmd/utils"
 
 	"github.com/naoina/toml"
-
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -27,9 +26,8 @@ var (
 )
 
 type config struct {
+	Server    server.Config
 	Node      node.Config
-	Instance  instance.Config
-	// Dashboard dashboard.Config
 }
 
 func loadConfig(file string, cfg *config) error {
@@ -47,12 +45,19 @@ func loadConfig(file string, cfg *config) error {
 	return err
 }
 
+func defaultNodeConfig() node.Config {
+	cfg := node.DefaultConfig
+	cfg.Name = "srcd"
+	cfg.Version = params.Version
+
+	return cfg
+}
+
 func makeConfig(ctx *cli.Context) *config {
 	// Default config.
 	cfg := config{
-		Node:      node.DefaultConfig,
-		Instance:  instance.DefaultConfig,
-		// Dashboard: dashboard.DefaultConfig,
+		Server:    server.DefaultConfig,
+		Node:      defaultNodeConfig,
 	}
 
 	// Load config file.
@@ -64,16 +69,20 @@ func makeConfig(ctx *cli.Context) *config {
 
 	// Apply flags.
 	utils.SetNodeConfig(ctx, &cfg.Node)
-	utils.SetInstanceConfig(ctx, &cfg.Instance)
-	// utils.SetDashboardConfig(ctx, &cfg.Dashboard)
+	node, err := node.New(&cfg.Node)
+	if err != nil {
+		utils.Fatalf("Failed to create the protocol node: %v", err)
+	}
 
-	return &cfg
+	utils.SetServerConfig(ctx, node, &cfg.Server)
+
+	return node, cfg
 }
 
 func makeNode(ctx *cli.Context) *node.Node {
-	cfg := makeConfig(ctx)
+	node, cfg := makeConfigNode(ctx)
 
-	node := node.New(&cfg.Node)
+	utils.RegisterService(node, &cfg.Server)
 
 	return node
 }

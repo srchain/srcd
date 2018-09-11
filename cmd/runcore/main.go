@@ -8,7 +8,6 @@ import (
 	"sort"
 
 	"srcd/cmd/utils"
-	"srcd/console"
 
 	"gopkg.in/urfave/cli.v1"
 )
