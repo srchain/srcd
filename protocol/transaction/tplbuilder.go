@@ -1,5 +1,8 @@
 package transaction
 
+import (
+)
+
 type InputAndSigInst struct {
 	input *TxInput
 	sigInst *SigningInstruction
@@ -34,3 +37,35 @@ func BuildUtxoTemplate(inputs []InputAndSigInst, outputs []*TxOutput) (*Template
 	return tpl, tx, nil
 }
 
+
+func BuildTransactionFromTx(baseTx Tx, outputIndex uint64, outputAmount uint64, ctrlProgram []byte)(*Tx,error){
+	//spendInput, err := CreateSpendInput(baseTx, outputIndex)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//txInput := &TxInput{
+	//	AssetVersion: 1,
+	//	TypedInput:   spendInput,
+	//}
+	//
+	//output := UtxoOutputs(*SRCAssetID, outputAmount, ctrlProgram)
+	//builder := txbuilder.NewBuilder(time.Now())
+	//builder.AddInput(txInput, &SigningInstruction{})
+	//builder.AddOutput(output)
+	//
+	//tpl, _, err := builder.Build()
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//txSerialized, err := tpl.Transaction.MarshalText()
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//tpl.Transaction.Tx.SerializedSize = uint64(len(txSerialized))
+	//tpl.Transaction.TxData.SerializedSize = uint64(len(txSerialized))
+	//return tpl.Transaction, nil
+
+}

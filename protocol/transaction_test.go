@@ -84,7 +84,6 @@ func TestTxSign(t *testing.T) {
 
 	fmt.Printf("%x\n", txData.Inputs)
 	if b, err := json.Marshal(utxoTpl); err == nil {
-		fmt.Println("================struct 到json str==")
 		fmt.Println(string(b))
 	}
 

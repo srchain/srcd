@@ -5,23 +5,7 @@ import (
 	"fmt"
 )
 
-//
 func TxSign(tpl *Template,xprv chainkd.XPrv,xpub chainkd.XPub) error{
-	//for i,sigInst := range tpl.SigningInstructions {
-	//	h := tpl.Hash(uint32(i)).Byte32()
-	//	sig := xprv.Sign(h[:])
-	//	fmt.Printf("sig:%x\n",sig)
-	//	rawTxSig := &RawTxSigWitness{
-	//		Quorum: 1,
-	//		Sigs:   []HexBytes{sig},
-	//	}
-	//	fmt.Println("111111111")
-	//	fmt.Println(rawTxSig)
-	//	sigInst.WitnessComponents = []witnessComponent{
-	//		rawTxSig,
-	//		sigInst.WitnessComponents...
-	//	}
-	//}
 	h := tpl.Hash(0).Byte32()
 	sig := xprv.Sign(h[:])
 	pub := xpub.PublicKey()
