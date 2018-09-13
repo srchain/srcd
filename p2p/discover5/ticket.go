@@ -54,7 +54,7 @@ type sentQueru struct {
 	lookup lookupInfo
 }
 
-type tickStore struct {
+type ticketStore struct {
 	radius map[Topic]*topicRadius
 	tickets map[Topic]*topicTickets
 

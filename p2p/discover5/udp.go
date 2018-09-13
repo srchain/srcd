@@ -2,6 +2,15 @@ package discover5
 
 import "net"
 
+type (
+	rpcEndpoint struct {
+		IP net.IP
+		UDP uint16
+		TCP uint16
+	}
+)
+
+
 type ingressPacket struct {
 	remoteID 	NodeID
 	remoteAddr	*net.UDPAddr

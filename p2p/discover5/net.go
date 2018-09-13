@@ -10,6 +10,11 @@ import (
 type nodeNetGuts struct {
 	sha common.Hash
 	state *nodeState
+	pingEcho []byte
+	pingTopics []Topic
+	deferredQueries 	[]*findnodeQuery
+	pendingNeighbours	*findnodeQuery
+	queryTimeouts	int
 }
 
 type timeoutEvent struct {
@@ -72,6 +77,14 @@ type Network struct {
 	tab *Table
 	topictab *topicTable
 	ticketStore	*ticketStore
+	nursery []*Node
+	nodes 	map[NodeID]*Node
+	timeoutTimers map[timeoutEvent]*time.Timer
+
+	slowRevalidateQueue []*Node
+	fastRevalidateQueue []*Node
+
+	sendBuf []*ingressPacket
 
 
 
