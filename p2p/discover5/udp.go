@@ -2,6 +2,9 @@ package discover5
 
 import "net"
 
+
+const Version = 4
+
 type (
 	rpcEndpoint struct {
 		IP net.IP

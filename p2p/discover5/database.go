@@ -239,6 +239,11 @@ func (db *nodeDB) findFails(id NodeID) int {
 	return int(db.fetchInt64(makeKey(id, nodeDBDiscoverFindFails)))
 }
 
+func (db *nodeDB) updateLastPong(id NodeID, instance time.Time) error {
+	return db.storeInt64(makeKey(id, nodeDBDiscoverPong), instance.Unix())
+}
+
+
 // updateFindFails updates the number of findnode failures since bonding.
 func (db *nodeDB) updateFindFails(id NodeID, fails int) error {
 	return db.storeInt64(makeKey(id, nodeDBDiscoverFindFails), int64(fails))
