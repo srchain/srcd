@@ -1,4 +1,3 @@
-// Package math provides integer math utilities.
 package math
 
 import (

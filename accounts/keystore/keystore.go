@@ -48,18 +48,19 @@ func (ks *KeyStore) init(keydir string) {
 
 	// Initialize the set of unlocked keys and the account cache
 	ks.unlocked = make(map[common.Address]*unlocked)
-	// ks.cache, ks.changes = newAccountCache(keydir)
+	ks.cache, ks.changes = newAccountCache(keydir)
 
-	// // TODO: In order for this finalizer to work, there must be no references
-	// // to ks. addressCache doesn't keep a reference but unlocked keys do,
-	// // so the finalizer will not trigger until all timed unlocks have expired.
-	// runtime.SetFinalizer(ks, func(m *KeyStore) {
-		// m.cache.close()
-	// })
-	// // Create the initial list of wallets from the cache
-	// accs := ks.cache.accounts()
-	// ks.wallets = make([]accounts.Wallet, len(accs))
-	// for i := 0; i < len(accs); i++ {
-		// ks.wallets[i] = &keystoreWallet{account: accs[i], keystore: ks}
-	// }
+	// TODO: In order for this finalizer to work, there must be no references
+	// to ks. addressCache doesn't keep a reference but unlocked keys do,
+	// so the finalizer will not trigger until all timed unlocks have expired.
+	runtime.SetFinalizer(ks, func(m *KeyStore) {
+		m.cache.close()
+	})
+
+	// Create the initial list of wallets from the cache
+	accs := ks.cache.accounts()
+	ks.wallets = make([]accounts.Wallet, len(accs))
+	for i := 0; i < len(accs); i++ {
+		ks.wallets[i] = &keystoreWallet{account: accs[i], keystore: ks}
+	}
 }

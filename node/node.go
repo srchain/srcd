@@ -18,8 +18,8 @@ import (
 type Node struct {
 	// eventmux *event.TypeMux		// Event multiplexer used between the services of a stack
 	config            *Config
-	// accman   *accounts.Manager
-	wallet            *wallet.Wallet
+	accman   *accounts.Manager
+	// wallet            *wallet.Wallet
 
 	ephemeralKeystore string	// if non-empty, the key directory that will be removed by Stop
 	instanceDirLock   flock.Releaser	// prevents concurrent use of instance directory
@@ -77,18 +77,19 @@ func New(conf *Config) (*Node, error) {
 	if strings.HasSuffix(conf.Name, ".ipc") {
 		return nil, errors.New(`Config.Name cannot end in ".ipc"`)
 	}
-	// Ensure that the AccountManager method works before the node has started.
-	// am, ephemeralKeystore, err := makeAccountManager(conf)
-	// if err != nil {
-		// return nil, err
-	// }
 
-	wallet := makeWalletManager()
+	// Ensure that the AccountManager method works before the node has started.
+	am, ephemeralKeystore, err := makeAccountManager(conf)
+	if err != nil {
+		return nil, err
+	}
+
+	// wallet := makeWalletManager()
 
 	return &Node{
-		// accman:            am,
-		// ephemeralKeystore: ephemeralKeystore,
-		wallet:		   wallet,
+		accman:            am,
+		ephemeralKeystore: ephemeralKeystore,
+		// wallet:		   wallet,
 		config:            conf,
 		serviceFuncs:      []ServiceConstructor{},
 		// ipcEndpoint:       conf.IPCEndpoint(),
