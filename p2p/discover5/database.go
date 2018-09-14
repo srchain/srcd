@@ -303,6 +303,14 @@ func (db *nodeDB) fetchTopicRegTickets(id NodeID) (issued, used uint32) {
 	return
 }
 
+func (db *nodeDB) updateTopicRegTickets(id NodeID, issued , used uint32) error {
+	key := makeKey(id,nodeDBTopicRegTickets)
+	blob := make([]byte,8)
+	binary.BigEndian.PutUint32(blob[0:4],issued)
+	binary.BigEndian.PutUint32(blob[4:8],used)
+	return db.lvl.Put(key,blob,nil)
+}
+
 func nextNode(it iterator.Iterator) *Node {
 	for end := false; !end; end = !it.Next() {
 		id, field := splitKey(it.Key())
