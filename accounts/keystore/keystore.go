@@ -10,13 +10,17 @@ import (
 )
 
 var (
+	ErrNoMatch = errors.New("no key for given address or file")
 	ErrDecrypt = errors.New("could not decrypt key with given passphrase")
 )
+
+// KeyStoreScheme is the protocol scheme prefixing account and wallet URLs.
+const KeyStoreScheme = "keystore"
 
 // KeyStore manages a key storage directory on disk.
 type KeyStore struct {
 	storage     keyStore                     // Storage backend, might be cleartext or encrypted
-	// cache       *accountCache                // In-memory account cache over the filesystem storage
+	cache       *accountCache                // In-memory account cache over the filesystem storage
 	changes     chan struct{}                // Channel receiving change notifications from the cache
 	unlocked    map[common.Address]*unlocked // Currently unlocked account (decrypted private keys)
 

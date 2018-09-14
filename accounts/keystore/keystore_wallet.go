@@ -12,6 +12,11 @@ type keystoreWallet struct {
 	keystore *KeyStore        // Keystore where the account originates from
 }
 
+// URL implements accounts.Wallet, returning the URL of the account within.
+func (w *keystoreWallet) URL() accounts.URL {
+	return w.account.URL
+}
+
 // Status implements accounts.Wallet, returning whether the account held by the
 // keystore wallet is unlocked or not.
 func (w *keystoreWallet) Status() (string, error) {
@@ -41,7 +46,7 @@ func (w *keystoreWallet) Accounts() []accounts.Account {
 // Contains implements accounts.Wallet, returning whether a particular account is
 // or is not wrapped by this wallet instance.
 func (w *keystoreWallet) Contains(account accounts.Account) bool {
-	return account.Address == w.account.Address
+	return account.Address == w.account.Address && (account.URL == (accounts.URL{}) || account.URL == w.account.URL)
 }
 
 // SignHash implements accounts.Wallet, attempting to sign the given hash with
@@ -50,6 +55,9 @@ func (w *keystoreWallet) Contains(account accounts.Account) bool {
 func (w *keystoreWallet) SignHash(account accounts.Account, hash []byte) ([]byte, error) {
 	// Make sure the requested account is contained within
 	if account.Address != w.account.Address {
+		return nil, accounts.ErrUnknownAccount
+	}
+	if account.URL != (accounts.URL{}) && account.URL != w.account.URL {
 		return nil, accounts.ErrUnknownAccount
 	}
 
@@ -65,6 +73,9 @@ func (w *keystoreWallet) SignTx(account accounts.Account, tx *types.Transaction)
 	if account.Address != w.account.Address {
 		return nil, accounts.ErrUnknownAccount
 	}
+	if account.URL != (accounts.URL{}) && account.URL != w.account.URL {
+		return nil, accounts.ErrUnknownAccount
+	}
 
 	// Account seems valid, request the keystore to sign
 	return w.keystore.SignTx(account, tx)
@@ -77,6 +88,9 @@ func (w *keystoreWallet) SignHashWithPassphrase(account accounts.Account, passph
 	if account.Address != w.account.Address {
 		return nil, accounts.ErrUnknownAccount
 	}
+	if account.URL != (accounts.URL{}) && account.URL != w.account.URL {
+		return nil, accounts.ErrUnknownAccount
+	}
 
 	// Account seems valid, request the keystore to sign
 	return w.keystore.SignHashWithPassphrase(account, passphrase, hash)
@@ -87,6 +101,9 @@ func (w *keystoreWallet) SignHashWithPassphrase(account accounts.Account, passph
 func (w *keystoreWallet) SignTxWithPassphrase(account accounts.Account, passphrase string, tx *types.Transaction) (*types.Transaction, error) {
 	// Make sure the requested account is contained within
 	if account.Address != w.account.Address {
+		return nil, accounts.ErrUnknownAccount
+	}
+	if account.URL != (accounts.URL{}) && account.URL != w.account.URL {
 		return nil, accounts.ErrUnknownAccount
 	}
 
