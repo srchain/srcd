@@ -140,3 +140,99 @@ func TestNodeDBFetchStore(t *testing.T) {
 		t.Errorf("node: data mismatch: have %v, want %v", stored, node)
 	}
 }
+
+
+var nodeDBSeedQueryNodes = []struct {
+	node *Node
+	pong time.Time
+}{
+	// This one should not be in the result set because its last
+	// pong time is too far in the past.
+	{
+		node: NewNode(
+			MustHexID("0x84d9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+			net.IP{127, 0, 0, 3},
+			30303,
+			30303,
+		),
+		pong: time.Now().Add(-3 * time.Hour),
+	},
+	// This one shouldn't be in in the result set because its
+	// nodeID is the local node's ID.
+	{
+		node: NewNode(
+			MustHexID("0x57d9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+			net.IP{127, 0, 0, 3},
+			30303,
+			30303,
+		),
+		pong: time.Now().Add(-4 * time.Second),
+	},
+
+	// These should be in the result set.
+	{
+		node: NewNode(
+			MustHexID("0x22d9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+			net.IP{127, 0, 0, 1},
+			30303,
+			30303,
+		),
+		pong: time.Now().Add(-2 * time.Second),
+	},
+	{
+		node: NewNode(
+			MustHexID("0x44d9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+			net.IP{127, 0, 0, 2},
+			30303,
+			30303,
+		),
+		pong: time.Now().Add(-3 * time.Second),
+	},
+	{
+		node: NewNode(
+			MustHexID("0xe2d9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+			net.IP{127, 0, 0, 3},
+			30303,
+			30303,
+		),
+		pong: time.Now().Add(-1 * time.Second),
+	},
+}
+
+
+func TestNodeDBSeedQuery(t *testing.T) {
+	db, _ := newNodeDB("",Version,nodeDBSeedQueryNodes[1].node.ID)
+	defer db.close()
+	for i, seed := range nodeDBSeedQueryNodes {
+		if err := db.updateNode(seed.node); err != nil {
+			t.Fatalf("node %d: failed to insert: %v", i, err)
+		}
+		if err := db.updateLastPong(seed.node.ID, seed.pong); err != nil {
+			t.Fatalf("node %d: failed to insert lastPong: %v", i, err)
+		}
+	}
+
+	seeds := db.querySeeds(len(nodeDBSeedQueryNodes) * 2, time.Hour)
+	have := make(map[NodeID]struct{})
+	for _, seed := range seeds {
+		have[seed.ID] = struct{}{}
+	}
+	want := make(map[NodeID]struct{})
+	for _, seed := range nodeDBSeedQueryNodes[2:] {
+		want[seed.node.ID] = struct{}{}
+	}
+	if len(seeds) != len(want) {
+		t.Errorf("seed count mismatch: have %v, want %v", len(seeds), len(want))
+	}
+	for id := range have {
+		if id , ok := want[id]; !ok {
+			t.Errorf("extra seed: %v", id)
+		}
+	}
+	for id := range want {
+		if _, ok := want[id]; !ok {
+			t.Errorf("missing seed: %v", id)
+		}
+	}
+
+}
