@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/binary"
 	"math/big"
+	"sort"
 	"sync/atomic"
 
 	"srcd/common/common"
