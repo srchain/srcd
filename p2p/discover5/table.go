@@ -1,6 +1,9 @@
 package discover5
 
-import "github.com/srchain/srcd/common/common"
+import (
+	"github.com/srchain/srcd/common/common"
+	"net"
+)
 
 const (
 	alpha      = 3  // Kademlia concurrency factor
@@ -23,3 +26,13 @@ type bucket struct {
 	replacements []*Node
 }
 
+
+func newTable(ourID NodeID, ourAddr *net.UDPAddr) *Table {
+	self := NewNode(ourID,ourAddr.IP,uint16(ourAddr.Port),uint16(ourAddr.Port))
+	tab := &Table{self: self}
+	for i := range tab.buckets {
+		tab.buckets[i] = new(bucket)
+
+	}
+	return tab
+}

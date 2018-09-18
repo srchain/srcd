@@ -3,6 +3,8 @@ package discover5
 import (
 	"go-ethereum/common/mclock"
 	"github.com/srchain/srcd/common/common"
+	"time"
+	"github.com/srchain/srcd/log"
 )
 
 type topicRadiusEvent int
@@ -10,7 +12,10 @@ type topicRadiusEvent int
 type timeBucket int
 
 type topicTickets struct {
-	bucket map[timeBucket] []ticketRef
+
+	buckets map[timeBucket] []ticketRef
+	nextLookup mclock.AbsTime
+	nextReg mclock.AbsTime
 }
 
 type ticket struct {
@@ -31,6 +36,11 @@ type ticket struct {
 type ticketRef struct {
 	t   *ticket
 	idx int // index of the topic in t.topics and t.regTime
+}
+
+func (ref ticketRef) topicRegTime() mclock.AbsTime {
+	return ref.t.regTime[ref.idx]
+
 }
 
 
@@ -95,4 +105,58 @@ type topicRadius struct {
 	buckets []topicRadiusBucket
 	converged bool
 	radiusLookuoCnt	int
+}
+
+func (s *ticketStore) nextFilteredTicket() (*ticketRef, time.Duration) {
+	now := mclock.Now()
+	for {
+		ticket, wait := s.nextRegisterableTicket()
+		if ticket == nil {
+			return ticket, wait
+		}
+		log.Trace("Found discovery ticket to register","node",ticket.t.node,"serial",ticket.t.serial,"wait",wait)
+		regTime := now + mclock.AbsTime(wait)
+		topic := ticket.t.topics[ticket.idx]
+		if s.tickets[topic] != nil && regTime >= s.tickets[topic].nextReg {
+			return ticket, wait
+		}
+		s.removeTicketRef(*ticket)
+	}
+}
+
+func (s *ticketStore) nextRegisterableTicket() (*ticketRef, time.Duration) {
+	now := mclock.Now()
+	if s.nextTicketCached != nil {
+		return s.nextTicketCached, time.Duration(s.nextTicketCached.topicRegTime() - now)
+	}
+	for bucket := s.lastBucketFetched; ; bucket++ {
+		var (
+			empty = true
+			nextTicket ticketRef
+		)
+		for _, tickets := range s.tickets {
+			if len(tickets.buckets) != 0 {
+				empty = false
+
+				list := tickets.buckets[bucket]
+				for _, ref := range list {
+					if nextTicket.t == nil || ref.topicRegTime() < nextTicket.topicRegTime() {
+						nextTicket = ref
+					}
+				}
+			}
+		}
+		if empty {
+			return nil, 0
+		}
+		if nextTicket.t != nil {
+			s.nextTicketCached = &nextTicket
+			return &nextTicket, time.Duration(nextTicket.topicRegTime() - now)
+		}
+		s.lastBucketFetched = bucket
+	}
+}
+
+func (s *ticketStore) removeTicketRef(ref ticketRef) {
+	log.Trace("Removing tickets from unknown topic","topic",topic)
 }

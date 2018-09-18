@@ -6,6 +6,8 @@ import (
 	"strings"
 	"fmt"
 	"github.com/srchain/srcd/crypto/crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 )
 
 const nodeIDBits  = 512
@@ -55,3 +57,15 @@ func HexID(in string) (NodeID, error) {
 	copy(id[:],b)
 	return id, nil
 }
+
+func PubKeyID(pub *ecdsa.PublicKey) NodeID {
+	var id NodeID
+	pbytes := elliptic.Marshal(pub.Curve,pub.X,pub.Y)
+	if len(pbytes) - 1 != len(id) {
+		panic(fmt.Errorf("need %d bit pubkey, got %d bits",(len(id)+1)*8,len(pbytes)))
+	}
+	copy(id[:],pbytes[1:])
+	return id
+}
+
+

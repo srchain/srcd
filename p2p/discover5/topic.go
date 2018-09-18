@@ -3,6 +3,7 @@ package discover5
 import (
 	"go-ethereum/common/mclock"
 	"time"
+	"fmt"
 )
 
 type Topic string
@@ -33,6 +34,11 @@ type topicEntry struct {
 	expire mclock.AbsTime
 }
 
+type topicSearchInfo struct {
+	lookupChn chan<- bool
+	period time.Duration
+}
+
 type topicInfo struct {
 	entries map[uint64]*topicEntry
 	fifoHead, fifoTail uint64
@@ -47,6 +53,20 @@ type topicRequestQueueItem struct {
 }
 
 type topicRequestQueue []*topicRequestQueueItem
+
+func newTopicTable(db *nodeDB, self *Node) *topicTable {
+	if printTestImgLogs {
+		fmt.Printf("*N %016x\n", self.sha[:8])
+	}
+	return & topicTable{
+		db: db,
+		nodes: make(map[*Node]*nodeInfo),
+		topics: make(map[Topic]*topicInfo),
+		self: self,
+	}
+}
+
+
 
 
 
