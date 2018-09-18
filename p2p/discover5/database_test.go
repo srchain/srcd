@@ -7,6 +7,9 @@ import (
 	"time"
 	"reflect"
 
+	"io/ioutil"
+	"os"
+	"path/filepath"
 )
 
 
@@ -236,3 +239,140 @@ func TestNodeDBSeedQuery(t *testing.T) {
 	}
 
 }
+
+func TestNodeDBPersistency(t *testing.T) {
+	root, err := ioutil.TempDir("","nodedb-")
+	if err != nil {
+		t.Fatalf("failed to create temporary data folder: %v",err)
+	}
+	defer os.RemoveAll(root)
+	var (
+		testKey = []byte("somekey")
+		testInt = int64(314)
+	)
+	db, err := newNodeDB(filepath.Join(root,"database"),Version,NodeID{})
+	if err != nil {
+		t.Fatalf("failed to crate persistent database: %v",err)
+	}
+	if err := db.storeInt64(testKey,testInt); err != nil {
+		t.Fatalf("failed to store value: %v.",err)
+
+	}
+	db.close()
+	db, err = newNodeDB(filepath.Join(root,"database"),Version,NodeID{})
+	if err != nil {
+		t.Fatalf("failed to open persistent database: %v",err)
+	}
+	if val := db.fetchInt64(testKey); val != testInt {
+		t.Fatalf("value mismatch: have %v, want %v",val,testInt)
+
+	}
+	db.close()
+	db, err = newNodeDB(filepath.Join(root,"database"),Version+1,NodeID{})
+	if err != nil {
+		t.Fatalf("failed to open persistent database: %v",err)
+	}
+	if val := db.fetchInt64(testKey); val != 0 {
+		t.Fatalf("value mismatch: have %v, vant %v",val,0)
+	}
+	db.close()
+}
+
+
+var nodeDBExpirationNodes = []struct {
+	node *Node
+	pong time.Time
+	exp  bool
+}{
+	{
+		node: NewNode(
+			MustHexID("0x01d9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+			net.IP{127, 0, 0, 1},
+			30303,
+			30303,
+		),
+		pong: time.Now().Add(-nodeDBNodeExpiration + time.Minute),
+		exp:  false,
+	}, {
+		node: NewNode(
+			MustHexID("0x02d9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+			net.IP{127, 0, 0, 2},
+			30303,
+			30303,
+		),
+		pong: time.Now().Add(-nodeDBNodeExpiration - time.Minute),
+		exp:  true,
+	},
+}
+
+func TestNodeDBExpiration(t *testing.T) {
+	db, _ := newNodeDB("",Version,NodeID{})
+	defer db.close()
+
+	for i, seed := range nodeDBExpirationNodes {
+		if err := db.updateNode(seed.node); err != nil {
+			t.Fatalf("node %d: failed to insert: %v",i, err)
+		}
+		if err := db.updateLastPong(seed.node.ID,seed.pong); err != nil {
+			t.Fatalf("node %d: failed to update pong: %v",i,err )
+		}
+	}
+	if err := db.expireNodes(); err != nil {
+		t.Fatalf("failed to expire nodes: %v", err)
+	}
+	for i, seed := range nodeDBExpirationNodes {
+		node := db.node(seed.node.ID)
+		if (node == nil && !seed.exp) || (node != nil && seed.exp) {
+			t.Errorf("node %d: expiration mismatch: have %v,want %v",i,node,seed.exp)
+		}
+	}
+}
+
+func TestNodeDBSelfExpiration(t *testing.T) {
+	var self NodeID
+	for _, node := range nodeDBExpirationNodes {
+		if !node.exp {
+			self = node.node.ID
+			break
+		}
+	}
+
+	db, _ := newNodeDB("",Version,self)
+	defer db.close()
+
+	for i, seed := range nodeDBExpirationNodes {
+		if err := db.updateNode(seed.node); err != nil {
+			t.Fatalf("node %d: failed to insert: %v",i,err)
+		}
+		if err := db.updateLastPong(seed.node.ID,seed.pong); err != nil {
+			t.Fatalf("node %d, failed to update pong: %v",i,err)
+		}
+	}
+
+
+	if err := db.expireNodes(); err != nil {
+		t.Fatalf("failed to expire nodes: %v",err)
+	}
+	node := db.node(self)
+	if node != nil {
+		t.Errorf("self not evacuated")
+	}
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
