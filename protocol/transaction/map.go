@@ -13,7 +13,7 @@ var SRCAssetID = &AssetID{
 }
 
 
-func MapTx(old TxData)TxWrap{
+func MapTxWrap(old TxData)TxWrap{
 	txID, txHeader, entries := mapTx(old)
 	tx := TxWrap{
 		TxHeader: txHeader,
