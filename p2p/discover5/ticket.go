@@ -7,6 +7,34 @@ import (
 	"github.com/srchain/srcd/log"
 )
 
+
+
+const (
+	ticketTimeBucketLen = time.Minute
+	timeWindow          = 10 // * ticketTimeBucketLen
+	wantTicketsInWindow = 10
+	collectFrequency    = time.Second * 30
+	registerFrequency   = time.Second * 60
+	maxCollectDebt      = 10
+	maxRegisterDebt     = 5
+	keepTicketConst     = time.Minute * 10
+	keepTicketExp       = time.Minute * 5
+	targetWaitTime      = time.Minute * 10
+	topicQueryTimeout   = time.Second * 5
+	topicQueryResend    = time.Minute
+	// topic radius detection
+	maxRadius           = 0xffffffffffffffff
+	radiusTC            = time.Minute * 20
+	radiusBucketsPerBit = 8
+	minSlope            = 1
+	minPeakSize         = 40
+	maxNoAdjust         = 20
+	lookupWidth         = 8
+	minRightSum         = 20
+	searchForceQuery    = 4
+)
+
+
 type topicRadiusEvent int
 
 type timeBucket int
@@ -42,6 +70,9 @@ func (ref ticketRef) topicRegTime() mclock.AbsTime {
 	return ref.t.regTime[ref.idx]
 
 }
+func (ref ticketRef) topic() Topic {
+	return ref.t.topics[ref.idx]
+}
 
 
 
@@ -64,6 +95,12 @@ type sentQueru struct {
 	lookup lookupInfo
 }
 
+type reqInfo struct {
+	pingHash []byte
+	lookup lookupInfo
+	time mclock.AbsTime
+}
+
 type ticketStore struct {
 	radius map[Topic]*topicRadius
 	tickets map[Topic]*topicTickets
@@ -73,7 +110,7 @@ type ticketStore struct {
 	regSet   map[Topic]struct{} // Topic registration queue contents for fast filling
 
 	nodes map[*Node]*ticket
-	nodeLastReq map[Topic]struct{}
+	nodeLastReq map[Topic] reqInfo
 
 	lastBucketFetched timeBucket
 	nextTicketCached	*ticketRef
@@ -158,5 +195,55 @@ func (s *ticketStore) nextRegisterableTicket() (*ticketRef, time.Duration) {
 }
 
 func (s *ticketStore) removeTicketRef(ref ticketRef) {
-	log.Trace("Removing tickets from unknown topic","topic",topic)
+	log.Trace("Removing discovery ticket reference", "node", ref.t.node.ID, "serial", ref.t.serial)
+	s.nextTicketCached = nil
+	topic := ref.topic()
+	tickets := s.tickets[topic]
+	if tickets == nil {
+		log.Trace("Removing tickets from unknown topic","topic",topic)
+		return
+	}
+	bucket := timeBucket(ref.t.regTime[ref.idx] / mclock.AbsTime(ticketTimeBucketLen))
+	list := tickets.buckets[bucket]
+	idx := -1
+	for i, bt := range list {
+		if bt.t == ref.t {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		panic(nil)
+	}
+	list = append(list[:idx],list[idx+1:]...)
+	if len(list) != 0 {
+		tickets.buckets[bucket] = list
+	} else {
+		delete(tickets.buckets,bucket)
+	}
+	ref.t.refCnt--
+	if ref.t.refCnt == 0 {
+		delete(s.nodes,ref.t.node)
+		delete(s.nodeLastReq, ref.t.node)
+	}
+
+}
+
+// removeRegisterTopic deletes all tickets for the given topic.
+func (s *ticketStore) removeRegisterTopic(topic Topic) {
+	log.Trace("Removing discovery topic", "topic",topic)
+	if s.tickets[topic] == nil {
+		log.Warn("Removing non-existent discovery topic","topic",topic)
+		return
+	}
+	for _, list := range s.tickets[topic].buckets {
+		for _, ref := range list {
+			ref.t.refCnt--
+			if ref.t.refCnt == 0 {
+				delete(s.nodes,ref.t.node)
+				delete(s.nodeLastReq,ref.t.node)
+			}
+		}
+	}
+	delete(s.tickets,topic)
 }

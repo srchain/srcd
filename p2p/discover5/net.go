@@ -7,6 +7,9 @@ import (
 	"time"
 	"crypto/ecdsa"
 	"github.com/srchain/srcd/log"
+	"bytes"
+	"fmt"
+	"github.com/srchain/srcd/crypto/crypto"
 )
 
 
@@ -17,6 +20,28 @@ const (
 	seedMaxAge            = 5 * 24 * time.Hour
 	lowPort               = 1024
 )
+
+const (
+
+	// Packet type events.
+	// These correspond to packet types in the UDP protocol.
+	pingPacket = iota + 1
+	pongPacket
+	findnodePacket
+	neighborsPacket
+	findnodeHashPacket
+	topicRegisterPacket
+	topicQueryPacket
+	topicNodesPacket
+
+	// Non-packet events.
+	// Event values in this category are allocated outside
+	// the packet type range (packet types are encoded as a single byte).
+	pongTimeout nodeEvent = iota + 256
+	pingTimeout
+	neighboursTimeout
+)
+
 
 
 const (
@@ -56,6 +81,25 @@ type findnodeQuery struct {
 	nresults	int
 }
 
+func (q *findnodeQuery) start(net *Network) bool {
+	if q.remote == net.tab.self {
+		closet := net.tab.closest(crypto.Keccak256Hash(q.target[:]),bucketSize)
+		q.reply <- closet.entries
+		return true
+	}
+	if q.remote.state.canQuery && q.remote.pendingNeighbours == nil {
+		net.conn.sendFindnodeHash(q.remote,q.target)
+		net.timedEvent(respTimeout,q.remote,neighboursTimeout)
+		q.remote.pendingNeighbours = q
+		return true
+	}
+
+	if q.remote.state == unknown {
+		net.trasition(q.remote,verifyinit)
+	}
+	return false
+}
+
 type topicRegisterReq struct {
 	add bool
 	topic Topic
@@ -81,7 +125,7 @@ type Network struct {
 	timeout chan timeoutEvent
 	queryReq chan *findnodeQuery
 	tableOpReq	chan func()
-	tableOpResp	chan func()
+	tableOpResp	chan struct{}
 	topicRegisterReq	chan topicRegisterReq
 	topicSearchReq	chan topicSearchReq
 
@@ -120,9 +164,10 @@ type transport interface {
 
 
 type nodeState struct {
-	name string
-	handle func(*Network, *Node, nodeEvent, *ingressPacket) (next *nodeState, err error)
-	enter func(*Network, *Node)
+	name     string
+	handle   func(*Network, *Node, nodeEvent, *ingressPacket) (next *nodeState, err error)
+	enter    func(*Network, *Node)
+	canQuery bool
 }
 
 type nodeEvent uint
@@ -220,22 +265,75 @@ func (net *Network) loop() {
 
 	statsDump := time.NewTicker(10 * time.Second)
 
-	loop:
-		for {
-			resetNextTicket()
-			select {
-				case <- net.closeReq:
-					log.Trace("<- net.closeReq")
-					break loop
-				case pkt := <-net.read:
-					log.Trace("<- net.read")
+loop:
+	for {
+		resetNextTicket()
+		select {
+			case <- net.closeReq:
+				log.Trace("<- net.closeReq")
+				break loop
+			case pkt := <-net.read:
+				log.Trace("<- net.read")
 				n := net.internNode(&pkt)
 				prestate := n.state
 				status := "ok"
-				if err := net.hand
+				if err := net.handle(n,pkt.ev,&pkt); err != nil {
+					status = err.Error()
+				}
+				log.Trace("","msg",log.Lazy{Fn:func() string {
+					return fmt.Sprintf("<<< (%d) %v from %x@%v: %v -> %v (%v)",
+						net.tab.count, pkt.ev, pkt.remoteID[:8], pkt.remoteAddr, prestate, n.state, status)
+				}})
+			case timeout := <- net.timeout:
+				log.Trace("<- net.timeout")
+				if net.timeoutTimers[timeout] == nil {
+					continue
+				}
+				delete(net.timeoutTimers,timeout)
+				prestate := timeout.node.state
+				status := "ok"
+				if err := net.handle(timeout.node,timeout.ev,nil); err != nil {
+					status = err.Error()
+				}
+				log.Trace("", "msg", log.Lazy{Fn: func() string {
+					return fmt.Sprintf("--- (%d) %v for %x@%v: %v -> %v (%v)",
+						net.tab.count, timeout.ev, timeout.node.ID[:8], timeout.node.addr(), prestate, timeout.node.state, status)
+				}})
+			case q := <- net.queryReq:
+				log.Trace("<- net.queryReq")
+				if !q.start(net) {
+					q.remote.deferQuery(q)
+				}
+			case f := <- net.tableOpReq:
+				log.Trace("<-net.tableOpReq")
+				f()
+				net.tableOpResp <- struct {}{}
+			case req := <- net.topicRegisterReq:
+				log.Trace("<- net.topicRegisterReq")
+				if !req.add {
+					net.ticketStore.removeRegisterTopic(req.topic)
+					continue
+				}
 
-			}
 		}
+	}
+}
+
+func (net *Network) handle(n *Node, ev nodeEvent, pkt *ingressPacket) error {
+	if pkt != nil {
+		if err := net.checkPacket(n,ev,pkt); err != nil {
+			return err
+		}
+		if net.db != nil {
+			net.db.ensureExpirer()
+		}
+		if n.state == nil {
+			n.state = unknown
+		}
+		next, err := n.state.handle(net,n,ev,pkt)
+		net.trasition(n, next)
+		return err
+	}
 }
 
 func (net *Network) internNode(pkt *ingressPacket) *Node {
@@ -250,4 +348,32 @@ func (net *Network) internNode(pkt *ingressPacket) *Node {
 	net.nodes[n.ID] = n
 	return n
 
+}
+func (net *Network) checkPacket(node *Node, event nodeEvent, packet *ingressPacket) error {
+	switch event {
+	case pingPacket, findnodePacket, neighborsPacket:
+	case pongPacket:
+		if !bytes.Equal(packet.data.(*pong).ReplyTok, node.pingEcho) {
+			return fmt.Errorf("pong reply token mismatch")
+		}
+		node.pingEcho = nil
+	}
+	return nil
+}
+func (net *Network) trasition(node *Node, next *nodeState) {
+	if node.state != next {
+		node.state = next
+		if next.enter != nil {
+			next.enter(net,node)
+		}
+	}
+}
+func (net *Network) timedEvent(duration time.Duration, node *Node, event nodeEvent) {
+	timeout := timeoutEvent{event,node}
+	net.timeoutTimers[timeout] = time.AfterFunc(duration, func() {
+		select {
+			case net.timeout <- timeout:
+			case <- net.closed:
+		}
+	})
 }

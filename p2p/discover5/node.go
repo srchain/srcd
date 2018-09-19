@@ -8,6 +8,7 @@ import (
 	"github.com/srchain/srcd/crypto/crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"github.com/srchain/srcd/common/common"
 )
 
 const nodeIDBits  = 512
@@ -24,6 +25,27 @@ type Node struct {
 	// Network.loop goroutine.
 	nodeNetGuts
 }
+
+func (node Node) addr() *net.UDPAddr {
+	return &net.UDPAddr{IP:node.IP,Port:int(node.UDP)}
+}
+func (node Node) deferQuery(query *findnodeQuery) {
+	node.deferredQueries = append(node.deferredQueries,query)
+}
+
+func discmp(target, a, b common.Hash) int {
+	for i := range target {
+		da := a[i] ^ target[i]
+		db := b[i] ^ target[i]
+		if da > db {
+			return 1
+		} else if da < db {
+			return -1
+		}
+	}
+	return 0
+}
+
 
 func NewNode(id NodeID, ip net.IP, udpPort, tcpPort uint16) *Node {
 	if ipv4 := ip.To4(); ipv4 != nil {
