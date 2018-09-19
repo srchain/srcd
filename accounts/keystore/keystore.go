@@ -2,6 +2,7 @@ package keystore
 
 import (
 	"crypto/ecdsa"
+	crand "crypto/rand"
 	"errors"
 	"os"
 	"path/filepath"
@@ -298,6 +299,20 @@ func (ks *KeyStore) expire(addr common.Address, u *unlocked, timeout time.Durati
 		}
 		ks.mu.Unlock()
 	}
+}
+
+// NewAccount generates a new key and stores it into the key directory,
+// encrypting it with the passphrase.
+func (ks *KeyStore) NewAccount(passphrase string) (accounts.Account, error) {
+	_, account, err := storeNewKey(ks.storage, crand.Reader, passphrase)
+	if err != nil {
+		return accounts.Account{}, err
+	}
+	// Add the account to the cache immediately rather
+	// than waiting for file system notifications to pick it up.
+	ks.cache.add(account)
+	ks.refreshWallets()
+	return account, nil
 }
 
 // zeroKey zeroes a private key in memory.

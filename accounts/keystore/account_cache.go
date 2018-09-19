@@ -29,8 +29,8 @@ func (s accountsByURL) Len() int           { return len(s) }
 func (s accountsByURL) Less(i, j int) bool { return s[i].URL.Cmp(s[j].URL) < 0 }
 func (s accountsByURL) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
-AmbiguousAddrError is returned when attempting to unlock
-an address for which more than one file exists.
+// AmbiguousAddrError is returned when attempting to unlock
+// an address for which more than one file exists.
 type AmbiguousAddrError struct {
 	Addr    common.Address
 	Matches []accounts.Account
