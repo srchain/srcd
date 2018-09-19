@@ -9,9 +9,11 @@ import (
 
 	"srcd/accounts"
 	"srcd/common/common"
+	"srcd/crypto/crypto"
 )
 
 var (
+	ErrLocked  = accounts.NewAuthNeededError("password or unlock")
 	ErrNoMatch = errors.New("no key for given address or file")
 	ErrDecrypt = errors.New("could not decrypt key with given passphrase")
 )
@@ -151,6 +153,59 @@ func (ks *KeyStore) Delete(a accounts.Account, passphrase string) error {
 		ks.refreshWallets()
 	}
 	return err
+}
+
+// SignHash calculates a ECDSA signature for the given hash. The produced
+// signature is in the [R || S || V] format where V is 0 or 1.
+func (ks *KeyStore) SignHash(a accounts.Account, hash []byte) ([]byte, error) {
+	// Look up the key to sign with and abort if it cannot be found
+	ks.mu.RLock()
+	defer ks.mu.RUnlock()
+
+	unlockedKey, found := ks.unlocked[a.Address]
+	if !found {
+		return nil, ErrLocked
+	}
+	// Sign the hash using plain ECDSA operations
+	return crypto.Sign(hash, unlockedKey.PrivateKey)
+}
+
+// SignTx signs the given transaction with the requested account.
+func (ks *KeyStore) SignTx(a accounts.Account, tx *types.Transaction) (*types.Transaction, error) {
+	// Look up the key to sign with and abort if it cannot be found
+	ks.mu.RLock()
+	defer ks.mu.RUnlock()
+
+	unlockedKey, found := ks.unlocked[a.Address]
+	if !found {
+		return nil, ErrLocked
+	}
+
+	return types.SignTx(tx, types.FrontierSigner{}, unlockedKey.PrivateKey)
+}
+
+// SignHashWithPassphrase signs hash if the private key matching the given address
+// can be decrypted with the given passphrase. The produced signature is in the
+// [R || S || V] format where V is 0 or 1.
+func (ks *KeyStore) SignHashWithPassphrase(a accounts.Account, passphrase string, hash []byte) (signature []byte, err error) {
+	_, key, err := ks.getDecryptedKey(a, passphrase)
+	if err != nil {
+		return nil, err
+	}
+	defer zeroKey(key.PrivateKey)
+	return crypto.Sign(hash, key.PrivateKey)
+}
+
+// SignTxWithPassphrase signs the transaction if the private key matching the
+// given address can be decrypted with the given passphrase.
+func (ks *KeyStore) SignTxWithPassphrase(a accounts.Account, passphrase string, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
+	_, key, err := ks.getDecryptedKey(a, passphrase)
+	if err != nil {
+		return nil, err
+	}
+	defer zeroKey(key.PrivateKey)
+
+	return types.SignTx(tx, types.FrontierSigner{}, key.PrivateKey)
 }
 
 // Find resolves the given account into a unique entry in the keystore.
