@@ -209,6 +209,59 @@ func (ks *KeyStore) SignTxWithPassphrase(a accounts.Account, passphrase string, 
 	return types.SignTx(tx, types.FrontierSigner{}, key.PrivateKey)
 }
 
+// Unlock unlocks the given account indefinitely.
+func (ks *KeyStore) Unlock(a accounts.Account, passphrase string) error {
+	return ks.TimedUnlock(a, passphrase, 0)
+}
+
+// Lock removes the private key with the given address from memory.
+func (ks *KeyStore) Lock(addr common.Address) error {
+	ks.mu.Lock()
+	if unl, found := ks.unlocked[addr]; found {
+		ks.mu.Unlock()
+		ks.expire(addr, unl, time.Duration(0)*time.Nanosecond)
+	} else {
+		ks.mu.Unlock()
+	}
+	return nil
+}
+
+// TimedUnlock unlocks the given account with the passphrase. The account
+// stays unlocked for the duration of timeout. A timeout of 0 unlocks the account
+// until the program exits. The account must match a unique key file.
+//
+// If the account address is already unlocked for a duration, TimedUnlock extends or
+// shortens the active unlock timeout. If the address was previously unlocked
+// indefinitely the timeout is not altered.
+func (ks *KeyStore) TimedUnlock(a accounts.Account, passphrase string, timeout time.Duration) error {
+	a, key, err := ks.getDecryptedKey(a, passphrase)
+	if err != nil {
+		return err
+	}
+
+	ks.mu.Lock()
+	defer ks.mu.Unlock()
+	u, found := ks.unlocked[a.Address]
+	if found {
+		if u.abort == nil {
+			// The address was unlocked indefinitely, so unlocking
+			// it with a timeout would be confusing.
+			zeroKey(key.PrivateKey)
+			return nil
+		}
+		// Terminate the expire goroutine and replace it below.
+		close(u.abort)
+	}
+	if timeout > 0 {
+		u = &unlocked{Key: key, abort: make(chan struct{})}
+		go ks.expire(a.Address, u, timeout)
+	} else {
+		u = &unlocked{Key: key}
+	}
+	ks.unlocked[a.Address] = u
+	return nil
+}
+
 // Find resolves the given account into a unique entry in the keystore.
 func (ks *KeyStore) Find(a accounts.Account) (accounts.Account, error) {
 	ks.cache.maybeReload()
@@ -225,6 +278,26 @@ func (ks *KeyStore) getDecryptedKey(a accounts.Account, auth string) (accounts.A
 	}
 	key, err := ks.storage.GetKey(a.Address, a.URL.Path, auth)
 	return a, key, err
+}
+
+func (ks *KeyStore) expire(addr common.Address, u *unlocked, timeout time.Duration) {
+	t := time.NewTimer(timeout)
+	defer t.Stop()
+	select {
+	case <-u.abort:
+		// just quit
+	case <-t.C:
+		ks.mu.Lock()
+		// only drop if it's still the same key instance that dropLater
+		// was launched with. we can check that using pointer equality
+		// because the map stores a new pointer every time the key is
+		// unlocked.
+		if ks.unlocked[addr] == u {
+			zeroKey(u.PrivateKey)
+			delete(ks.unlocked, addr)
+		}
+		ks.mu.Unlock()
+	}
 }
 
 // zeroKey zeroes a private key in memory.
