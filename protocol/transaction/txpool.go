@@ -42,6 +42,10 @@ func NewTxPool() *TxPool {
 	}
 }
 
+func (tp *TxPool) GetMsgCh() <-chan *TxPoolMsg {
+	return tp.MsgCh
+}
+
 func (tp *TxPool) AddTransaction(tx Tx, height, fee uint64) error {
 	tp.Mtx.Lock()
 	defer tp.Mtx.Unlock()

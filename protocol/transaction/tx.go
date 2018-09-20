@@ -54,6 +54,10 @@ func NewTx(data TxData) Tx{
 		MapTxWrap(data),
 	}
 }
+// OutputID return the hash of the output position
+func (tx *Tx) OutputID(outputIndex int) *Hash {
+	return tx.ResultIds[outputIndex]
+}
 
 // UnmarshalText fulfills the encoding.TextUnmarshaler interface.
 func (tx *Tx) UnmarshalText(p []byte) error {
