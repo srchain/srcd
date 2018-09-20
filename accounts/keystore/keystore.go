@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	crand "crypto/rand"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -313,6 +314,61 @@ func (ks *KeyStore) NewAccount(passphrase string) (accounts.Account, error) {
 	ks.cache.add(account)
 	ks.refreshWallets()
 	return account, nil
+}
+
+// Export exports as a JSON key, encrypted with newPassphrase.
+func (ks *KeyStore) Export(a accounts.Account, passphrase, newPassphrase string) (keyJSON []byte, err error) {
+	_, key, err := ks.getDecryptedKey(a, passphrase)
+	if err != nil {
+		return nil, err
+	}
+	var N, P int
+	if store, ok := ks.storage.(*keyStorePassphrase); ok {
+		N, P = store.scryptN, store.scryptP
+	} else {
+		N, P = StandardScryptN, StandardScryptP
+	}
+	return EncryptKey(key, newPassphrase, N, P)
+}
+
+// Import stores the given encrypted JSON key into the key directory.
+func (ks *KeyStore) Import(keyJSON []byte, passphrase, newPassphrase string) (accounts.Account, error) {
+	key, err := DecryptKey(keyJSON, passphrase)
+	if key != nil && key.PrivateKey != nil {
+		defer zeroKey(key.PrivateKey)
+	}
+	if err != nil {
+		return accounts.Account{}, err
+	}
+	return ks.importKey(key, newPassphrase)
+}
+
+// ImportECDSA stores the given key into the key directory, encrypting it with the passphrase.
+func (ks *KeyStore) ImportECDSA(priv *ecdsa.PrivateKey, passphrase string) (accounts.Account, error) {
+	key := newKeyFromECDSA(priv)
+	if ks.cache.hasAddress(key.Address) {
+		return accounts.Account{}, fmt.Errorf("account already exists")
+	}
+	return ks.importKey(key, passphrase)
+}
+
+func (ks *KeyStore) importKey(key *Key, passphrase string) (accounts.Account, error) {
+	a := accounts.Account{Address: key.Address, URL: accounts.URL{Scheme: KeyStoreScheme, Path: ks.storage.JoinPath(keyFileName(key.Address))}}
+	if err := ks.storage.StoreKey(a.URL.Path, key, passphrase); err != nil {
+		return accounts.Account{}, err
+	}
+	ks.cache.add(a)
+	ks.refreshWallets()
+	return a, nil
+}
+
+// Update changes the passphrase of an existing account.
+func (ks *KeyStore) Update(a accounts.Account, passphrase, newPassphrase string) error {
+	a, key, err := ks.getDecryptedKey(a, passphrase)
+	if err != nil {
+		return err
+	}
+	return ks.storage.StoreKey(a.URL.Path, key, newPassphrase)
 }
 
 // zeroKey zeroes a private key in memory.
