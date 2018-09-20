@@ -109,11 +109,12 @@ func New(ctx *node.ServiceContext, config *Config) (*Server, error) {
 	// if config.TxPool.Journal != "" {
 		// config.TxPool.Journal = ctx.ResolvePath(config.TxPool.Journal)
 	// }
-	server.txPool = core.NewTxPool(config.TxPool, server.blockchain)
+	// server.txPool = core.NewTxPool(config.TxPool, server.blockchain)
 
-	if server.protocolManager, err = NewProtocolManager(eth.chainConfig, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb); err != nil {
-		return nil, err
-	}
+	// if server.protocolManager, err = NewProtocolManager(eth.chainConfig, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb); err != nil {
+		// return nil, err
+	// }
+
 	server.miner = miner.New(server, server.chainConfig, server.EventMux(), server.engine)
 	server.miner.SetExtra(makeExtraData(config.ExtraData))
 
@@ -191,8 +192,10 @@ func (s *Server) StartMining(local bool) error {
 	return nil
 }
 
+func (s *Server) WalletManager() *wallet.Wallet         { return s.wallet }
 func (s *Server) BlockChain() *blockchain.BlockChain	{ return s.blockchain }
 func (s *Server) Engine() consensus.Engine		{ return s.engine }
+func (s *Server) ChainDb() database.Database            { return s.chainDb }
 
 // Start implements node.Service, starting all internal goroutines needed by the
 // Server protocol implementation.

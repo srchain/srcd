@@ -1,11 +1,16 @@
 package types
 
 import (
+	"errors"
 	"math/big"
 	"sync/atomic"
 
 	"srcd/common/common"
 	"srcd/rlp"
+)
+
+var (
+	ErrInvalidSig = errors.New("invalid transaction v, r, s values")
 )
 
 type Transaction struct {
@@ -67,4 +72,16 @@ func (tx *Transaction) Size() common.StorageSize {
 	rlp.Encode(&c, &tx.data)
 	tx.size.Store(common.StorageSize(c))
 	return common.StorageSize(c)
+}
+
+// WithSignature returns a new transaction with the given signature.
+// This signature needs to be formatted as described (v+27).
+func (tx *Transaction) WithSignature(signer Signer, sig []byte) (*Transaction, error) {
+	r, s, v, err := signer.SignatureValues(tx, sig)
+	if err != nil {
+		return nil, err
+	}
+	cpy := &Transaction{data: tx.data}
+	cpy.data.R, cpy.data.S, cpy.data.V = r, s, v
+	return cpy, nil
 }

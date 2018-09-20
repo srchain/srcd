@@ -7,7 +7,6 @@ import (
 
 	"srcd/common/common"
 	"srcd/wallet"
-	// "srcd/p2p"
 )
 
 const (
@@ -52,10 +51,6 @@ type Config struct {
 	// DataDir. If DataDir is unspecified and KeyStoreDir is empty, an ephemeral directory
 	// is created by New and destroyed when the node is stopped.
 	KeyStoreDir string `toml:",omitempty"`
-
-	// UseLightweightKDF lowers the memory and CPU requirements of the key store
-	// scrypt KDF at the expense of security.
-	UseLightweightKDF bool `toml:",omitempty"`
 
 	// IPCPath is the requested location to place the IPC endpoint. If the path is
 	// a simple file name, it is placed inside the data directory (or on the root
@@ -133,7 +128,7 @@ func (c *Config) name() string {
 }
 
 // These resources are resolved differently.
-var isOldGethResource = map[string]bool{
+var isOldResource = map[string]bool{
 	"chaindata":          true,
 	// "nodes":              true,
 	// "nodekey":            true,
@@ -150,7 +145,7 @@ func (c *Config) resolvePath(path string) string {
 		return ""
 	}
 
-	if c.name() == "srcd" && isOldGethResource[path] {
+	if c.name() == "srcd" && isOldResource[path] {
 		oldpath := ""
 		if c.Name == "srcd" {
 			oldpath = filepath.Join(c.DataDir, path)
@@ -170,8 +165,58 @@ func (c *Config) instanceDir() string {
 	return filepath.Join(c.DataDir, c.name())
 }
 
-func makeWalletManager() *wallet.Wallet {
-	wallet := wallet.NewWallet()
+// func makeWalletManager() *wallet.Wallet {
+	// wallet := wallet.NewWallet()
 
-	return wallet
+	// return wallet
+// }
+
+// AccountConfig determines the settings for scrypt and keydirectory
+func (c *Config) AccountConfig() (int, int, string, error) {
+	scryptN := keystore.StandardScryptN
+	scryptP := keystore.StandardScryptP
+
+	var (
+		keydir string
+		err    error
+	)
+
+	switch {
+	case filepath.IsAbs(c.KeyStoreDir):
+		keydir = c.KeyStoreDir
+	case c.DataDir != "":
+		if c.KeyStoreDir == "" {
+			keydir = filepath.Join(c.DataDir, datadirDefaultKeyStore)
+		} else {
+			keydir, err = filepath.Abs(c.KeyStoreDir)
+		}
+	case c.KeyStoreDir != "":
+		keydir, err = filepath.Abs(c.KeyStoreDir)
+	}
+
+	return scryptN, scryptP, keydir, err
+}
+
+func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
+	scryptN, scryptP, keydir, err := conf.AccountConfig()
+	var ephemeral string
+	if keydir == "" {
+		// There is no datadir.
+		keydir, err = ioutil.TempDir("", "srcd-keystore")
+		ephemeral = keydir
+	}
+
+	if err != nil {
+		return nil, "", err
+	}
+	if err := os.MkdirAll(keydir, 0700); err != nil {
+		return nil, "", err
+	}
+
+	// Assemble the account manager and supported backends
+	backends := []accounts.Backend{
+		keystore.NewKeyStore(keydir, scryptN, scryptP),
+	}
+
+	return accounts.NewManager(backends...), ephemeral, nil
 }

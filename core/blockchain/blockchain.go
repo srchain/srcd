@@ -479,3 +479,13 @@ func (bc *BlockChain) GetHeaderByHash(hash common.Hash) *types.Header {
 func (bc *BlockChain) GetHeaderByNumber(number uint64) *types.Header {
 	return bc.hc.GetHeaderByNumber(number)
 }
+
+// SubscribeChainEvent registers a subscription of ChainEvent.
+// func (bc *BlockChain) SubscribeChainEvent(ch chan<- ChainEvent) event.Subscription {
+	// return bc.scope.Track(bc.chainFeed.Subscribe(ch))
+// }
+
+// // SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
+// func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription {
+	// return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
+// }
