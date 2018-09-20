@@ -5,6 +5,9 @@ import (
 	"github.com/srchain/srcd/common/common"
 	"time"
 	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/crypto/crypto"
+	"encoding/binary"
+	"math"
 )
 
 
@@ -110,7 +113,7 @@ type ticketStore struct {
 	regSet   map[Topic]struct{} // Topic registration queue contents for fast filling
 
 	nodes map[*Node]*ticket
-	nodeLastReq map[Topic] reqInfo
+	nodeLastReq map[*Node] reqInfo
 
 	lastBucketFetched timeBucket
 	nextTicketCached	*ticketRef
@@ -246,4 +249,39 @@ func (s *ticketStore) removeRegisterTopic(topic Topic) {
 		}
 	}
 	delete(s.tickets,topic)
+}
+func (s *ticketStore) addTopic(topic Topic, register bool) {
+	log.Trace("Adding discovery topic","topic","register",register)
+	if s.radius[topic] == nil {
+		s.radius[topic] = newTopicRadius(topic)
+	}
+	
+}
+func newTopicRadius(topic Topic) *topicRadius {
+	topicHash := crypto.Keccak256Hash([]byte(topic))
+	topicHashPrefix := binary.BigEndian.Uint64(topicHash[0:8])
+	return &topicRadius{
+		topic:topic,
+		topicHashPrefix: topicHashPrefix ,
+		radius: maxRadius,
+		minRadius: maxRadius,
+
+	}
+}
+
+func (r *topicRadius) getBucketIdx(addrHash common.Hash) int {
+	prefix := binary.BigEndian.Uint64(addrHash[0:8])
+	var log2 float64
+	if prefix != r.topicHashPrefix {
+		log2 = math.Log2(float64(prefix ^ r.topicHashPrefix))
+	}
+	bucket := int((64 - log2) * radiusBucketsPerBit)
+	max := 64*radiusBucketsPerBit - 1
+	if bucket > max {
+		return max
+	}
+	if bucket < 0 {
+		return 0
+	}
+	return bucket
 }

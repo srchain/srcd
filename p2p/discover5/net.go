@@ -314,6 +314,7 @@ loop:
 					net.ticketStore.removeRegisterTopic(req.topic)
 					continue
 				}
+				net.ticketStore.addTopic(req.topic,true)
 
 		}
 	}
