@@ -84,12 +84,9 @@ func New(conf *Config) (*Node, error) {
 		return nil, err
 	}
 
-	// wallet := makeWalletManager()
-
 	return &Node{
 		accman:            am,
 		ephemeralKeystore: ephemeralKeystore,
-		// wallet:		   wallet,
 		config:            conf,
 		serviceFuncs:      []ServiceConstructor{},
 		// ipcEndpoint:       conf.IPCEndpoint(),
