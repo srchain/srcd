@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 
+	"srcd/accounts"
 	"srcd/core/mempool"
 	"srcd/core/blockchain"
 	"srcd/database"
@@ -61,8 +62,7 @@ type Server struct {
 
 	// eventMux       *event.TypeMux
 	engine          consensus.Engine
-	// accountManager *accounts.Manager
-	wallet		*wallet.Wallet
+	accountManager  *accounts.Manager
 
 	// bloomRequests chan chan *bloombits.Retrieval // Channel receiving bloom data retrieval requests
 	// bloomIndexer  *core.ChainIndexer             // Bloom indexer operating during block imports
@@ -93,7 +93,7 @@ func New(ctx *node.ServiceContext, config *Config) (*Server, error) {
 	server := &Server{
 		config:         config,
 		chainDb:        chainDb,
-		wallet:		ctx.Wallet,
+		accountManager: ctx.AccountManager,
 		engine:         CreateConsensusEngine(),
 		shutdownChan:   make(chan bool),
 		coinbase:       config.Coinbase,
@@ -217,7 +217,7 @@ func (s *Server) Start() error {
 	// }
 
 	// Start the networking layer and the light server if requested
-	s.protocolManager.Start(10)
+	// s.protocolManager.Start(10)
 
 	return nil
 }
