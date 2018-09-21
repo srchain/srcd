@@ -53,7 +53,7 @@ func defaultNodeConfig() node.Config {
 	return cfg
 }
 
-func makeConfig(ctx *cli.Context) *config {
+func makeConfigNode(ctx *cli.Context) *config {
 	// Default config.
 	cfg := config{
 		Server:    server.DefaultConfig,

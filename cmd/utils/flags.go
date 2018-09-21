@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"srcd/accounts"
+	"srcd/accounts/keystore"
+	"srcd/common/common"
 	"srcd/params"
 	"srcd/node"
 	"srcd/server"
@@ -82,23 +85,39 @@ var (
 		Usage: "Number of CPU threads to use for mining",
 		Value: runtime.NumCPU(),
 	}
-
-	CoinbaseFlag = cli.StringFlag{
-		Name:  "coinbase",
-		Usage: "Public address for block mining rewards (default = first account created)",
+	MinerCoinbaseFlag = cli.StringFlag{
+		Name:  "miner.coinbase",
+		Usage: "Public address for block mining rewards (default = first account)",
 		Value: "0",
 	}
 )
 
-// setCoinbase retrieves the etherbase either from the directly specified
+// MakeAddress converts an account specified directly as a hex encoded string.
+func MakeAddress(ks *keystore.KeyStore, account string) (accounts.Account, error) {
+	// If the specified account is a valid address, return it
+	if common.IsHexAddress(account) {
+		return accounts.Account{Address: common.HexToAddress(account)}, nil
+	}
+
+	return accounts.Account{}, fmt.Errorf("invalid account address %q", account)
+}
+
+// setCoinbase retrieves the coinbase either from the directly specified
 // command line flags or from the keystore if CLI indexed.
-func setCoinbase(ctx *cli.Context, wallet *Wallet, cfg *server.Config) {
-	if ctx.GlobalIsSet(CoinbaseFlag.Name) {
-		// account, err := MakeAddress(ks, ctx.GlobalString(EtherbaseFlag.Name))
-		// if err != nil {
-			// Fatalf("Option %q: %v", EtherbaseFlag.Name, err)
-		// }
-		cfg.Coinbase = wallet.GetAddress()
+func setCoinbase(ctx *cli.Context, ks *keystore.KeyStore, cfg *server.Config) {
+	var coinbase string
+
+	if ctx.GlobalIsSet(MinerCoinbaseFlag.Name) {
+		coinbase = ctx.GlobalString(MinerCoinbaseFlag.Name)
+	}
+
+	// Convert the coinbase into an address and configure it
+	if coinbase != "" {
+		account, err := MakeAddress(ks, coinbase)
+		if err != nil {
+			Fatalf("Invalid miner coinbase: %v", err)
+		}
+		cfg.Coinbase = account.Address
 	}
 }
 
@@ -118,8 +137,8 @@ func SetNodeConfig(ctx *cli.context, cfg *node.config) {
 
 // SetServerConfig applies server-related command line flags to the config.
 func SetServerConfig(ctx *cli.Context, node *node.Node, cfg *server.Config) {
-	wallet := node.wallet
-	setCoinbase(ctx, wallet, cfg)
+	ks := node.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
+	setCoinbase(ctx, ks, cfg)
 
 	if ctx.GlobalIsSet(MinerThreadsFlag.Name) {
 		cfg.MinerThreads = ctx.GlobalInt(MinerThreadsFlag.Name)
