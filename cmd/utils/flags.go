@@ -148,9 +148,7 @@ func SetServerConfig(ctx *cli.Context, node *node.Node, cfg *server.Config) {
 // RegisterService adds an srcd client to the node.
 func RegisterService(node *node.Node, cfg *server.Config) {
 	err := node.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		server, err := server.New(ctx, cfg)
-
-		return server, err
+		return server.New(ctx, cfg)
 	})
 
 	if err != nil {
