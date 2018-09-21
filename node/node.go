@@ -135,7 +135,7 @@ func (n *Node) Start() error {
 		ctx := &ServiceContext{
 			config:         n.config,
 			services:       make(map[reflect.Type]Service),
-			Wallet:         n.wallet,
+			AccountManager: n.accman,
 		}
 		// copy needed for threaded access
 		for kind, s := range services {
@@ -270,21 +270,17 @@ func (n *Node) Service(service interface{}) error {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
 
-	// // Short circuit if the node's not running
+	// Short circuit if the node's not running
 	// if n.server == nil {
 		// return ErrNodeStopped
 	// }
-	// // Otherwise try to find the service to return
-	// element := reflect.ValueOf(service).Elem()
-	// if running, ok := n.services[element.Type()]; ok {
-		// element.Set(reflect.ValueOf(running))
-		// return nil
-	// }
-	// return ErrServiceUnknown
-
-
-	// only for return
-	return nil
+	// Otherwise try to find the service to return
+	element := reflect.ValueOf(service).Elem()
+	if running, ok := n.services[element.Type()]; ok {
+		element.Set(reflect.ValueOf(running))
+		return nil
+	}
+	return ErrServiceUnknown
 }
 
 // AccountManager retrieves the account manager used by the protocol stack.
