@@ -138,6 +138,23 @@ type topicRadiusBucket struct {
 	lookupSent map[common.Hash] mclock.AbsTime
 }
 
+func (b *topicRadiusBucket) update(now mclock.AbsTime) {
+	if now == b.lastTime {
+		return
+	}
+	exp := math.Exp(-float64(now-b.lastTime) / float64(radiusTC))
+	for i, w := range b.weights {
+		b.weights[i] = w * exp
+	}
+	b.lastTime = now
+	for target, tm := range b.lookupSent {
+		if now - tm > mclock.AbsTime(respTimeout) {
+			b.weights[trNoAdjust] += 1
+			delete(b.lookupSent,target)
+		}
+	}
+}
+
 type topicRadius struct {
 	topic Topic
 	topicHashPrefix	uint64
@@ -145,6 +162,13 @@ type topicRadius struct {
 	buckets []topicRadiusBucket
 	converged bool
 	radiusLookuoCnt	int
+}
+
+
+func (r *topicRadius) nextTarget(forceRegular bool) lookupInfo {
+	if !forceRegular {
+		_, radiusLookup := r.recalcRadius()
+	}
 }
 
 func (s *ticketStore) nextFilteredTicket() (*ticketRef, time.Duration) {
@@ -257,8 +281,37 @@ func (s *ticketStore) addTopic(topic Topic, register bool) {
 	}
 	
 }
+func (store *ticketStore) nextRegisterLookup() (lookupInfo, time.Duration) {
+	for topic := range store.tickets {
+		if _, ok := store.regSet[topic]; !ok {
+			store.regQueue = append(store.regQueue,topic)
+			store.regSet[topic] = struct{}{}
+		}
+	}
+
+	for len(store.regQueue) > 0 {
+		topic := store.regQueue[0]
+		store.regQueue = store.regQueue[1:]
+		delete(store.regSet,topic)
+		if store.tickets[topic] == nil {
+			continue
+		}
+
+		if store.tickets[topic].nextLookup < mclock.Now() {
+			next, delay := store.radius[topic].nextTarget(false), 100 * time.Microsecond
+			log.Trace("Found discovery topic to register", "topic", topic, "target", next.target, "delay", delay)
+			return next, delay
+		}
+	}
+
+	delay := 40 * time.Second
+	log.Trace("No topic found to register", "delay", delay)
+	return lookupInfo{}, delay
+}
+
 func newTopicRadius(topic Topic) *topicRadius {
 	topicHash := crypto.Keccak256Hash([]byte(topic))
+	/// ???
 	topicHashPrefix := binary.BigEndian.Uint64(topicHash[0:8])
 	return &topicRadius{
 		topic:topic,
@@ -284,4 +337,13 @@ func (r *topicRadius) getBucketIdx(addrHash common.Hash) int {
 		return 0
 	}
 	return bucket
+}
+func (r *topicRadius) recalcRadius() (radius uint64, radiusLookup int) {
+	maxBucket := 0
+	maxValue := float64(0)
+	now := mclock.Now()
+	v := float64(0)
+	for i := range r.buckets {
+		r.buckets[i].update(now)
+	}
 }

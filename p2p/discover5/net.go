@@ -315,6 +315,15 @@ loop:
 					continue
 				}
 				net.ticketStore.addTopic(req.topic,true)
+				if topicRegisterLookupTarget.target == (common.Hash{}) {
+					log.Trace("topicRegisterLookupTarget == null")
+					if topicRegisterLookupTick.Stop() {
+						<-topicRegisterLookupTick.C
+					}
+					target, delay := net.ticketStore.nextRegisterLookup()
+					topicRegisterLookupTarget = target
+					topicRegisterLookupTarget.Reset(delay)
+				}
 
 		}
 	}
