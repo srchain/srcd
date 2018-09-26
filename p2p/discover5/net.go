@@ -322,7 +322,68 @@ loop:
 					}
 					target, delay := net.ticketStore.nextRegisterLookup()
 					topicRegisterLookupTarget = target
-					topicRegisterLookupTarget.Reset(delay)
+					topicRegisterLookupTick.Reset(delay)
+				}
+			case nodes := <- topicRegisterLookupDone:
+				log.Trace("<-topicRegisterLookupDone")
+				net.ticketStore.registerLookupDone(topicRegisterLookupTarget,nodes,func (n *Node) []byte {
+					net.ping(n,n.addr())
+					return n.pingEcho
+				})
+				target, delay := net.ticketStore.nextRegisterLookup()
+				topicRegisterLookupTarget = target
+				topicRegisterLookupTick.Reset(delay)
+
+			case <-topicRegisterLookupTick.C:
+				log.Trace("<-topicRegisterLookupTick")
+				if (topicRegisterLookupTarget.target == common.Hash{}) {
+					target, delay := net.ticketStore.nextRegisterLookup()
+					topicRegisterLookupTarget = target
+					topicRegisterLookupTick.Reset(delay)
+					topicRegisterLookupDone = nil
+				} else {
+					topicRegisterLookupDone = make(chan []*Node)
+					target := topicRegisterLookupTarget.target
+					go func () {
+						topicRegisterLookupDone <- net.lookup(target,false)
+					}()
+				}
+			case <- nextRegisterTime:
+				log.Trace("<-nextRegisterTime")
+				net.ticketStore.ticketRegistered(*nextTicket)
+				net.conn.sendTopicRegister(nextTicket.t.node,nextTicket.t.topics,nextTicket.idx,nextTicket.t.pong)
+			case req := <- net.topicSearchReq:
+				if refreshDone == nil {
+					log.Trace("<- net.topicSearchReq")
+					info,ok := searchInfo[req.topic]
+					if ok {
+						if req.delay == time.Duration(0) {
+							delete(searchInfo,req.topic)
+							net.ticketStore.removeSearchTopic(req.topic)
+						} else {
+							info.period = req.delay
+							searchInfo[req.topic] = info
+						}
+						continue
+					}
+
+					if req.delay != time.Duration(0) {
+						var info topicSearchInfo
+						info.period = req.delay
+						info.lookupChn = req.lookup
+						searchInfo[req.topic] = info
+						net.ticketStore.addSearchTopic(req.topic, req.found)
+						topicSearch <- req.topic
+					}
+
+
+				} else {
+					searchReqWhenRefreshDone = append(searchReqWhenRefreshDone,req)
+				}
+			case topic := <- topicSearch:
+				if activeSearchCount < maxSearchCount {
+					activeSearchCount++
+					target := net.ticketStore.nextse
 				}
 
 		}
@@ -386,4 +447,70 @@ func (net *Network) timedEvent(duration time.Duration, node *Node, event nodeEve
 			case <- net.closed:
 		}
 	})
+}
+func (net *Network) ping(node *Node, addr *net.UDPAddr) {
+	if node.pingEcho != nil || node.ID == net.tab.self.ID {
+		return
+	}
+	log.Trace("Pinging remote node", "node", node.ID)
+	node.pingTopics = net.ticketStore.regTopicSet()
+	node.pingEcho = net.conn.sendPing(node,addr,node.pingTopics)
+	net.timedEvent(respTimeout,node,pongTimeout)
+
+}
+
+func (net *Network) Lookup(targetID NodeID) []*Node {
+	return net.lookup(crypto.Keccak256Hash(targetID[:]),false)
+}
+
+func (net *Network) lookup(target common.Hash, stopOnMatch bool) []*Node {
+	var (
+		asked = make(map[NodeID]bool)
+		seen = make(map[NodeID]bool)
+		reply = make(chan []*Node,alpha)
+		result = nodesByDistance{target:target}
+		pendingQueries = 0
+	)
+
+	result.push(net.tab.self,bucketSize)
+	for {
+		for i := 0; i < len(result.entries) && pendingQueries < alpha; i++ {
+			n := result.entries[i]
+			if !asked[n.ID] {
+				asked[n.ID] = true
+				pendingQueries++
+				net.reqQueryFindNode(n,target,reply)
+			}
+		}
+		if pendingQueries == 0 {
+			break
+		}
+		select {
+		case nodes := <- reply:
+			for _, n := range nodes {
+				if n != nil && !seen[n.ID] {
+					seen[n.ID] = true
+					result.push(n,bucketSize)
+					if stopOnMatch && n.sha == target {
+						return result.entries
+					}
+				}
+			}
+			pendingQueries--
+		case <-time.After(respTimeout):
+			pendingQueries = 0
+			reply = make(chan []*Node,alpha)
+		}
+	}
+	return result.entries
+}
+
+func (net *Network) reqQueryFindNode(node *Node, target common.Hash, reply chan []*Node) bool {
+	q := &findnodeQuery{remote:node,target:target,reply:reply}
+	select {
+	case net.queryReq <- q:
+		return true
+	case <- net.closed:
+		return false
+	}
 }

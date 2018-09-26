@@ -8,6 +8,7 @@ import (
 	"github.com/srchain/srcd/crypto/crypto"
 	"encoding/binary"
 	"math"
+	"math/rand"
 )
 
 
@@ -84,6 +85,7 @@ type lookupInfo struct {
 	topic        Topic
 	radiusLookup bool
 }
+
 
 
 const (
@@ -168,7 +170,28 @@ type topicRadius struct {
 func (r *topicRadius) nextTarget(forceRegular bool) lookupInfo {
 	if !forceRegular {
 		_, radiusLookup := r.recalcRadius()
+		if radiusLookup != -1 {
+			target := r.targetForBucket(radiusLookup)
+			r.buckets[radiusLookup].lookupSent[target] = mclock.Now()
+			return lookupInfo{target:target,topic:r.topic,radiusLookup:true}
+		}
 	}
+
+	radExt := r.radius / 2
+	if radExt > maxRadius - r.radius {
+		radExt = maxRadius - r.radius
+	}
+	rnd := randUint64n(r.radius) + randUint64n(2 * radExt)
+	if rnd > radExt {
+		rnd -= radExt
+	} else {
+		rnd = radExt - rnd
+	}
+	prefix := r.topicHashPrefix ^ rnd
+	var target common.Hash
+	binary.BigEndian.PutUint64(target[0:8],prefix)
+	globalRandRead(target[8:])
+	return lookupInfo{target:target,topic:r.topic,radiusLookup:false}
 }
 
 func (s *ticketStore) nextFilteredTicket() (*ticketRef, time.Duration) {
@@ -308,6 +331,52 @@ func (store *ticketStore) nextRegisterLookup() (lookupInfo, time.Duration) {
 	log.Trace("No topic found to register", "delay", delay)
 	return lookupInfo{}, delay
 }
+func (s *ticketStore) registerLookupDone(lookup lookupInfo, nodes []*Node, ping func(n *Node) []byte) {
+	now := mclock.Now()
+	for i, n := range nodes {
+		if i == 0 || (binary.BigEndian.Uint64(n.sha[:8]) ^ binary.BigEndian.Uint64(lookup.target[:8])) < s.radius[lookup.topic].minRadius {
+			if lookup.radiusLookup {
+				if lastReq, ok := s.nodeLastReq[n]; !ok || time.Duration(now - lastReq.time) > radiusTC {
+					s.nodeLastReq[n] = reqInfo{pingHash:ping(n), lookup:lookup,time:now}
+				}
+			} else {
+				if s.nodes[n] == nil {
+					s.nodeLastReq[n] = reqInfo{pingHash:ping(n), lookup:lookup,time:now}
+				}
+			}
+		}
+	}
+}
+func (s *ticketStore) regTopicSet() []Topic {
+	topics := make([]Topic,0,len(s.tickets))
+	for topic := range s.tickets {
+		topics = append(topics,topic)
+	}
+	return topics
+}
+func (s *ticketStore) ticketRegistered(ref ticketRef) {
+	now := mclock.Now()
+	topic := ref.t.topics[ref.idx]
+	tickets := s.tickets[topic]
+	min := now - mclock.AbsTime(registerFrequency) * maxRegisterDebt
+	if min > tickets.nextReg {
+		tickets.nextReg = min
+	}
+	tickets.nextReg += mclock.AbsTime(registerFrequency)
+	s.tickets[topic] = tickets
+	s.removeTicketRef(ref)
+}
+func (s *ticketStore) removeSearchTopic(topic Topic) {
+	if st := s.searchTopicMap[topic]; st.foundChn != nil {
+		delete(s.searchTopicMap,topic)
+	}
+}
+func (s *ticketStore) addSearchTopic(topic Topic, foundChn chan<- *Node) {
+	s.addTopic(topic,false)
+	if s.searchTopicMap[topic].foundChn == nil {
+		s.searchTopicMap[topic] = searchTopic{foundChn:foundChn}
+	}
+}
 
 func newTopicRadius(topic Topic) *topicRadius {
 	topicHash := crypto.Keccak256Hash([]byte(topic))
@@ -345,5 +414,134 @@ func (r *topicRadius) recalcRadius() (radius uint64, radiusLookup int) {
 	v := float64(0)
 	for i := range r.buckets {
 		r.buckets[i].update(now)
+		v += r.buckets[i].weights[trOutside] - r.buckets[i].weights[trInside]
+		r.buckets[i].value = v
+	}
+
+	slopeCross := -1
+	for i, b := range r.buckets {
+		v := b.value
+		if v < float64(i) * minSlope {
+			slopeCross = i
+			break
+		}
+		if v > maxValue {
+			maxValue = v
+			maxBucket = i + 1
+		}
+	}
+
+	minRandBucket := len(r.buckets)
+	sum := float64(0)
+	for minRandBucket > 0 && sum < minRightSum {
+		minRandBucket--
+		b := r.buckets[minRandBucket]
+		sum += b.weights[trInside] + b.weights[trOutside]
+	}
+
+	r.minRadius = uint64(math.Pow(2,64 - float64(minRandBucket) / radiusBucketsPerBit))
+	lookupLeft := -1
+	if r.needMoreLookups(0,maxBucket - lookupWidth - 1, maxValue) {
+		lookupLeft = r.chooseLookupBucket(maxBucket-lookupWidth,maxBucket - 1)
+
+	}
+
+}
+func (r *topicRadius) targetForBucket(bucket int) common.Hash {
+	min := math.Pow(2,64 - float64(bucket+1) / radiusBucketsPerBit)
+	max := math.Pow(2,64 - float64(bucket) / radiusBucketsPerBit)
+	a := uint64(min)
+	b := randUint64n(uint64(max - min))
+	xor := a + b
+	if xor < a {
+		xor = ^uint64(0)
+	}
+	prefix := r.topicHashPrefix ^ xor
+	var target common.Hash
+	binary.BigEndian.PutUint64(target[0:8],prefix)
+	globalRandRead(target[8:])
+	return target
+
+}
+
+func (r *topicRadius) needMoreLookups(a int, b int, maxValue float64) bool {
+	var max float64
+	if a < 0 {
+		a = 0
+	}
+	if b >= len(r.buckets) {
+		b = len(r.buckets) - 1
+		if r.buckets[b].value > max {
+			max = r.buckets[b].value
+		}
+	}
+	if b >= a {
+		for i := a; i <= b; i++ {
+			if r.buckets[i].value > max {
+				max = r.buckets[i].value
+			}
+		}
+	}
+	return maxValue - max < minPeakSize
+}
+func (r *topicRadius) chooseLookupBucket(a int, b int) int {
+	if a < 0{
+		a = 0
+	}
+	if a > b {
+		return -1
+	}
+	c := 0
+	for i := a; i <= b; i++ {
+		if i >= len(r.buckets) || r.buckets[i].weights[trNoAdjust] < maxNoAdjust {
+			c++
+		}
+	}
+	if c == 0 {
+		return -1
+	}
+	rnd := randUint(uint32(c))
+	for i := a; i <= b; i++ {
+		if i >= len(r.buckets) || r.buckets[i].weights[trNoAdjust] < maxNoAdjust {
+			if rnd == 0 {
+				return i
+			}
+			rnd--
+		}
+	}
+	panic(nil)
+}
+func randUint(max uint32) uint32 {
+	if max < 2 {
+		return 0
+	}
+	var b[8]byte
+	rand.Read(b[:])
+	return binary.BigEndian.Uint32(b[:]) % max
+
+}
+
+func globalRandRead(b []byte) {
+	pos := 0
+	val := 0
+	for n := 0; n < len(b); n++ {
+		if pos == 0 {
+			val = rand.Int()
+			pos = 7
+		}
+		b[n] = byte(val)
+		val >>= 8
+		pos--
 	}
 }
+
+func randUint64n(max uint64) uint64 {
+	if max < 2 {
+		return 0
+	}
+	var b [8]byte
+	rand.Read(b[:])
+	return binary.BigEndian.Uint64(b[:]) % max
+}
+
+
