@@ -115,7 +115,7 @@ func New(ctx *node.ServiceContext, config *Config) (*Server, error) {
 		// return nil, err
 	// }
 
-	server.miner = miner.New(server, server.chainConfig, server.EventMux(), server.engine)
+	server.miner = miner.New(server, server.EventMux(), server.engine)
 	server.miner.SetExtra(makeExtraData(config.ExtraData))
 
 	return server, nil
@@ -192,7 +192,7 @@ func (s *Server) StartMining(local bool) error {
 	return nil
 }
 
-func (s *Server) WalletManager() *wallet.Wallet         { return s.wallet }
+func (s *Ethereum) AccountManager() *accounts.Manager  { return s.accountManager }
 func (s *Server) BlockChain() *blockchain.BlockChain	{ return s.blockchain }
 func (s *Server) Engine() consensus.Engine		{ return s.engine }
 func (s *Server) ChainDb() database.Database            { return s.chainDb }
