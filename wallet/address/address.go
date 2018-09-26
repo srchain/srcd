@@ -13,7 +13,6 @@ type Address interface {
 	String() string
 	EncodeAddress() string
 }
-
 // AddressWitnessPubKeyHash is an Address for a pay-to-witness-pubkey-hash
 // (P2WPKH) output. See BIP 173 for further details regarding native segregated
 // witness address encoding:

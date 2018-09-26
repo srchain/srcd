@@ -4,13 +4,23 @@ import (
 
 )
 
+const (
+	resultQueueSize  = 10
+
+	// txChanSize is the size of channel listening to NewTxsEvent.
+	// The number is referenced from the size of tx pool.
+	txChanSize = 4096
+	// chainHeadChanSize is the size of channel listening to ChainHeadEvent.
+	chainHeadChanSize = 10
+)
+
 // Agent can register themself with the worker
 type Agent interface {
 	Work() chan<- *Work
 	SetReturnCh(chan<- *Result)
 	Stop()
 	Start()
-	GetHashRate() int64
+	// GetHashRate() int64
 }
 
 // Work is the workers current environment and holds
@@ -49,8 +59,8 @@ type worker struct {
 
 	// update loop
 	mux          *event.TypeMux
-	txsCh        chan core.NewTxsEvent
-	txsSub       event.Subscription
+	// txsCh        chan core.NewTxsEvent
+	// txsSub       event.Subscription
 	chainHeadCh  chan core.ChainHeadEvent
 	chainHeadSub event.Subscription
 	// chainSideCh  chan core.ChainSideEvent
@@ -62,8 +72,8 @@ type worker struct {
 
 	server  Backend
 	chain   *blockchain.BlockChain
-	proc    core.Validator
-	chainDb ethdb.Database
+	proc    blockchain.Validator
+	chainDb database.Database
 
 	coinbase common.Address
 	extra    []byte
@@ -71,9 +81,9 @@ type worker struct {
 	currentMu sync.Mutex
 	current   *Work
 
-	snapshotMu    sync.RWMutex
-	snapshotBlock *types.Block
-	snapshotState *state.StateDB
+	// snapshotMu    sync.RWMutex
+	// snapshotBlock *types.Block
+	// snapshotState *state.StateDB
 
 	// uncleMu        sync.Mutex
 	// possibleUncles map[common.Hash]*types.Block
@@ -101,9 +111,9 @@ func newWorker(engine consensus.Engine, coinbase common.Address, server Backend,
 		agents:         make(map[Agent]struct{}),
 	}
 	// Subscribe NewTxsEvent for tx pool
-	worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
+	// worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
 	// Subscribe events for blockchain
-	worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
+	worker.chainHeadSub = server.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
 
 	go worker.update()
 	go worker.wait()

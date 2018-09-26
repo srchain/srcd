@@ -8,7 +8,7 @@ import (
 	"sync"
 	"strconv"
 	"fmt"
-	"github.com/srchain/srcd/database"
+	"srcd/database"
 )
 
 func newTestLDB() (*database.LDBDatabase, func()) {

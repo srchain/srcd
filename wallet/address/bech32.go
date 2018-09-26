@@ -33,7 +33,7 @@ func Bech32Decode(bech string) (string, []byte, error) {
 		}
 	}
 
-	// The characters must be either all lowercase or all uppercase.
+	// The characters must be either all lo wercase or all uppercase.
 	lower := strings.ToLower(bech)
 	upper := strings.ToUpper(bech)
 	if bech != lower && bech != upper {

@@ -160,17 +160,19 @@ func HasBody(db DatabaseReader, hash common.Hash, number uint64) bool {
 }
 
 // ReadBody retrieves the block body corresponding to the hash.
-func ReadBody(db DatabaseReader, hash common.Hash, number uint64) *types.Body {
+func ReadBody(db DatabaseReader, hash common.Hash, number uint64) *types.Transactions {
 	data := ReadBodyRLP(db, hash, number)
 	if len(data) == 0 {
 		return nil
 	}
-	body := new(types.Body)
-	if err := rlp.Decode(bytes.NewReader(data), body); err != nil {
+
+	txs := new(types.Transactions)
+	if err := rlp.Decode(bytes.NewReader(data), txs); err != nil {
 		log.Error("Invalid block body RLP", "hash", hash, "err", err)
 		return nil
 	}
-	return body
+
+	return txs
 }
 
 // WriteBody storea a block body into the database.

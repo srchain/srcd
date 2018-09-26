@@ -2,6 +2,7 @@ package params
 
 import (
 	"math/big"
+	"strings"
 )
 
 var (

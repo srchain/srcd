@@ -9,6 +9,7 @@ import (
 	math "math"
 	"encoding/binary"
 	"io"
+	"srcd/protocol/transaction/extend"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -139,13 +140,17 @@ type AssetID struct {
 	V2                   uint64   `protobuf:"fixed64,3,opt,name=v2" json:"v2,omitempty"`
 	V3                   uint64   `protobuf:"fixed64,4,opt,name=v3" json:"v3,omitempty"`
 }
-
+// ReadFrom satisfies the io.ReaderFrom interface.
+func (a *AssetID) ReadFrom(r io.Reader) (int64, error) { return (*Hash)(a).ReadFrom(r) }
+func (a AssetID) WriteTo(w io.Writer) (int64, error) { return Hash(a).WriteTo(w) }
 func (m *AssetID) Reset()         { *m = AssetID{} }
 func (m *AssetID) String() string { return proto.CompactTextString(m) }
 func (*AssetID) ProtoMessage()    {}
 func (*AssetID) Descriptor() ([]byte, []int) {
 	return fileDescriptor_tx_dcb76708e2c2a44f, []int{2}
 }
+// Bytes returns the byte representation.
+func (a AssetID) Bytes() []byte { return Hash(a).Bytes() }
 
 var xxx_messageInfo_AssetID proto.InternalMessageInfo
 
@@ -180,6 +185,25 @@ func (m *AssetID) GetV3() uint64 {
 type AssetAmount struct {
 	AssetId              *AssetID `protobuf:"bytes,1,opt,name=asset_id,json=assetId" json:"asset_id,omitempty"`
 	Amount               uint64   `protobuf:"varint,2,opt,name=amount" json:"amount,omitempty"`
+}
+// ReadFrom read the AssetAmount from the bytes
+func (a *AssetAmount) ReadFrom(r *extend.Reader) (err error) {
+	var assetID AssetID
+	if _, err = assetID.ReadFrom(r); err != nil {
+		return err
+	}
+	a.AssetId = &assetID
+	a.Amount, err = extend.ReadVarint63(r)
+	return err
+}
+// WriteTo convert struct to byte and write to io
+func (a AssetAmount) WriteTo(w io.Writer) (int64, error) {
+	n, err := a.AssetId.WriteTo(w)
+	if err != nil {
+		return n, err
+	}
+	n2, err := extend.WriteVarint63(w, a.Amount)
+	return n + int64(n2), err
 }
 
 func (m *AssetAmount) Reset()         { *m = AssetAmount{} }
@@ -294,6 +318,9 @@ func NewTxHeader(version, serializedSize, timeRange uint64, resultIDs []*Hash) *
 }
 func (TxHeader) typ() string { return "txheader" }
 func (h *TxHeader) writeForHash(w io.Writer) {
+	mustWriteForHash(w, h.Version)
+	mustWriteForHash(w, h.TimeRange)
+	mustWriteForHash(w, h.ResultIds)
 }
 func (m *TxHeader) Reset()         { *m = TxHeader{} }
 func (m *TxHeader) String() string { return proto.CompactTextString(m) }

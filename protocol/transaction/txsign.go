@@ -25,7 +25,6 @@ func TxSign(tpl *Template,xprv chainkd.XPrv,xpub chainkd.XPub) error{
 
 func materializeWitnesses(txTemplate *Template) error {
 	msg := txTemplate.Transaction
-
 	for i, sigInst := range txTemplate.SigningInstructions {
 		var witness [][]byte
 		for j, wc := range sigInst.WitnessComponents {

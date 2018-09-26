@@ -23,6 +23,7 @@ func (dw DataWitness) MarshalJSON() ([]byte, error) {
 		Type:  "data",
 		Value: HexBytes(dw),
 	}
+
 	return json.Marshal(x)
 }
 

@@ -18,7 +18,6 @@ func TestAddrPrefix(t *testing.T)  {
 	fmt.Println(prefix)
 	fmt.Println(hrp)
 
-
 }
 
 func TestDecodeSegWitAddress(t *testing.T)  {

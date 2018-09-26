@@ -5,6 +5,10 @@ import (
 	"reflect"
 	"srcd/crypto/sha3pool"
 	"github.com/golang/protobuf/proto"
+	"encoding/binary"
+	"srcd/errors"
+	"srcd/protocol/transaction/extend"
+	"fmt"
 )
 
 // Entry is the interface implemented by each addressable unit in a
@@ -51,4 +55,95 @@ func EntryID(e Entry) (hash Hash) {
 
 	hash.ReadFrom(hasher)
 	return hash
+}
+var byte32zero [32]byte
+func mustWriteForHash(w io.Writer, c interface{}) {
+	if err := writeForHash(w, c); err != nil {
+		panic(err)
+	}
+}
+
+func writeForHash(w io.Writer, c interface{}) error {
+	switch v := c.(type) {
+	case byte:
+		_, err := w.Write([]byte{v})
+		return err
+	case uint64:
+		buf := [8]byte{}
+		binary.LittleEndian.PutUint64(buf[:], v)
+		_, err := w.Write(buf[:])
+		return err
+	case []byte:
+		_, err := extend.WriteVarstr31(w, v)
+		return err
+	case [][]byte:
+		_, err := extend.WriteVarstrList(w, v)
+		return err
+	case string:
+		_, err := extend.WriteVarstr31(w, []byte(v))
+		return err
+	case *Hash:
+		if v == nil {
+			_, err := w.Write(byte32zero[:])
+			return err
+		}
+		_, err := w.Write(v.Bytes())
+		return err
+	case *AssetID:
+		if v == nil {
+			_, err := w.Write(byte32zero[:])
+			return err
+		}
+		_, err := w.Write(v.Bytes())
+		return err
+	case Hash:
+		_, err := v.WriteTo(w)
+		return err
+	case AssetID:
+		_, err := v.WriteTo(w)
+		return err
+	}
+
+	// The two container types in the spec (List and Struct)
+	// correspond to slices and structs in Go. They can't be
+	// handled with type assertions, so we must use reflect.
+	switch v := reflect.ValueOf(c); v.Kind() {
+	case reflect.Ptr:
+		if v.IsNil() {
+			return nil
+		}
+		elem := v.Elem()
+		return writeForHash(w, elem.Interface())
+	case reflect.Slice:
+		l := v.Len()
+		if _, err := extend.WriteVarint31(w, uint64(l)); err != nil {
+			return err
+		}
+		for i := 0; i < l; i++ {
+			c := v.Index(i)
+			if !c.CanInterface() {
+			}
+			if err := writeForHash(w, c.Interface()); err != nil {
+				return err
+			}
+		}
+		return nil
+
+	case reflect.Struct:
+		typ := v.Type()
+		for i := 0; i < typ.NumField(); i++ {
+			c := v.Field(i)
+			if !c.CanInterface() {
+			}
+			if err := writeForHash(w, c.Interface()); err != nil {
+				t := v.Type()
+				f := t.Field(i)
+				fmt.Printf("writing struct field %d (%s.%s) for hash", i, t.Name(), f.Name)
+				return err
+			}
+		}
+		return nil
+	}
+
+	return errors.New("bad type ")
 }

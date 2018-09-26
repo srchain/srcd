@@ -2,22 +2,27 @@ package miner
 
 import (
 	"sync/atomic"
+
+	"srcd/common/commnon"
+	"srcd/wallet"
+	"srcd/consensus"
+	"srcd/core/blockchain"
+	"srcd/database"
 )
 
 // Backend wraps all methods required for mining.
 type Backend interface {
-	AccountManager() *accounts.Manager
-	BlockChain() *blockchain.BlockChain
-	TxPool() *core.TxPool
-	ChainDb() ethdb.Database
+	// AccountManager() *accounts.Manager
+	WalletManager() *wallet.Wallet
+	BlockChain()    *blockchain.BlockChain
+	TxPool()        *core.TxPool
+	ChainDb()       database.Database
 }
 
 // Miner creates blocks
 type Miner struct {
-	mux *event.TypeMux
-
-	worker *worker
-
+	mux      *event.TypeMux
+	worker   *worker
 	coinbase common.Address
 	mining   int32
 	server   Backend
@@ -32,10 +37,10 @@ func New(server Backend, mux *event.TypeMux, engine consensus.Engine) *Miner {
 		server:   server,
 		mux:      mux,
 		engine:   engine,
-		worker:   newWorker(engine, common.Address{}, eth, mux),
+		worker:   newWorker(engine, common.Address{}, server, mux),
 		canStart: 1,
 	}
-	miner.Register(NewCpuAgent(eth.BlockChain(), engine))
+	miner.Register(NewCpuAgent(server.BlockChain(), engine))
 	go miner.update()
 
 	return miner
