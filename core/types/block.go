@@ -12,7 +12,7 @@ import (
 	"srcd/rlp"
 )
 
-var EmptyRootHash  = DeriveSha(Transactions{})
+var EmptyRootHash = DeriveSha(Transactions{})
 
 // A BlockNonce is a 64-bit hash which proves (combined with the
 // mix-hash) that a sufficient amount of computation has been carried
@@ -43,18 +43,18 @@ func (n *BlockNonce) UnmarshalText(input []byte) error {
 
 // Header represents a block header in blockchain.
 type Header struct {
-	ParentHash  common.Hash    `json:"parentHash"       gencodec:"required"`
-	Coinbase    common.Address `json:"miner"            gencodec:"required"`
+	ParentHash common.Hash    `json:"parentHash"       gencodec:"required"`
+	Coinbase   common.Address `json:"miner"            gencodec:"required"`
 	// Root        common.Hash    `json:"stateRoot"        gencodec:"required"`
-	TxHash      common.Hash    `json:"transactionsRoot" gencodec:"required"`
+	TxHash common.Hash `json:"transactionsRoot" gencodec:"required"`
 	// ReceiptHash common.Hash    `json:"receiptsRoot"     gencodec:"required"`
 	// Bloom       Bloom          `json:"logsBloom"        gencodec:"required"`
-	Difficulty  *big.Int       `json:"difficulty"       gencodec:"required"`
-	Number      *big.Int       `json:"number"           gencodec:"required"`
-	Time        *big.Int       `json:"timestamp"        gencodec:"required"`
-	Extra       []byte         `json:"extraData"        gencodec:"required"`
+	Difficulty *big.Int `json:"difficulty"       gencodec:"required"`
+	Number     *big.Int `json:"number"           gencodec:"required"`
+	Time       *big.Int `json:"timestamp"        gencodec:"required"`
+	Extra      []byte   `json:"extraData"        gencodec:"required"`
 	// MixDigest   common.Hash    `json:"mixHash"          gencodec:"required"`
-	Nonce       BlockNonce     `json:"nonce"            gencodec:"required"`
+	Nonce BlockNonce `json:"nonce"            gencodec:"required"`
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
@@ -153,7 +153,7 @@ func (b *Block) ParentHash() common.Hash    { return b.header.ParentHash }
 func (b *Block) TxHash() common.Hash        { return b.header.TxHash }
 func (b *Block) Extra() []byte              { return common.CopyBytes(b.header.Extra) }
 
-func (b *Block) Header() *Header	    { return CopyHeader(b.header) }
+func (b *Block) Header() *Header            { return CopyHeader(b.header) }
 
 // Size returns the true RLP encoded storage size of the block, either by encoding
 // and returning it, or returning a previsouly cached value.

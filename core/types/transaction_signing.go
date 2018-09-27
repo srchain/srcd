@@ -3,9 +3,11 @@ package types
 import (
 	"crypto/ecdsa"
 	"errors"
+	"fmt"
+	"math/big"
 
 	"srcd/common/common"
-	"srcd/crypro/crypto"
+	"srcd/crypto/crypto"
 )
 
 // SignTx signs the transaction using the given signer and private key
@@ -32,16 +34,20 @@ type Signer interface {
 	Equal(Signer) bool
 }
 
-type FrontierSigner struct{}
+type MasterSigner struct{}
 
-func (s FrontierSigner) Equal(s2 Signer) bool {
-	_, ok := s2.(FrontierSigner)
+func NewMasterSigner() MasterSigner {
+	return MasterSigner{}
+}
+
+func (s MasterSigner) Equal(s2 Signer) bool {
+	_, ok := s2.(MasterSigner)
 	return ok
 }
 
 // SignatureValues returns signature values. This signature
 // needs to be in the [R || S || V] format where V is 0 or 1.
-func (fs FrontierSigner) SignatureValues(tx *Transaction, sig []byte) (r, s, v *big.Int, err error) {
+func (fs MasterSigner) SignatureValues(tx *Transaction, sig []byte) (r, s, v *big.Int, err error) {
 	if len(sig) != 65 {
 		panic(fmt.Sprintf("wrong size for signature: got %d, want 65", len(sig)))
 	}
@@ -53,7 +59,7 @@ func (fs FrontierSigner) SignatureValues(tx *Transaction, sig []byte) (r, s, v *
 
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
-func (fs FrontierSigner) Hash(tx *Transaction) common.Hash {
+func (fs MasterSigner) Hash(tx *Transaction) common.Hash {
 	return rlpHash([]interface{}{
 		tx.data.AccountNonce,
 		tx.data.Recipient,
@@ -62,7 +68,7 @@ func (fs FrontierSigner) Hash(tx *Transaction) common.Hash {
 	})
 }
 
-func (fs FrontierSigner) Sender(tx *Transaction) (common.Address, error) {
+func (fs MasterSigner) Sender(tx *Transaction) (common.Address, error) {
 	return recoverPlain(fs.Hash(tx), tx.data.R, tx.data.S, tx.data.V)
 }
 
