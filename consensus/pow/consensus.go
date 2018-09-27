@@ -179,7 +179,7 @@ func (pow *Pow) Prepare(chain consensus.ChainReader, header *types.Header) error
 	if parent == nil {
 		return consensus.ErrUnknownAncestor
 	}
-	header.Difficulty = ethash.CalcDifficulty(header.Time.Uint64(), parent)
+	header.Difficulty = pow.CalcDifficulty(header.Time.Uint64(), parent)
 	return nil
 }
 
