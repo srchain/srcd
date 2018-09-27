@@ -9,7 +9,12 @@ import (
 	"strings"
 	"github.com/peterh/liner"
 	"regexp"
+	"path/filepath"
+	"github.com/mattn/go-colorable"
 )
+type cmdfunc func(c *Console, args []string)
+var exec map[string]cmdfunc = map[string]cmdfunc{
+}
 
 var (
 	passwordRegexp = regexp.MustCompile(`personal.[nus]`)
@@ -18,8 +23,7 @@ var (
 
 	cmdnames = []string{"account", "createspace", "recharge", "setattr", "ttx", "test", "setvrf"}
 )
-var exec map[string]cmdfunc = map[string]cmdfunc{
-}
+
 type Console struct {
 	name     string
 	client   *rpc.Client
@@ -30,27 +34,48 @@ type Console struct {
 	printer  io.Writer
 	dataDir  string
 }
+const HistoryFile = "history"
 
-func (c *Console) execCmd(input string) {
-	list := strings.Split(input, " ")
-	args := []string{}
-	for _, s := range list {
-		if s != "" {
-			args = append(args, s)
-		}
-	}
+const DefaultPrompt = "> "
 
-	cmd := args[0]
-	args = args[1:]
-
-	if v, ok := exec[cmd]; ok {
-		v(c, args)
-	} else {
-		fmt.Println("command not found")
-	}
+type Config struct {
+	Name     string
+	DataDir  string
+	DocRoot  string
+	Client   *rpc.Client
+	Prompt   string
+	Prompter UserPrompter
+	Printer  io.Writer
+	Preload  []string
 }
 
+func New(config Config) (*Console, error) {
+	if config.Prompter == nil {
+		config.Prompter = Stdin
+	}
+	if config.Prompt == "" {
+		config.Prompt = DefaultPrompt
+	}
+	if config.Printer == nil {
+		config.Printer = colorable.NewColorableStdout()
+	}
+	console := &Console{
+		name:     config.Name,
+		client:   config.Client,
+		prompt:   config.Prompt,
+		prompter: config.Prompter,
+		printer:  config.Printer,
+		histPath: filepath.Join(config.DataDir, HistoryFile),
+		dataDir:  config.DataDir,
+	}
 
+	//console.prompter.SetWordCompleter(console.AutoCompleteInput)
+
+	return console, nil
+}
+func (c *Console) Welcome() {
+	fmt.Fprintf(c.printer, "Welcome to the unitcoin console!\n\n")
+}
 func (c *Console) Interactive() {
 	var (
 		prompt    = c.prompt
@@ -102,5 +127,64 @@ func (c *Console) Interactive() {
 			}
 			input = ""
 		}
+	}
+}
+
+func countIndents(input string) int {
+	var (
+		indents     = 0
+		inString    = false
+		strOpenChar = ' '
+		charEscaped = false
+	)
+
+	for _, c := range input {
+		switch c {
+		case '\\':
+			if !charEscaped && inString {
+				charEscaped = true
+			}
+		case '\'', '"':
+			if inString && !charEscaped && strOpenChar == c {
+				inString = false
+			} else if !inString && !charEscaped {
+				inString = true
+				strOpenChar = c
+			}
+			charEscaped = false
+		case '{', '(':
+			if !inString {
+				indents++
+			}
+			charEscaped = false
+		case '}', ')':
+			if !inString {
+				indents--
+			}
+			charEscaped = false
+		default:
+			charEscaped = false
+		}
+	}
+
+	return indents
+}
+
+func (c *Console) execCmd(input string) {
+	list := strings.Split(input, " ")
+	args := []string{}
+	for _, s := range list {
+		if s != "" {
+			args = append(args, s)
+		}
+	}
+
+	cmd := args[0]
+	args = args[1:]
+
+	if v, ok := exec[cmd]; ok {
+		v(c, args)
+	} else {
+		fmt.Println("command not found")
 	}
 }
