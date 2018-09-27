@@ -15,7 +15,9 @@ import (
 
 // Lengths of hashes and addresses in bytes.
 const (
+	// HashLength is the expected length of the hash
 	HashLength    = 32
+	// AddressLength is the expected length of the adddress
 	AddressLength = 20
 )
 
@@ -137,7 +139,7 @@ func BigToAddress(b *big.Int) Address { return BytesToAddress(b.Bytes()) }
 func HexToAddress(s string) Address { return BytesToAddress(FromHex(s)) }
 
 // IsHexAddress verifies whether a string can represent a valid hex-encoded
-// Ethereum address or not.
+// address or not.
 func IsHexAddress(s string) bool {
 	if hasHexPrefix(s) {
 		s = s[2:]
