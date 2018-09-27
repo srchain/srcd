@@ -93,11 +93,6 @@ type worker struct {
 
 	// atomic status counters
 	running       int32               // The indicator whether the consensus engine is running or not.
-
-	// Test hooks
-	newTaskHook   func(*task)         // Method to call upon receiving a new sealing task
-	skipSealHook  func(*task) bool    // Method to decide whether skipping the sealing.
-	fullTaskHook  func()              // Method to call before pushing the full sealing task
 }
 
 func newWorker(engine consensus.Engine, server Backend, mux *event.TypeMux) *worker {
@@ -270,10 +265,6 @@ func (w *worker) seal(t *task, stop <-chan struct{}) {
 		res *task
 	)
 
-	if w.skipSealHook != nil && w.skipSealHook(t) {
-		return
-	}
-
 	if t.block, err = w.engine.Seal(w.chain, t.block, stop); t.block != nil {
 		log.Info("Successfully sealed new block", "number", t.block.Number(), "hash", t.block.Hash(),
 			"elapsed", common.PrettyDuration(time.Since(t.createdAt)))
@@ -305,9 +296,6 @@ func (w *worker) taskLoop() {
 	for {
 		select {
 		case task := <-w.taskCh:
-			if w.newTaskHook != nil {
-				w.newTaskHook(task)
-			}
 			interrupt()
 			stopCh = make(chan struct{})
 			go w.seal(task, stopCh)
@@ -505,7 +493,7 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool) {
 	if !noempty {
 		// Create an empty block based on temporary copied state for sealing in advance without waiting block
 		// execution finished.
-		w.commit(nil, false, tstart)
+		w.commit(false, tstart)
 	}
 
 	// Fill the block with all available pending transactions.
@@ -524,20 +512,17 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool) {
 		return
 	}
 
-	w.commit(w.fullTaskHook, true, tstart)
+	w.commit(true, tstart)
 }
 
 // commit assembles the final block and commits new work if consensus engine is running.
-func (w *worker) commit(interval func(), update bool, start time.Time) error {
+func (w *worker) commit(update bool, start time.Time) error {
 	block, err := w.engine.Finalize(w.current.header, w.current.txs)
 	if err != nil {
 		return err
 	}
 
 	if w.isRunning() {
-		if interval != nil {
-			interval()
-		}
 		select {
 		case w.taskCh <- &task{block: block, createdAt: time.Now()}:
 			w.unconfirmed.Shift(block.NumberU64() - 1)
