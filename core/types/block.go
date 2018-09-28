@@ -45,16 +45,13 @@ func (n *BlockNonce) UnmarshalText(input []byte) error {
 type Header struct {
 	ParentHash common.Hash    `json:"parentHash"       gencodec:"required"`
 	Coinbase   common.Address `json:"miner"            gencodec:"required"`
-	// Root        common.Hash    `json:"stateRoot"        gencodec:"required"`
-	TxHash common.Hash `json:"transactionsRoot" gencodec:"required"`
-	// ReceiptHash common.Hash    `json:"receiptsRoot"     gencodec:"required"`
+	TxHash     common.Hash    `json:"transactionsRoot" gencodec:"required"`
 	// Bloom       Bloom          `json:"logsBloom"        gencodec:"required"`
-	Difficulty *big.Int `json:"difficulty"       gencodec:"required"`
-	Number     *big.Int `json:"number"           gencodec:"required"`
-	Time       *big.Int `json:"timestamp"        gencodec:"required"`
-	Extra      []byte   `json:"extraData"        gencodec:"required"`
-	// MixDigest   common.Hash    `json:"mixHash"          gencodec:"required"`
-	Nonce BlockNonce `json:"nonce"            gencodec:"required"`
+	Difficulty *big.Int       `json:"difficulty"       gencodec:"required"`
+	Number     *big.Int       `json:"number"           gencodec:"required"`
+	Time       *big.Int       `json:"timestamp"        gencodec:"required"`
+	Extra      []byte         `json:"extraData"        gencodec:"required"`
+	Nonce      BlockNonce     `json:"nonce"            gencodec:"required"`
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
@@ -172,6 +169,17 @@ type writeCounter common.StorageSize
 func (c *writeCounter) Write(b []byte) (int, error) {
 	*c += writeCounter(len(b))
 	return len(b), nil
+}
+
+// WithSeal returns a new block with the data from b but the header replaced with
+// the sealed one.
+func (b *Block) WithSeal(header *Header) *Block {
+	cpy := *header
+
+	return &Block{
+		header:       &cpy,
+		transactions: b.transactions,
+	}
 }
 
 // WithBody returns a new block with the given transaction.
