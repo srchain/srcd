@@ -2,8 +2,14 @@ package pow
 
 import (
 	"sync"
+	"math/big"
 	"math/rand"
 	"srcd/log"
+)
+
+var (
+	// two256 is a big integer representing 2^256
+	two256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
 )
 
 // Pow is a consensus engine based on proot-of-work
@@ -11,12 +17,26 @@ type Pow struct {
 	rand     *rand.Rand    // Properly seeded random source for nonces
 	threads  int           // Number of threads to mine on if mining
 	update   chan struct{} // Notification channel to update mining parameters
+
 	lock     sync.Mutex    // Ensures thread safety for the in-memory caches and mining fields
 }
 
 // New creates a full sized PoW scheme.
 func New() *Pow {
-	return &Pow{ update:   make(chan struct{}) }
+	pow := &Pow{
+		update:   make(chan struct{}),
+	}
+
+	return pow
+}
+
+// Threads returns the number of mining threads currently enabled. This doesn't
+// necessarily mean that mining is running!
+func (pow *Pow) Threads() int {
+	pow.lock.Lock()
+	defer pow.lock.Unlock()
+
+	return pow.threads
 }
 
 // SetThreads updates the number of mining threads currently enabled. Calling

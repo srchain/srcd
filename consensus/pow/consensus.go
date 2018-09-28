@@ -188,6 +188,8 @@ func (pow *Pow) Finalize(header *types.Header, txs []*types.Transaction) (*types
 	// Accumulate any block rewards
 	accumulateRewards(header)
 
+	// txs = append(txs, reward)
+
 	// Header seems complete, assemble into a block and return
 	return types.NewBlock(header, txs), nil
 }
@@ -196,6 +198,4 @@ func (pow *Pow) Finalize(header *types.Header, txs []*types.Transaction) (*types
 func accumulateRewards(header *types.Header) {
 	// Accumulate the rewards for the miner.
 	reward := new(big.Int).Set(10000)
-
-	// AddBalance(header.Coinbase, reward)
 }
