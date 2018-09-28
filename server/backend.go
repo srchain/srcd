@@ -145,7 +145,7 @@ func CreateDB(ctx *node.ServiceContext, config *Config, name string) (database.D
 
 // CreateConsensusEngine creates the required type of consensus engine instance for Server
 func CreateConsensusEngine() consensus.Engine {
-	engine := pow.new()
+	engine := pow.New()
 	engine.SetThreads(1)
 
 	return engine
