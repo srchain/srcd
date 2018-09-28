@@ -38,7 +38,7 @@ const (
 // environment is the worker's current environment and holds all of the current state information.
 type environment struct {
 	signer   types.Signer
-	tcount   int            // tx count in cycle
+	tcount   int                   // tx count in cycle
 	header   *types.Header
 	txs      []*types.Transaction
 }
@@ -57,7 +57,6 @@ const (
 
 type newWorkReq struct {
 	interrupt *int32
-	noempty   bool
 }
 
 // worker is the main object which takes care of submitting new work to consensus engine
@@ -87,9 +86,6 @@ type worker struct {
 	mu            sync.RWMutex        // The lock used to protect the coinbase and extra fields
 	coinbase      common.Address
 	extra         []byte
-
-	snapshotMu    sync.RWMutex        // The lock used to protect the block snapshot and state snapshot
-	snapshotBlock *types.Block
 
 	// atomic status counters
 	running       int32               // The indicator whether the consensus engine is running or not.
@@ -140,14 +136,6 @@ func (w *worker) setExtra(extra []byte) {
 	w.extra = extra
 }
 
-// pending returns pending block.
-func (w *worker) pending() *types.Block {
-	// return a snapshot to avoid contention on currentMu mutex
-	w.snapshotMu.RLock()
-	defer w.snapshotMu.RUnlock()
-	return w.snapshotBlock
-}
-
 // start sets the running status as 1 and triggers new work submitting.
 func (w *worker) start() {
 	atomic.StoreInt32(&w.running, 1)
@@ -186,28 +174,28 @@ func (w *worker) newWorkLoop() {
 	<-timer.C // discard the initial tick
 
 	// recommit aborts in-flight transaction execution with given signal and resubmits a new one.
-	recommit := func(noempty bool, s int32) {
+	recommit := func(s int32) {
 		if interrupt != nil {
 			atomic.StoreInt32(interrupt, s)
 		}
 		interrupt = new(int32)
-		w.newWorkCh <- &newWorkReq{interrupt: interrupt, noempty: noempty}
+		w.newWorkCh <- &newWorkReq{interrupt: interrupt}
 		timer.Reset(blockRecommitInterval)
 	}
 
 	for {
 		select {
 		case <-w.startCh:
-			recommit(false, commitInterruptNewHead)
+			recommit(commitInterruptNewHead)
 
 		case <-w.chainHeadCh:
-			recommit(false, commitInterruptNewHead)
+			recommit(commitInterruptNewHead)
 
 		case <-timer.C:
 			// If mining is running resubmit a new work cycle periodically to pull in
 			// higher priced transactions. Disable this overhead for pending blocks.
 			if w.isRunning() {
-				recommit(true, commitInterruptResubmit)
+				recommit(commitInterruptResubmit)
 			}
 
 		case <-w.exitCh:
@@ -224,7 +212,7 @@ func (w *worker) mainLoop() {
 	for {
 		select {
 		case req := <-w.newWorkCh:
-			w.commitNewWork(req.interrupt, req.noempty)
+			w.commitNewWork(req.interrupt)
 
 		case ev := <-w.txsCh:
 			// Apply transactions to the pending state if we're not mining.
@@ -244,7 +232,6 @@ func (w *worker) mainLoop() {
 				}
 				txset := types.NewTransactionsByPriceAndNonce(w.current.signer, txs)
 				w.commitTransactions(txset, coinbase, nil)
-				w.updateSnapshot()
 			}
 
 		// System stopped
@@ -265,7 +252,7 @@ func (w *worker) seal(t *task, stop <-chan struct{}) {
 		res *task
 	)
 
-	if t.block, err = w.engine.Seal(w.chain, t.block, stop); t.block != nil {
+	if t.block, err = w.engine.Seal(t.block, stop); t.block != nil {
 		log.Info("Successfully sealed new block", "number", t.block.Number(), "hash", t.block.Hash(),
 			"elapsed", common.PrettyDuration(time.Since(t.createdAt)))
 		res = t
@@ -318,25 +305,15 @@ func (w *worker) resultLoop() {
 			block := result.block
 
 			// Commit block to database.
-			stat, err := w.chain.WriteBlockWithState(block, result.receipts, result.state)
-			if err != nil {
-				log.Error("Failed writing block to chain", "err", err)
-				continue
-			}
+			w.chain.WriteBlock(block)
+
 			// // Broadcast the block and announce chain insertion event
 			// w.mux.Post(core.NewMinedBlockEvent{Block: block})
-			// var (
-				// events []interface{}
-				// logs   = result.state.Logs()
-			// )
-			// switch stat {
-			// case core.CanonStatTy:
-				// events = append(events, core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
-				// events = append(events, core.ChainHeadEvent{Block: block})
-			// case core.SideStatTy:
-				// events = append(events, core.ChainSideEvent{Block: block})
-			// }
-			// w.chain.PostChainEvents(events, logs)
+
+			// var events []interface{}
+			// events = append(events, core.ChainEvent{Block: block, Hash: block.Hash()})
+			// events = append(events, core.ChainHeadEvent{Block: block})
+			// w.chain.PostChainEvents(events)
 
 			// Insert the block into the set of pending ones to resultLoop for confirmations
 			w.unconfirmed.Insert(block.NumberU64(), block.Hash())
@@ -348,34 +325,15 @@ func (w *worker) resultLoop() {
 }
 
 // makeCurrent creates a new environment for the current cycle.
-func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
+func (w *worker) makeCurrent(header *types.Header) {
 	env := &environment{
 		signer:    types.NewMasterSigner(),
 		header:    header,
 	}
 
-	// // when 08 is processed ancestors contain 07 (quick block)
-	// for _, ancestor := range w.chain.GetBlocksFromHash(parent.Hash(), 7) {
-		// env.family.Add(ancestor.Hash())
-		// env.ancestors.Add(ancestor.Hash())
-	// }
-
 	// Keep track of transactions which return errors so they can be removed
 	env.tcount = 0
 	w.current = env
-	return nil
-}
-
-// updateSnapshot updates pending snapshot block.
-// Note this function assumes the current variable is thread safe.
-func (w *worker) updateSnapshot() {
-	w.snapshotMu.Lock()
-	defer w.snapshotMu.Unlock()
-
-	w.snapshotBlock = types.NewBlock(
-		w.current.header,
-		w.current.txs,
-	)
 }
 
 func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) error {
@@ -445,7 +403,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 }
 
 // commitNewWork generates several new sealing tasks based on the parent block.
-func (w *worker) commitNewWork(interrupt *int32, noempty bool) {
+func (w *worker) commitNewWork(interrupt *int32) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
@@ -483,18 +441,7 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool) {
 		return
 	}
 
-	// Could potentially happen if starting to mine in an odd state.
-	err := w.makeCurrent(parent, header)
-	if err != nil {
-		log.Error("Failed to create mining context", "err", err)
-		return
-	}
-
-	if !noempty {
-		// Create an empty block based on temporary copied state for sealing in advance without waiting block
-		// execution finished.
-		w.commit(false, tstart)
-	}
+	w.makeCurrent(header)
 
 	// Fill the block with all available pending transactions.
 	pending, err := w.server.TxPool().Pending()
@@ -504,7 +451,6 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool) {
 	}
 	// Short circuit if there is no available pending transactions
 	if len(pending) == 0 {
-		w.updateSnapshot()
 		return
 	}
 	txs := types.NewTransactionsByPriceAndNonce(w.current.signer, pending)
@@ -512,11 +458,11 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool) {
 		return
 	}
 
-	w.commit(true, tstart)
+	w.commit(tstart)
 }
 
 // commit assembles the final block and commits new work if consensus engine is running.
-func (w *worker) commit(update bool, start time.Time) error {
+func (w *worker) commit(start time.Time) error {
 	block, err := w.engine.Finalize(w.current.header, w.current.txs)
 	if err != nil {
 		return err
@@ -527,12 +473,13 @@ func (w *worker) commit(update bool, start time.Time) error {
 		case w.taskCh <- &task{block: block, createdAt: time.Now()}:
 			w.unconfirmed.Shift(block.NumberU64() - 1)
 
+			log.Info("Commit new mining work", "number", block.Number(), "txs", w.current.tcount,
+				"elapsed", common.PrettyDuration(time.Since(start)))
+
 		case <-w.exitCh:
 			log.Info("Worker has exited")
 		}
 	}
-	if update {
-		w.updateSnapshot()
-	}
+
 	return nil
 }
