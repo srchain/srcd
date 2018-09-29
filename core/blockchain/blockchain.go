@@ -42,31 +42,31 @@ type BlockChain struct {
 	// scope         event.SubscriptionScope
 	genesisBlock  *types.Block
 
-	mu      sync.RWMutex // global mutex for locking chain operations
-	chainmu sync.RWMutex // blockchain insertion lock
-	procmu  sync.RWMutex // block processor lock
+	mu            sync.RWMutex // global mutex for locking chain operations
+	chainmu       sync.RWMutex // blockchain insertion lock
+	procmu        sync.RWMutex // block processor lock
 
-	checkpoint       int          // checkpoint counts towards the new checkpoint
-	currentBlock     atomic.Value // Current head of the block chain
+	checkpoint    int          // checkpoint counts towards the new checkpoint
+	currentBlock  atomic.Value // Current head of the block chain
 	// currentFastBlock atomic.Value // Current head of the fast-sync chain (may be above the block chain!)
 
 	// stateCache   state.Database // State database to reuse between imports (contains state cache)
 	// bodyCache    *lru.Cache     // Cache for the most recent block bodies
 	// bodyRLPCache *lru.Cache     // Cache for the most recent block bodies in RLP encoded format
-	blockCache   *lru.Cache     // Cache for the most recent entire blocks
-	futureBlocks *lru.Cache     // future blocks are blocks added for later processing
+	blockCache    *lru.Cache     // Cache for the most recent entire blocks
+	futureBlocks  *lru.Cache     // future blocks are blocks added for later processing
 
-	quit    chan struct{} // blockchain quit channel
-	running int32         // running must be called atomically
+	quit          chan struct{} // blockchain quit channel
+	running       int32         // running must be called atomically
 	// procInterrupt must be atomically called
 	procInterrupt int32          // interrupt signaler for block processing
 	wg            sync.WaitGroup // chain processing wait group for shutting down
 
-	engine    consensus.Engine
+	engine        consensus.Engine
 	// processor Processor // block processor interface
-	validator Validator // block validator interface
+	validator     Validator // block validator interface
 
-	badBlocks *lru.Cache // Bad block cache
+	badBlocks     *lru.Cache // Bad block cache
 }
 
 // NewBlockChain returns a fully initialised block chain using information
@@ -224,11 +224,19 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 
 // insert injects a new head block into the current block chain.
 func (bc *BlockChain) insert(block *types.Block) {
+	// If the block is on a side chain or an unknown one, force other heads onto it too
+	updateHeads := rawdb.ReadCanonicalHash(bc.db, block.NumberU64()) != block.Hash()
+
 	// Add the block to the canonical chain number scheme and mark as the head
 	rawdb.WriteCanonicalHash(bc.db, block.Hash(), block.NumberU64())
 	rawdb.WriteHeadBlockHash(bc.db, block.Hash())
 
 	bc.currentBlock.Store(block)
+
+	// If the block is better than our head or is on a different chain, force update heads
+	if updateHeads {
+		bc.hc.SetCurrentHeader(block.Header())
+	}
 }
 
 // HasBlock checks if a block is fully present in the database or not.
@@ -329,7 +337,7 @@ Error: %v
 `, block.Number(), block.Hash(), err))
 }
 
-// WriteBlockWithState writes the block to the database.
+// WriteBlock writes the block to the database.
 func (bc *BlockChain) WriteBlock(block *types.Block) {
 	bc.wg.Add(1)
 	defer bc.wg.Done()
