@@ -227,13 +227,13 @@ func (s *Server) Start() error {
 func (s *Server) Stop() error {
 	// s.bloomIndexer.Close()
 	s.blockchain.Stop()
-	s.protocolManager.Stop()
+	// s.engine.Close()
+	// s.protocolManager.Stop()
 	// s.txPool.Stop()
 	s.miner.Stop()
 	// s.eventMux.Stop()
 
 	s.chainDb.Close()
 	close(s.shutdownChan)
-
 	return nil
 }
