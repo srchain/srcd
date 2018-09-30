@@ -88,9 +88,7 @@ func (g *Genesis) ToBlock(db database.Database) *types.Block {
 		ParentHash: g.ParentHash,
 		Extra:      g.ExtraData,
 		Difficulty: g.Difficulty,
-		// MixDigest:  g.Mixhash,
 		Coinbase:   g.Coinbase,
-		// root:       root,
 	}
 	if g.Difficulty == nil {
 		head.Difficulty = params.GenesisDifficulty

@@ -19,10 +19,12 @@ import(
 var ErrNoGenesis = errors.New("Genesis not found in chain")
 
 const (
+	bodyCacheLimit      = 256
 	blockCacheLimit     = 256
 	maxFutureBlocks     = 256
 	maxTimeFutureBlocks = 30
 	badBlockLimit       = 10
+	triesInMemory       = 128
 )
 
 type BlockChain struct {
@@ -42,36 +44,35 @@ type BlockChain struct {
 	// scope         event.SubscriptionScope
 	genesisBlock  *types.Block
 
-	mu            sync.RWMutex // global mutex for locking chain operations
-	chainmu       sync.RWMutex // blockchain insertion lock
-	procmu        sync.RWMutex // block processor lock
+	mu            sync.RWMutex      // global mutex for locking chain operations
+	chainmu       sync.RWMutex      // blockchain insertion lock
+	procmu        sync.RWMutex      // block processor lock
 
-	checkpoint    int          // checkpoint counts towards the new checkpoint
-	currentBlock  atomic.Value // Current head of the block chain
-	// currentFastBlock atomic.Value // Current head of the fast-sync chain (may be above the block chain!)
+	checkpoint    int               // checkpoint counts towards the new checkpoint
+	currentBlock  atomic.Value      // Current head of the block chain
 
-	// stateCache   state.Database // State database to reuse between imports (contains state cache)
-	// bodyCache    *lru.Cache     // Cache for the most recent block bodies
-	// bodyRLPCache *lru.Cache     // Cache for the most recent block bodies in RLP encoded format
-	blockCache    *lru.Cache     // Cache for the most recent entire blocks
-	futureBlocks  *lru.Cache     // future blocks are blocks added for later processing
+	bodyCache    *lru.Cache         // Cache for the most recent block bodies
+	bodyRLPCache *lru.Cache         // Cache for the most recent block bodies in RLP encoded format
+	blockCache    *lru.Cache        // Cache for the most recent entire blocks
+	futureBlocks  *lru.Cache        // future blocks are blocks added for later processing
 
-	quit          chan struct{} // blockchain quit channel
-	running       int32         // running must be called atomically
+	quit          chan struct{}     // blockchain quit channel
+	running       int32             // running must be called atomically
 	// procInterrupt must be atomically called
-	procInterrupt int32          // interrupt signaler for block processing
-	wg            sync.WaitGroup // chain processing wait group for shutting down
+	procInterrupt int32             // interrupt signaler for block processing
+	wg            sync.WaitGroup    // chain processing wait group for shutting down
 
 	engine        consensus.Engine
-	// processor Processor // block processor interface
-	validator     Validator // block validator interface
+	validator     Validator         // block validator interface
 
-	badBlocks     *lru.Cache // Bad block cache
+	badBlocks     *lru.Cache        // Bad block cache
 }
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database.
 func NewBlockChain(db database.Database, engine consensus.Engine) (*BlockChain, error) {
+	bodyCache, _ := lru.New(bodyCacheLimit)
+	bodyRLPCache, _ := lru.New(bodyCacheLimit)
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 	badBlocks, _ := lru.New(badBlockLimit)
@@ -79,6 +80,8 @@ func NewBlockChain(db database.Database, engine consensus.Engine) (*BlockChain, 
 	bc := &BlockChain{
 		db:           db,
 		quit:         make(chan struct{}),
+		bodyCache:    bodyCache,
+		bodyRLPCache: bodyRLPCache,
 		blockCache:   blockCache,
 		futureBlocks: futureBlocks,
 		engine:       engine,
@@ -118,7 +121,6 @@ func (bc *BlockChain) loadLastState() error {
 		log.Warn("Empty database, resetting chain")
 		return bc.Reset()
 	}
-
 	// Make sure the entire head block is available
 	currentBlock := bc.GetBlockByHash(head)
 	if currentBlock == nil {
@@ -159,15 +161,20 @@ func (bc *BlockChain) SetHead(head uint64) error {
 	bc.hc.SetHead(head, delFn)
 	currentHeader := bc.hc.CurrentHeader()
 
+	// Clear out any stale content from the caches
+	bc.bodyCache.Purge()
+	bc.bodyRLPCache.Purge()
+	bc.blockCache.Purge()
+	bc.futureBlocks.Purge()
+
 	// Rewind the block chain, ensuring we don't end up with a stateless head block
 	if currentBlock := bc.CurrentBlock(); currentBlock != nil && currentHeader.Number.Uint64() < currentBlock.NumberU64() {
 		bc.currentBlock.Store(bc.GetBlock(currentHeader.Hash(), currentHeader.Number.Uint64()))
 	}
-
+	// If either blocks reached nil, reset to the genesis state
 	if currentBlock := bc.CurrentBlock(); currentBlock == nil {
 		bc.currentBlock.Store(bc.genesisBlock)
 	}
-
 	currentBlock := bc.CurrentBlock()
 
 	rawdb.WriteHeadBlockHash(bc.db, currentBlock.Hash())
@@ -222,7 +229,10 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 	return nil
 }
 
-// insert injects a new head block into the current block chain.
+// insert injects a new head block into the current block chain. This method
+// assumes that the block is indeed a true head. It will also reset the head
+// header and the head fast sync block to this very same block if they are older
+// or if they are on a different side chain.
 func (bc *BlockChain) insert(block *types.Block) {
 	// If the block is on a side chain or an unknown one, force other heads onto it too
 	updateHeads := rawdb.ReadCanonicalHash(bc.db, block.NumberU64()) != block.Hash()
@@ -247,13 +257,19 @@ func (bc *BlockChain) HasBlock(hash common.Hash, number uint64) bool {
 	return rawdb.HasBody(bc.db, hash, number)
 }
 
-// GetBlock retrieves a block from the database by hash and number.
+// GetBlock retrieves a block from the database by hash and number,
+// caching it if found.
 func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
+	// Short circuit if the block's already in the cache, retrieve otherwise
+	if block, ok := bc.blockCache.Get(hash); ok {
+		return block.(*types.Block)
+	}
 	block := rawdb.ReadBlock(bc.db, hash, number)
 	if block == nil {
 		return nil
 	}
-
+	// Cache the found block for next time and return
+	bc.blockCache.Add(block.Hash(), block)
 	return block
 }
 
