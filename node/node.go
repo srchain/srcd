@@ -18,8 +18,7 @@ import (
 type Node struct {
 	// eventmux *event.TypeMux		// Event multiplexer used between the services of a stack
 	config            *Config
-	accman   *accounts.Manager
-	// wallet            *wallet.Wallet
+	accman            *accounts.Manager
 
 	ephemeralKeystore string	// if non-empty, the key directory that will be removed by Stop
 	instanceDirLock   flock.Releaser	// prevents concurrent use of instance directory
@@ -27,8 +26,8 @@ type Node struct {
 	// serverConfig p2p.Config
 	// server       *p2p.Server		// Currently running P2P networking layer
 
-	serviceFuncs []ServiceConstructor	// Service constructors (in dependency order)
-	services     map[reflect.Type]Service	// Currently running services
+	serviceFuncs      []ServiceConstructor	// Service constructors (in dependency order)
+	services          map[reflect.Type]Service	// Currently running services
 
 	// rpcAPIs       []rpc.API   // List of APIs currently provided by the node
 	// inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
@@ -214,55 +213,66 @@ func (n *Node) Stop() error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	// // Short circuit if the node's not running
-	// if n.server == nil {
-		// return ErrNodeStopped
-	// }
+	// Short circuit if the node's not running
+	if n.server == nil {
+		return ErrNodeStopped
+	}
 
-	// // Terminate the API, services and the p2p server.
-	// // peer.stopWS()
-	// // peer.stopHTTP()
-	// // peer.stopIPC()
-	// // peer.rpcAPIs = nil
-
-	// // failure := &StopError{
-		// // Services: make(map[reflect.Type]error),
-	// // }
-	// // for kind, service := range n.services {
-		// // if err := service.Stop(); err != nil {
-			// // failure.Services[kind] = err
-		// // }
-	// // }
+	// Terminate the API, services and the p2p server.
+	// n.stopWS()
+	// n.stopHTTP()
+	// n.stopIPC()
+	// n.rpcAPIs = nil
+	failure := &StopError{
+		Services: make(map[reflect.Type]error),
+	}
+	for kind, service := range n.services {
+		if err := service.Stop(); err != nil {
+			failure.Services[kind] = err
+		}
+	}
 	// n.server.Stop()
-	// n.services = nil
+	n.services = nil
 	// n.server = nil
 
-	// // Release instance directory lock.
-	// if n.instanceDirLock != nil {
-		// if err := n.instanceDirLock.Release(); err != nil {
-			// n.log.Error("Can't release datadir lock", "err", err)
-		// }
-		// n.instanceDirLock = nil
-	// }
+	// Release instance directory lock.
+	if n.instanceDirLock != nil {
+		if err := n.instanceDirLock.Release(); err != nil {
+			n.log.Error("Can't release datadir lock", "err", err)
+		}
+		n.instanceDirLock = nil
+	}
 
-	// // unblock peer.Wait
-	// close(n.stop)
+	// unblock n.Wait
+	close(n.stop)
 
+	// Remove the keystore if it was created ephemerally.
+	var keystoreErr error
+	if n.ephemeralKeystore != "" {
+		keystoreErr = os.RemoveAll(n.ephemeralKeystore)
+	}
+
+	if len(failure.Services) > 0 {
+		return failure
+	}
+	if keystoreErr != nil {
+		return keystoreErr
+	}
 	return nil
 }
 
 // Wait blocks the thread until the node is stopped. If the node is not running
 // at the time of invocation, the method immediately returns.
 func (n *Node) Wait() {
-	// n.lock.RLock()
+	n.lock.RLock()
 	// if n.server == nil {
 		// n.lock.RUnlock()
 		// return
 	// }
-	// stop := n.stop
-	// n.lock.RUnlock()
+	stop := n.stop
+	n.lock.RUnlock()
 
-	// <-stop
+	<-stop
 }
 
 // Service retrieves a currently running service registered of a specific type.
