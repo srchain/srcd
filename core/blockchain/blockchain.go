@@ -291,6 +291,21 @@ func (bc *BlockChain) GetBlockByNumber(number uint64) *types.Block {
 	return bc.GetBlock(hash, number)
 }
 
+// Stop stops the blockchain service. If any imports are currently in progress
+// it will abort them using the procInterrupt.
+func (bc *BlockChain) Stop() {
+	if !atomic.CompareAndSwapInt32(&bc.running, 0, 1) {
+		return
+	}
+	// Unsubscribe all subscriptions registered from blockchain
+	// bc.scope.Close()
+	close(bc.quit)
+	atomic.StoreInt32(&bc.procInterrupt, 1)
+
+	bc.wg.Wait()
+	log.Info("Blockchain manager stopped")
+}
+
 func (bc *BlockChain) procFutureBlocks() {
 	blocks := make([]*types.Block, 0, bc.futureBlocks.Len())
 	for _, hash := range bc.futureBlocks.Keys() {
