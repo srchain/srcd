@@ -154,6 +154,9 @@ func (b *Block) Extra() []byte              { return common.CopyBytes(b.header.E
 
 func (b *Block) Header() *Header            { return CopyHeader(b.header) }
 
+// Body returns the non-header content of the block.
+func (b *Block) Body() *Body                { return &Body{b.transactions} }
+
 // Size returns the true RLP encoded storage size of the block, either by encoding
 // and returning it, or returning a previsouly cached value.
 func (b *Block) Size() common.StorageSize {
