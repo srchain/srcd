@@ -160,24 +160,24 @@ func HasBody(db DatabaseReader, hash common.Hash, number uint64) bool {
 }
 
 // ReadBody retrieves the block body corresponding to the hash.
-func ReadBody(db DatabaseReader, hash common.Hash, number uint64) *types.Transactions {
+func ReadBody(db DatabaseReader, hash common.Hash, number uint64) *types.Body {
 	data := ReadBodyRLP(db, hash, number)
 	if len(data) == 0 {
 		return nil
 	}
 
-	txs := new(types.Transactions)
-	if err := rlp.Decode(bytes.NewReader(data), txs); err != nil {
+	body := new(types.Body)
+	if err := rlp.Decode(bytes.NewReader(data), body); err != nil {
 		log.Error("Invalid block body RLP", "hash", hash, "err", err)
 		return nil
 	}
 
-	return txs
+	return body
 }
 
 // WriteBody storea a block body into the database.
-func WriteBody(db DatabaseWriter, hash common.Hash, number uint64, txs *types.Transactions) {
-	data, err := rlp.EncodeToBytes(txs)
+func WriteBody(db DatabaseWriter, hash common.Hash, number uint64, body *types.Body) {
+	data, err := rlp.EncodeToBytes(body)
 	if err != nil {
 		log.Crit("Failed to RLP encode body", "err", err)
 	}
@@ -213,7 +213,7 @@ func ReadBlock(db DatabaseReader, hash common.Hash, number uint64) *types.Block 
 // WriteBlock serializes a block into the database, header and body separately.
 func WriteBlock(db DatabaseWriter, block *types.Block) {
 	WriteHeader(db, block.Header())
-	WriteBody(db, block.Hash(), block.NumberU64(), block.Transactions())
+	WriteBody(db, block.Hash(), block.NumberU64(), block.Body())
 }
 
 // DeleteBlock removes all block data associated with a hash.
