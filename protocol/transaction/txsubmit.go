@@ -28,7 +28,7 @@ func (tp *TxPool)TxSubmit(raw_transaction string,c blockchain.BlockChain)(TxSubm
 	height := c.CurrentBlock().Header().Number.Uint64()
 	err = tp.AddTransaction(entity.Tx, height, 2)
 	if err != nil {
-		return TxSubmitResponse{},errors.New("add tx to pool fail")
+		return TxSubmitResponse{nil,FAIL},errors.New("add tx to pool fail")
 	}
-	return TxSubmitResponse{entity.Tx.ID.Bytes(),FAIL},nil
+	return TxSubmitResponse{entity.Tx.ID.Bytes(),SUCCESS},nil
 }
