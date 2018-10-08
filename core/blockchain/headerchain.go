@@ -1,14 +1,19 @@
 package blockchain
 
 import (
+	crand "crypto/rand"
+	"math"
+	"math/big"
 	mrand "math/rand"
 	"sync/atomic"
 
-	"srcd/core/types"
-	"srcd/core/rawdb"
-	"srcd/database"
 	"srcd/common/common"
 	"srcd/consensus"
+	"srcd/core/rawdb"
+	"srcd/core/types"
+	"srcd/database"
+
+	"github.com/hashicorp/golang-lru"
 )
 
 const (
@@ -20,19 +25,19 @@ const (
 // core.BlockChain and light.LightChain. It is not usable in itself, only as
 // a part of either structure.
 type HeaderChain struct {
-	chainDb           database.Database
-	genesisHeader     *types.Header
+	chainDb       database.Database
+	genesisHeader *types.Header
 
 	currentHeader     atomic.Value // Current head of the header chain (may be above the block chain!)
 	currentHeaderHash common.Hash  // Hash of the current head of the header chain (prevent recomputing all the time)
 
-	headerCache       *lru.Cache   // Cache for the most recent block headers
-	numberCache       *lru.Cache   // Cache for the most recent block numbers
+	headerCache *lru.Cache // Cache for the most recent block headers
+	numberCache *lru.Cache // Cache for the most recent block numbers
 
-	procInterrupt     func() bool
+	procInterrupt func() bool
 
-	rand              *mrand.Rand
-	engine            consensus.Engine
+	rand   *mrand.Rand
+	engine consensus.Engine
 }
 
 // NewHeaderChain creates a new HeaderChain structure.

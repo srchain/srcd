@@ -1,23 +1,26 @@
 package blockchain
 
 import (
+	"fmt"
 	"math/big"
 
-	"srcd/core/types"
-	"srcd/core/rawdb"
 	"srcd/common/common"
+	"srcd/common/hexutil"
+	"srcd/core/rawdb"
+	"srcd/core/types"
+	"srcd/database"
 	"srcd/log"
 	"srcd/params"
 )
 
 // Genesis specifies the header fields, state of a genesis block.
 type Genesis struct {
-	Nonce      uint64              `json:"nonce"`
-	Timestamp  uint64              `json:"timestamp"`
-	ExtraData  []byte              `json:"extraData"`
-	Difficulty *big.Int            `json:"difficulty" gencodec:"required"`
+	Nonce      uint64   `json:"nonce"`
+	Timestamp  uint64   `json:"timestamp"`
+	ExtraData  []byte   `json:"extraData"`
+	Difficulty *big.Int `json:"difficulty" gencodec:"required"`
 	// Mixhash    common.Hash         `json:"mixHash"`
-	Coinbase   common.Address      `json:"coinbase"`
+	Coinbase common.Address `json:"coinbase"`
 	// Alloc      GenesisAlloc        `json:"alloc"      gencodec:"required"`
 
 	// These fields are used for consensus tests. Please don't use them
@@ -31,11 +34,11 @@ type Genesis struct {
 
 // GenesisAccount is an account in the state of the genesis block.
 // type GenesisAccount struct {
-	// Code       []byte                      `json:"code,omitempty"`
-	// Storage    map[common.Hash]common.Hash `json:"storage,omitempty"`
-	// Balance    *big.Int                    `json:"balance" gencodec:"required"`
-	// Nonce      uint64                      `json:"nonce,omitempty"`
-	// PrivateKey []byte                      `json:"secretKey,omitempty"` // for tests
+// Code       []byte                      `json:"code,omitempty"`
+// Storage    map[common.Hash]common.Hash `json:"storage,omitempty"`
+// Balance    *big.Int                    `json:"balance" gencodec:"required"`
+// Nonce      uint64                      `json:"nonce,omitempty"`
+// PrivateKey []byte                      `json:"secretKey,omitempty"` // for tests
 // }
 
 // GenesisMismatchError is raised when trying to overwrite an existing
@@ -78,7 +81,7 @@ func SetupGenesisBlock(db database.Database, genesis *Genesis) (common.Hash, err
 // to the given database (or discards it if nil).
 func (g *Genesis) ToBlock(db database.Database) *types.Block {
 	if db == nil {
-		db = db.NewMemDatabase()
+		db = database.NewMemDatabase()
 	}
 
 	head := &types.Header{
@@ -123,13 +126,13 @@ func DefaultGenesisBlock() *Genesis {
 }
 
 // func decodePrealloc(data string) GenesisAlloc {
-	// var p []struct{ Addr, Balance *big.Int }
-	// if err := rlp.NewStream(strings.NewReader(data), 0).Decode(&p); err != nil {
-		// panic(err)
-	// }
-	// ga := make(GenesisAlloc, len(p))
-	// for _, account := range p {
-		// ga[common.BigToAddress(account.Addr)] = GenesisAccount{Balance: account.Balance}
-	// }
-	// return ga
+// var p []struct{ Addr, Balance *big.Int }
+// if err := rlp.NewStream(strings.NewReader(data), 0).Decode(&p); err != nil {
+// panic(err)
+// }
+// ga := make(GenesisAlloc, len(p))
+// for _, account := range p {
+// ga[common.BigToAddress(account.Addr)] = GenesisAccount{Balance: account.Balance}
+// }
+// return ga
 // }

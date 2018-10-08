@@ -1,16 +1,19 @@
 package blockchain
 
-import(
+import (
 	"errors"
+	"fmt"
+	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"srcd/database"
-	"srcd/core/types"
-	"srcd/core/rawdb"
-	"srcd/consensus"
 	"srcd/common/common"
+	"srcd/consensus"
+	"srcd/core"
+	"srcd/core/rawdb"
+	"srcd/core/types"
+	"srcd/database"
 	"srcd/log"
 
 	"github.com/hashicorp/golang-lru"
@@ -31,41 +34,41 @@ type BlockChain struct {
 	// chainConfig *params.ChainConfig // Chain & network configuration
 	// cacheConfig *CacheConfig        // Cache configuration for pruning
 
-	db            database.Database // Low level persistent database to store final content in
+	db database.Database // Low level persistent database to store final content in
 	// triegc *prque.Prque   // Priority queue mapping block numbers to tries to gc
 	// gcproc time.Duration  // Accumulates canonical block processing for trie dumping
 
-	hc            *HeaderChain
+	hc *HeaderChain
 	// rmLogsFeed    event.Feed
 	// chainFeed     event.Feed
 	// chainSideFeed event.Feed
 	// chainHeadFeed event.Feed
 	// logsFeed      event.Feed
 	// scope         event.SubscriptionScope
-	genesisBlock  *types.Block
+	genesisBlock *types.Block
 
-	mu            sync.RWMutex      // global mutex for locking chain operations
-	chainmu       sync.RWMutex      // blockchain insertion lock
-	procmu        sync.RWMutex      // block processor lock
+	mu      sync.RWMutex // global mutex for locking chain operations
+	chainmu sync.RWMutex // blockchain insertion lock
+	procmu  sync.RWMutex // block processor lock
 
-	checkpoint    int               // checkpoint counts towards the new checkpoint
-	currentBlock  atomic.Value      // Current head of the block chain
+	checkpoint   int          // checkpoint counts towards the new checkpoint
+	currentBlock atomic.Value // Current head of the block chain
 
-	bodyCache     *lru.Cache        // Cache for the most recent block bodies
-	bodyRLPCache  *lru.Cache        // Cache for the most recent block bodies in RLP encoded format
-	blockCache    *lru.Cache        // Cache for the most recent entire blocks
-	futureBlocks  *lru.Cache        // future blocks are blocks added for later processing
+	bodyCache    *lru.Cache // Cache for the most recent block bodies
+	bodyRLPCache *lru.Cache // Cache for the most recent block bodies in RLP encoded format
+	blockCache   *lru.Cache // Cache for the most recent entire blocks
+	futureBlocks *lru.Cache // future blocks are blocks added for later processing
 
-	quit          chan struct{}     // blockchain quit channel
-	running       int32             // running must be called atomically
+	quit    chan struct{} // blockchain quit channel
+	running int32         // running must be called atomically
 	// procInterrupt must be atomically called
-	procInterrupt int32             // interrupt signaler for block processing
-	wg            sync.WaitGroup    // chain processing wait group for shutting down
+	procInterrupt int32          // interrupt signaler for block processing
+	wg            sync.WaitGroup // chain processing wait group for shutting down
 
-	engine        consensus.Engine
-	validator     Validator         // block validator interface
+	engine    consensus.Engine
+	validator Validator // block validator interface
 
-	badBlocks     *lru.Cache        // Bad block cache
+	badBlocks *lru.Cache // Bad block cache
 }
 
 // NewBlockChain returns a fully initialised block chain using information
@@ -423,8 +426,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, error
 	// faster than direct delivery and requires much less mutex
 	// acquiring.
 	var (
-		events        = make([]interface{}, 0, len(chain))
-		lastCanon     *types.Block
+		events    = make([]interface{}, 0, len(chain))
+		lastCanon *types.Block
 	)
 	// Start the parallel header verifier
 	headers := make([]*types.Header, len(chain))
@@ -483,13 +486,13 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, error
 		bc.WriteBlock(block)
 		log.Debug("Inserted new block", "number", block.Number(), "hash", block.Hash(), "txs", len(block.Transactions()))
 
-		events = append(events, ChainEvent{block, block.Hash()})
+		events = append(events, core.ChainEvent{block, block.Hash()})
 		lastCanon = block
 	}
 
 	// Append a single chain head event if we've progressed the chain
 	if lastCanon != nil && bc.CurrentBlock().Hash() == lastCanon.Hash() {
-		events = append(events, ChainHeadEvent{lastCanon})
+		events = append(events, core.ChainHeadEvent{lastCanon})
 	}
 	return 0, events, nil
 }
@@ -520,10 +523,10 @@ func (bc *BlockChain) GetHeaderByNumber(number uint64) *types.Header {
 
 // SubscribeChainEvent registers a subscription of ChainEvent.
 // func (bc *BlockChain) SubscribeChainEvent(ch chan<- ChainEvent) event.Subscription {
-	// return bc.scope.Track(bc.chainFeed.Subscribe(ch))
+// return bc.scope.Track(bc.chainFeed.Subscribe(ch))
 // }
 
 // // SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
 // func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription {
-	// return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
+// return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
 // }

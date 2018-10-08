@@ -1,14 +1,16 @@
 package blockchain
 
 import (
+	"fmt"
+
 	"srcd/consensus"
 	"srcd/core/types"
 )
 
 // BlockValidator is responsible for validating block headers and processed state.
 type BlockValidator struct {
-	bc     *BlockChain         // Canonical block chain
-	engine consensus.Engine    // Consensus engine used for validating
+	bc     *BlockChain      // Canonical block chain
+	engine consensus.Engine // Consensus engine used for validating
 }
 
 // NewBlockValidator returns a new block validator which is safe for re-use
