@@ -10,6 +10,13 @@ import (
 	"srcd/crypto/crypto"
 )
 
+// sigCache is used to cache the derived sender and contains
+// the signer used to derive it.
+type sigCache struct {
+	signer Signer
+	from   common.Address
+}
+
 // MakeSigner returns a Signer.
 func MakeSigner() Signer {
 	return MasterSigner{}
