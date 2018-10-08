@@ -10,6 +10,11 @@ import (
 	"srcd/crypto/crypto"
 )
 
+// MakeSigner returns a Signer.
+func MakeSigner() Signer {
+	return MasterSigner{}
+}
+
 // SignTx signs the transaction using the given signer and private key
 func SignTx(tx *Transaction, s Signer, prv *ecdsa.PrivateKey) (*Transaction, error) {
 	h := s.Hash(tx)
