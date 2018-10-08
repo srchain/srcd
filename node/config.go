@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"srcd/common/common"
-	"srcd/wallet"
 )
 
 const (
@@ -164,12 +163,6 @@ func (c *Config) instanceDir() string {
 	}
 	return filepath.Join(c.DataDir, c.name())
 }
-
-// func makeWalletManager() *wallet.Wallet {
-	// wallet := wallet.NewWallet()
-
-	// return wallet
-// }
 
 // AccountConfig determines the settings for scrypt and keydirectory
 func (c *Config) AccountConfig() (int, int, string, error) {
