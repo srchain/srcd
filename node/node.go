@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 
-	"srcd/wallet"
 	"srcd/database"
 
 	"github.com/prometheus/prometheus/util/flock"
