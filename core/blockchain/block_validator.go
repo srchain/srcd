@@ -26,11 +26,10 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 	if v.bc.HasBlock(block.Hash(), block.NumberU64()) {
 		return ErrKnownBlock
 	}
-
 	if !v.bc.HasBlock(block.ParentHash(), block.NumberU64()-1) {
 		return consensus.ErrUnknownAncestor
 	}
-
+	// Header validity is known at this point, check the transactions
 	header := block.Header()
 	if hash := types.DeriveSha(block.Transactions()); hash != header.TxHash {
 		return fmt.Errorf("transaction root hash mismatch: have %x, want %x", hash, header.TxHash)

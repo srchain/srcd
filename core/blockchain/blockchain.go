@@ -51,8 +51,8 @@ type BlockChain struct {
 	checkpoint    int               // checkpoint counts towards the new checkpoint
 	currentBlock  atomic.Value      // Current head of the block chain
 
-	bodyCache    *lru.Cache         // Cache for the most recent block bodies
-	bodyRLPCache *lru.Cache         // Cache for the most recent block bodies in RLP encoded format
+	bodyCache     *lru.Cache        // Cache for the most recent block bodies
+	bodyRLPCache  *lru.Cache        // Cache for the most recent block bodies in RLP encoded format
 	blockCache    *lru.Cache        // Cache for the most recent entire blocks
 	futureBlocks  *lru.Cache        // future blocks are blocks added for later processing
 
@@ -392,7 +392,7 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 	return n, err
 }
 
-// insertChain will execute the actual chain insertion and event aggregation.
+// insertChain will execute the actual chain insertion.
 func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, error) {
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
@@ -438,7 +438,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, error
 	defer close(abort)
 
 	// Start a parallel signature recovery
-	// senderCacher.recoverFromBlocks(types.MakeSigner(bc.chainConfig, chain[0].Number()), chain)
+	// senderCacher.recoverFromBlocks(types.MakeSigner(), chain)
 
 	// Iterate over the blocks and insert when the verifier permits
 	for i, block := range chain {
@@ -453,10 +453,9 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, error
 		if err == nil {
 			err = bc.Validator().ValidateBody(block)
 		}
-
 		switch {
 		case err == ErrKnownBlock:
-			// Block already known
+			// Block already known.
 			if bc.CurrentBlock().NumberU64() >= block.NumberU64() {
 				continue
 			}
