@@ -15,18 +15,17 @@ import (
 
 // Genesis specifies the header fields, state of a genesis block.
 type Genesis struct {
-	Nonce      uint64   `json:"nonce"`
-	Timestamp  uint64   `json:"timestamp"`
-	ExtraData  []byte   `json:"extraData"`
-	Difficulty *big.Int `json:"difficulty" gencodec:"required"`
-	// Mixhash    common.Hash         `json:"mixHash"`
-	Coinbase common.Address `json:"coinbase"`
+	Nonce      uint64         `json:"nonce"`
+	Timestamp  uint64         `json:"timestamp"`
+	ExtraData  []byte         `json:"extraData"`
+	Difficulty *big.Int       `json:"difficulty" gencodec:"required"`
+	Coinbase   common.Address `json:"coinbase"`
 	// Alloc      GenesisAlloc        `json:"alloc"      gencodec:"required"`
 
 	// These fields are used for consensus tests. Please don't use them
 	// in actual genesis blocks.
-	Number     uint64      `json:"number"`
-	ParentHash common.Hash `json:"parentHash"`
+	Number     uint64         `json:"number"`
+	ParentHash common.Hash    `json:"parentHash"`
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.

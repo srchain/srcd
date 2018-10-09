@@ -47,9 +47,9 @@ type BlockChain struct {
 	// scope         event.SubscriptionScope
 	genesisBlock *types.Block
 
-	mu      sync.RWMutex // global mutex for locking chain operations
-	chainmu sync.RWMutex // blockchain insertion lock
-	procmu  sync.RWMutex // block processor lock
+	mu           sync.RWMutex // global mutex for locking chain operations
+	chainmu      sync.RWMutex // blockchain insertion lock
+	procmu       sync.RWMutex // block processor lock
 
 	checkpoint   int          // checkpoint counts towards the new checkpoint
 	currentBlock atomic.Value // Current head of the block chain
@@ -59,8 +59,8 @@ type BlockChain struct {
 	blockCache   *lru.Cache // Cache for the most recent entire blocks
 	futureBlocks *lru.Cache // future blocks are blocks added for later processing
 
-	quit    chan struct{} // blockchain quit channel
-	running int32         // running must be called atomically
+	quit         chan struct{} // blockchain quit channel
+	running      int32         // running must be called atomically
 	// procInterrupt must be atomically called
 	procInterrupt int32          // interrupt signaler for block processing
 	wg            sync.WaitGroup // chain processing wait group for shutting down
