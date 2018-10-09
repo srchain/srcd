@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"syscall"
 
+	"srcd/log"
 	"srcd/node"
 )
 

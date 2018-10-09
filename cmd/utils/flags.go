@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -8,8 +9,8 @@ import (
 	"srcd/accounts"
 	"srcd/accounts/keystore"
 	"srcd/common/common"
-	"srcd/params"
 	"srcd/node"
+	"srcd/params"
 	"srcd/server"
 
 	"gopkg.in/urfave/cli.v1"
@@ -79,7 +80,11 @@ var (
 		Name:  "testnet",
 		Usage: "Ropsten network: pre-configured proof-of-work test network",
 	}
-
+	// Miner settings
+	MiningEnabledFlag = cli.BoolFlag{
+		Name:  "mine",
+		Usage: "Enable mining",
+	}
 	MinerThreadsFlag = cli.IntFlag{
 		Name:  "minerthreads",
 		Usage: "Number of CPU threads to use for mining",
@@ -121,8 +126,8 @@ func setCoinbase(ctx *cli.Context, ks *keystore.KeyStore, cfg *server.Config) {
 	}
 }
 
-// SetNodeConfig applies peer-related command line flags to the config.
-func SetNodeConfig(ctx *cli.context, cfg *node.config) {
+// SetNodeConfig applies node-related command line flags to the config.
+func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	switch {
 	case ctx.GlobalIsSet(DataDirFlag.Name):
 		cfg.DataDir = ctx.GlobalString(DataDirFlag.Name)
@@ -146,8 +151,8 @@ func SetServerConfig(ctx *cli.Context, node *node.Node, cfg *server.Config) {
 }
 
 // RegisterService adds an srcd client to the node.
-func RegisterService(node *node.Node, cfg *server.Config) {
-	err := node.Register(func(ctx *node.ServiceContext) (node.Service, error) {
+func RegisterService(stack *node.Node, cfg *server.Config) {
+	err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 		return server.New(ctx, cfg)
 	})
 
