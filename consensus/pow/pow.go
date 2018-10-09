@@ -1,10 +1,10 @@
 package pow
 
 import (
-	"sync"
 	"math/big"
 	"math/rand"
-	"srcd/log"
+	"srcd/core/types"
+	"sync"
 )
 
 var (
@@ -14,17 +14,25 @@ var (
 
 // Pow is a consensus engine based on proot-of-work
 type Pow struct {
-	rand     *rand.Rand    // Properly seeded random source for nonces
-	threads  int           // Number of threads to mine on if mining
-	update   chan struct{} // Notification channel to update mining parameters
+	rand    *rand.Rand    // Properly seeded random source for nonces
+	threads int           // Number of threads to mine on if mining
+	update  chan struct{} // Notification channel to update mining parameters
 
-	lock     sync.Mutex    // Ensures thread safety for the in-memory caches and mining fields
+	// Remote sealer related fields
+	// workCh       chan *types.Block // Notification channel to push new work to remote sealer
+	resultCh chan *types.Block // Channel used by mining threads to return result
+	// fetchWorkCh  chan *sealWork    // Channel used for remote sealer to fetch mining work
+	// submitWorkCh chan *mineResult  // Channel used for remote sealer to submit their mining result
+	// fetchRateCh  chan chan uint64  // Channel used to gather submitted hash rate for local or remote sealer.
+	// submitRateCh chan *hashrate    // Channel used for remote sealer to submit their mining hashrate
+
+	lock sync.Mutex // Ensures thread safety for the in-memory caches and mining fields
 }
 
 // New creates a full sized PoW scheme.
 func New() *Pow {
 	pow := &Pow{
-		update:   make(chan struct{}),
+		update: make(chan struct{}),
 	}
 
 	return pow

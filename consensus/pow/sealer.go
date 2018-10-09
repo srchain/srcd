@@ -1,7 +1,6 @@
 package pow
 
 import (
-	"bytes"
 	crand "crypto/rand"
 	"math"
 	"math/big"
@@ -9,14 +8,14 @@ import (
 	"runtime"
 	"sync"
 
-	"srcd/common/common"
+	"srcd/consensus"
 	"srcd/core/types"
 	"srcd/log"
 )
 
 // Seal implements consensus.Engine, attempting to find a nonce that satisfies
 // the block's difficulty requirements.
-func (pow *Pow) Seal(block *types.Block, stop <-chan struct{}) (*types.Block, error) {
+func (pow *Pow) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error) {
 	// Create a runner and the multiple search threads it directs
 	abort := make(chan struct{})
 
@@ -59,7 +58,7 @@ func (pow *Pow) Seal(block *types.Block, stop <-chan struct{}) (*types.Block, er
 		// Thread count was changed on user request, restart
 		close(abort)
 		pend.Wait()
-		return pow.Seal(block, stop)
+		return pow.Seal(chain, block, stop)
 	}
 
 	// Wait for all miners to terminate and return the block
@@ -72,9 +71,8 @@ func (pow *Pow) Seal(block *types.Block, stop <-chan struct{}) (*types.Block, er
 func (pow *Pow) mine(block *types.Block, id int, seed uint64, abort chan struct{}, found chan *types.Block) {
 	// Extract some data from the header
 	var (
-		header  = block.Header()
-		target  = new(big.Int).Div(two256, header.Difficulty)
-		number  = header.Number.Uint64()
+		header = block.Header()
+		target = new(big.Int).Div(two256, header.Difficulty)
 	)
 
 	// Start generating random nonces until we abort or find a good one
