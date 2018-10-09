@@ -7,7 +7,7 @@ import (
 	"srcd/common/common"
 	"srcd/consensus"
 	"srcd/core/blockchain"
-	"srcd/types"
+	"srcd/event"
 	"srcd/log"
 	"srcd/params"
 )
@@ -20,23 +20,23 @@ type Backend interface {
 
 // Miner creates blocks and searches for proof-of-work values.
 type Miner struct {
-	mux         *event.TypeMux
-	worker      *worker
-	coinbase    common.Address
-	server      Backend
-	engine      consensus.Engine
-	exitCh      chan struct{}
+	mux      *event.TypeMux
+	worker   *worker
+	coinbase common.Address
+	server   Backend
+	engine   consensus.Engine
+	exitCh   chan struct{}
 
 	canStart    int32 // can start indicates whether we can start the mining operation
 	shouldStart int32 // should start indicates whether we should start after sync
 }
 
-func New(server Backend, mux *event.TypeMux, engine consensus.Engine) *Miner {
+func New(server Backend, engine consensus.Engine) *Miner {
 	miner := &Miner{
-		server:   server,
-		mux:      mux,
+		server: server,
+		// mux:      mux,
 		engine:   engine,
-		worker:   newWorker(engine, server, mux),
+		worker:   newWorker(engine, server),
 		canStart: 1,
 	}
 	go miner.update()
@@ -53,33 +53,33 @@ func (self *Miner) update() {
 	// defer events.Unsubscribe()
 
 	// for {
-		// select {
-		// case ev := <-events.Chan():
-			// if ev == nil {
-				// return
-			// }
-			// switch ev.Data.(type) {
-			// case downloader.StartEvent:
-				// atomic.StoreInt32(&self.canStart, 0)
-				// if self.Mining() {
-					// self.Stop()
-					// atomic.StoreInt32(&self.shouldStart, 1)
-					// log.Info("Mining aborted due to sync")
-				// }
-			// case downloader.DoneEvent, downloader.FailedEvent:
-				// shouldStart := atomic.LoadInt32(&self.shouldStart) == 1
+	// select {
+	// case ev := <-events.Chan():
+	// if ev == nil {
+	// return
+	// }
+	// switch ev.Data.(type) {
+	// case downloader.StartEvent:
+	// atomic.StoreInt32(&self.canStart, 0)
+	// if self.Mining() {
+	// self.Stop()
+	// atomic.StoreInt32(&self.shouldStart, 1)
+	// log.Info("Mining aborted due to sync")
+	// }
+	// case downloader.DoneEvent, downloader.FailedEvent:
+	// shouldStart := atomic.LoadInt32(&self.shouldStart) == 1
 
-				// atomic.StoreInt32(&self.canStart, 1)
-				// atomic.StoreInt32(&self.shouldStart, 0)
-				// if shouldStart {
-					// self.Start(self.coinbase)
-				// }
-				// // stop immediately and ignore all further pending events
-				// return
-			// }
-		// case <-self.exitCh:
-			// return
-		// }
+	// atomic.StoreInt32(&self.canStart, 1)
+	// atomic.StoreInt32(&self.shouldStart, 0)
+	// if shouldStart {
+	// self.Start(self.coinbase)
+	// }
+	// // stop immediately and ignore all further pending events
+	// return
+	// }
+	// case <-self.exitCh:
+	// return
+	// }
 	// }
 
 	for {
@@ -131,11 +131,6 @@ func (self *Miner) SetExtra(extra []byte) error {
 	}
 	self.worker.setExtra(extra)
 	return nil
-}
-
-// Pending returns the currently pending block.
-func (self *Miner) Pending() *types.Block {
-	return self.worker.pending()
 }
 
 func (self *Miner) SetCoinbase(addr common.Address) {

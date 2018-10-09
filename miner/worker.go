@@ -1,8 +1,6 @@
 package miner
 
 import (
-	"bytes"
-	"fmt"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -13,6 +11,7 @@ import (
 	"srcd/core"
 	"srcd/core/blockchain"
 	"srcd/core/types"
+	"srcd/event"
 	"srcd/log"
 )
 
@@ -37,10 +36,10 @@ const (
 
 // environment is the worker's current environment and holds all of the current state information.
 type environment struct {
-	signer   types.Signer
-	tcount   int                   // tx count in cycle
-	header   *types.Header
-	txs      []*types.Transaction
+	signer types.Signer
+	tcount int // tx count in cycle
+	header *types.Header
+	txs    []*types.Transaction
 }
 
 // task contains all information for consensus engine sealing and result submitting.
@@ -62,49 +61,49 @@ type newWorkReq struct {
 // worker is the main object which takes care of submitting new work to consensus engine
 // and gathering the sealing result.
 type worker struct {
-	engine        consensus.Engine
-	server        Backend
-	chain         *blockchain.BlockChain
+	engine consensus.Engine
+	server Backend
+	chain  *blockchain.BlockChain
 
 	// Subscriptions
-	mux           *event.TypeMux
-	txsCh         chan core.NewTxsEvent
+	mux    *event.TypeMux
+	txsCh  chan core.NewTxsEvent
 	// txsSub        event.Subscription
-	chainHeadCh   chan core.ChainHeadEvent
+	chainHeadCh chan core.ChainHeadEvent
 	// chainHeadSub event.Subscription
 
 	// Channels
-	newWorkCh     chan *newWorkReq
-	taskCh        chan *task
-	resultCh      chan *task
-	startCh       chan struct{}
-	exitCh        chan struct{}
+	newWorkCh chan *newWorkReq
+	taskCh    chan *task
+	resultCh  chan *task
+	startCh   chan struct{}
+	exitCh    chan struct{}
 
-	current       *environment        // An environment for current running cycle.
-	unconfirmed   *unconfirmedBlocks  // A set of locally mined blocks pending canonicalness confirmations.
+	current     *environment       // An environment for current running cycle.
+	unconfirmed *unconfirmedBlocks // A set of locally mined blocks pending canonicalness confirmations.
 
-	mu            sync.RWMutex        // The lock used to protect the coinbase and extra fields
-	coinbase      common.Address
-	extra         []byte
+	mu       sync.RWMutex // The lock used to protect the coinbase and extra fields
+	coinbase common.Address
+	extra    []byte
 
 	// atomic status counters
-	running       int32               // The indicator whether the consensus engine is running or not.
+	running  int32 // The indicator whether the consensus engine is running or not.
 }
 
-func newWorker(engine consensus.Engine, server Backend, mux *event.TypeMux) *worker {
+func newWorker(engine consensus.Engine, server Backend) *worker {
 	worker := &worker{
-		engine:         engine,
-		server:         server,
-		mux:            mux,
-		chain:          server.BlockChain(),
-		unconfirmed:    newUnconfirmedBlocks(server.BlockChain(), miningLogAtDepth),
-		txsCh:          make(chan core.NewTxsEvent, txChanSize),
-		chainHeadCh:    make(chan core.ChainHeadEvent, chainHeadChanSize),
-		newWorkCh:      make(chan *newWorkReq),
-		taskCh:         make(chan *task),
-		resultCh:       make(chan *task, resultQueueSize),
-		exitCh:         make(chan struct{}),
-		startCh:        make(chan struct{}, 1),
+		engine: engine,
+		server: server,
+		//mux:         mux,
+		chain:       server.BlockChain(),
+		unconfirmed: newUnconfirmedBlocks(server.BlockChain(), miningLogAtDepth),
+		txsCh:       make(chan core.NewTxsEvent, txChanSize),
+		chainHeadCh: make(chan core.ChainHeadEvent, chainHeadChanSize),
+		newWorkCh:   make(chan *newWorkReq),
+		taskCh:      make(chan *task),
+		resultCh:    make(chan *task, resultQueueSize),
+		exitCh:      make(chan struct{}),
+		startCh:     make(chan struct{}, 1),
 	}
 	// // Subscribe NewTxsEvent for tx pool
 	// worker.txsSub = server.TxPool().SubscribeNewTxsEvent(worker.txsCh)
@@ -214,32 +213,32 @@ func (w *worker) mainLoop() {
 		case req := <-w.newWorkCh:
 			w.commitNewWork(req.interrupt)
 
-		case ev := <-w.txsCh:
-			// Apply transactions to the pending state if we're not mining.
-			//
-			// Note all transactions received may not be continuous with transactions
-			// already included in the current mining block. These transactions will
-			// be automatically eliminated.
-			if !w.isRunning() && w.current != nil {
-				w.mu.RLock()
-				coinbase := w.coinbase
-				w.mu.RUnlock()
+		//case ev := <-w.txsCh:
+		// Apply transactions to the pending state if we're not mining.
+		//
+		// Note all transactions received may not be continuous with transactions
+		// already included in the current mining block. These transactions will
+		// be automatically eliminated.
+		//	if !w.isRunning() && w.current != nil {
+		//w.mu.RLock()
+		//		coinbase := w.coinbase
+		//w.mu.RUnlock()
 
-				txs := make(map[common.Address]types.Transactions)
-				for _, tx := range ev.Txs {
-					acc, _ := types.Sender(w.current.signer, tx)
-					txs[acc] = append(txs[acc], tx)
-				}
-				txset := types.NewTransactionsByPriceAndNonce(w.current.signer, txs)
-				w.commitTransactions(txset, coinbase, nil)
-			}
+		//				txs := make(map[common.Address]types.Transactions)
+		//		for _, tx := range ev.Txs {
+		//	acc, _ := types.Sender(w.current.signer, tx)
+		//txs[acc] = append(txs[acc], tx)
+		//}
+		//	txset := types.NewTransactionsByPriceAndNonce(w.current.signer, txs)
+		//w.commitTransactions(txset, coinbase, nil)
+		//}
 
 		// System stopped
 		case <-w.exitCh:
 			return
-		// case <-w.txsSub.Err():
+			// case <-w.txsSub.Err():
 			// return
-		// case <-w.chainHeadSub.Err():
+			// case <-w.chainHeadSub.Err():
 			// return
 		}
 	}
@@ -252,7 +251,7 @@ func (w *worker) seal(t *task, stop <-chan struct{}) {
 		res *task
 	)
 
-	if t.block, err = w.engine.Seal(t.block, stop); t.block != nil {
+	if t.block, err = w.engine.Seal(w.chain, t.block, stop); t.block != nil {
 		log.Info("Successfully sealed new block", "number", t.block.Number(), "hash", t.block.Hash(),
 			"elapsed", common.PrettyDuration(time.Since(t.createdAt)))
 		res = t
@@ -327,8 +326,8 @@ func (w *worker) resultLoop() {
 // makeCurrent creates a new environment for the current cycle.
 func (w *worker) makeCurrent(header *types.Header) {
 	env := &environment{
-		signer:    types.NewMasterSigner(),
-		header:    header,
+		signer: types.NewMasterSigner(),
+		header: header,
 	}
 
 	// Keep track of transactions which return errors so they can be removed
@@ -339,8 +338,8 @@ func (w *worker) makeCurrent(header *types.Header) {
 func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) error {
 	// receipt, _, err := core.ApplyTransaction(w.config, w.chain, &coinbase, w.current.gasPool, w.current.state, w.current.header, tx, &w.current.header.GasUsed)
 	// if err != nil {
-		// w.current.state.RevertToSnapshot(snap)
-		// return err
+	// w.current.state.RevertToSnapshot(snap)
+	// return err
 	// }
 
 	w.current.txs = append(w.current.txs, tx)
@@ -348,6 +347,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	return nil
 }
 
+/*
 func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coinbase common.Address, interrupt *int32) bool {
 	// Short circuit if current is nil
 	if w.current == nil {
@@ -401,6 +401,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 
 	return false
 }
+*/
 
 // commitNewWork generates several new sealing tasks based on the parent block.
 func (w *worker) commitNewWork(interrupt *int32) {
@@ -442,28 +443,28 @@ func (w *worker) commitNewWork(interrupt *int32) {
 	}
 
 	w.makeCurrent(header)
-
-	// Fill the block with all available pending transactions.
-	pending, err := w.server.TxPool().Pending()
-	if err != nil {
-		log.Error("Failed to fetch pending transactions", "err", err)
-		return
-	}
-	// Short circuit if there is no available pending transactions
-	if len(pending) == 0 {
-		return
-	}
-	txs := types.NewTransactionsByPriceAndNonce(w.current.signer, pending)
-	if w.commitTransactions(txs, w.coinbase, interrupt) {
-		return
-	}
-
+	/*
+		// Fill the block with all available pending transactions.
+		pending, err := w.server.TxPool().Pending()
+		if err != nil {
+			log.Error("Failed to fetch pending transactions", "err", err)
+			return
+		}
+		// Short circuit if there is no available pending transactions
+		if len(pending) == 0 {
+			return
+		}
+		txs := types.NewTransactionsByPriceAndNonce(w.current.signer, pending)
+		if w.commitTransactions(txs, w.coinbase, interrupt) {
+			return
+		}
+	*/
 	w.commit(tstart)
 }
 
 // commit assembles the final block and commits new work if consensus engine is running.
 func (w *worker) commit(start time.Time) error {
-	block, err := w.engine.Finalize(w.current.header, w.current.txs)
+	block, err := w.engine.Finalize(w.chain, w.current.header, w.current.txs)
 	if err != nil {
 		return err
 	}
