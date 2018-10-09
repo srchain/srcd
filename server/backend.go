@@ -2,47 +2,23 @@ package server
 
 import (
 	"fmt"
+	"runtime"
+	"sync"
+	"sync/atomic"
 
 	"srcd/accounts"
-	"srcd/core/mempool"
-	"srcd/core/blockchain"
-	"srcd/database"
+	"srcd/common/common"
+	"srcd/common/hexutil"
 	"srcd/consensus"
 	"srcd/consensus/pow"
+	"srcd/core/blockchain"
+	"srcd/database"
+	"srcd/log"
+	"srcd/miner"
+	"srcd/node"
+	"srcd/params"
+	"srcd/rlp"
 )
-
-type ProtocolManager struct {
-	// networkID uint64
-
-	// fastSync  uint32 // Flag whether fast sync is enabled (gets disabled if we already have blocks)
-	acceptTxs uint32 // Flag whether we're considered synchronised (enables transaction processing)
-
-	txpool      mempool.txPool
-	blockchain  *blockchain.BlockChain
-	chainconfig *params.ChainConfig
-	maxPeers    int
-
-	downloader *downloader.Downloader
-	fetcher    *fetcher.Fetcher
-	peers      *peerSet
-
-	SubProtocols []p2p.Protocol
-
-	eventMux      *event.TypeMux
-	txsCh         chan core.NewTxsEvent
-	txsSub        event.Subscription
-	minedBlockSub *event.TypeMuxSubscription
-
-	// channels for fetcher, syncer, txsyncLoop
-	newPeerCh   chan *peer
-	txsyncCh    chan *txsync
-	quitSync    chan struct{}
-	noMorePeers chan struct{}
-
-	// wait group is used for graceful shutdowns during downloading
-	// and processing
-	wg sync.WaitGroup
-}
 
 // Server implements the full node service.
 type Server struct {
@@ -50,7 +26,7 @@ type Server struct {
 	// chainConfig *params.ChainConfig
 
 	// Channel for shutting down the service
-	shutdownChan chan bool
+	shutdownChan    chan bool
 
 	// Handlers
 	// txPool          *core.TxPool
@@ -85,8 +61,7 @@ func New(ctx *node.ServiceContext, config *Config) (*Server, error) {
 		return nil, err
 	}
 
-	genesisHash, genesisErr := blockchain.SetupGenesisBlock(chainDb, config.Genesis)
-	if genesisErr != nil {
+	if _, genesisErr := blockchain.SetupGenesisBlock(chainDb, config.Genesis); genesisErr != nil {
 		return nil, genesisErr
 	}
 
@@ -107,15 +82,15 @@ func New(ctx *node.ServiceContext, config *Config) (*Server, error) {
 	// server.bloomIndexer.Start(eth.blockchain)
 
 	// if config.TxPool.Journal != "" {
-		// config.TxPool.Journal = ctx.ResolvePath(config.TxPool.Journal)
+	// config.TxPool.Journal = ctx.ResolvePath(config.TxPool.Journal)
 	// }
 	// server.txPool = core.NewTxPool(config.TxPool, server.blockchain)
 
 	// if server.protocolManager, err = NewProtocolManager(eth.chainConfig, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb); err != nil {
-		// return nil, err
+	// return nil, err
 	// }
 
-	server.miner = miner.New(server, server.EventMux(), server.engine)
+	server.miner = miner.New(server, server.engine)
 	server.miner.SetExtra(makeExtraData(config.ExtraData))
 
 	return server, nil
@@ -192,10 +167,10 @@ func (s *Server) StartMining(local bool) error {
 	return nil
 }
 
-func (s *Ethereum) AccountManager() *accounts.Manager  { return s.accountManager }
-func (s *Server) BlockChain() *blockchain.BlockChain	{ return s.blockchain }
-func (s *Server) Engine() consensus.Engine		{ return s.engine }
-func (s *Server) ChainDb() database.Database            { return s.chainDb }
+func (s *Server) AccountManager() *accounts.Manager  { return s.accountManager }
+func (s *Server) BlockChain() *blockchain.BlockChain { return s.blockchain }
+func (s *Server) Engine() consensus.Engine           { return s.engine }
+func (s *Server) ChainDb() database.Database         { return s.chainDb }
 
 // Start implements node.Service, starting all internal goroutines needed by the
 // Server protocol implementation.
@@ -210,10 +185,10 @@ func (s *Server) Start() error {
 	// // Figure out a max peers count based on the server limits
 	// maxPeers := srvr.MaxPeers
 	// if s.config.LightServ > 0 {
-		// if s.config.LightPeers >= srvr.MaxPeers {
-			// return fmt.Errorf("invalid peer config: light peer count (%d) >= total peer count (%d)", s.config.LightPeers, srvr.MaxPeers)
-		// }
-		// maxPeers -= s.config.LightPeers
+	// if s.config.LightPeers >= srvr.MaxPeers {
+	// return fmt.Errorf("invalid peer config: light peer count (%d) >= total peer count (%d)", s.config.LightPeers, srvr.MaxPeers)
+	// }
+	// maxPeers -= s.config.LightPeers
 	// }
 
 	// Start the networking layer and the light server if requested

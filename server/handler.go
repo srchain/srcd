@@ -1,7 +1,7 @@
 package server
 
 import (
-
+	"sync"
 )
 
 type ProtocolManager struct {
@@ -10,40 +10,41 @@ type ProtocolManager struct {
 	fastSync  uint32 // Flag whether fast sync is enabled (gets disabled if we already have blocks)
 	acceptTxs uint32 // Flag whether we're considered synchronised (enables transaction processing)
 
-	txpool      txPool
-	blockchain  *core.BlockChain
+	//txpool      txPool
+	//blockchain  *core.BlockChain
 	// chainconfig *params.ChainConfig
-	maxPeers    int
+	//maxPeers    int
 
-	downloader *downloader.Downloader
-	fetcher    *fetcher.Fetcher
-	peers      *peerSet
+	//downloader *downloader.Downloader
+	//fetcher    *fetcher.Fetcher
+	//peers      *peerSet
 
-	SubProtocols []p2p.Protocol
+	//SubProtocols []p2p.Protocol
 
-	eventMux      *event.TypeMux
-	txsCh         chan core.NewTxsEvent
-	txsSub        event.Subscription
-	minedBlockSub *event.TypeMuxSubscription
+	//eventMux      *event.TypeMux
+	//txsCh         chan core.NewTxsEvent
+	//txsSub        event.Subscription
+	//minedBlockSub *event.TypeMuxSubscription
 
 	// channels for fetcher, syncer, txsyncLoop
-	newPeerCh   chan *peer
-	txsyncCh    chan *txsync
-	quitSync    chan struct{}
-	noMorePeers chan struct{}
+	//newPeerCh   chan *peer
+	//txsyncCh    chan *txsync
+	//quitSync    chan struct{}
+	//noMorePeers chan struct{}
 
 	// wait group is used for graceful shutdowns during downloading
 	// and processing
 	wg sync.WaitGroup
 }
 
+/*
 func NewProtocolManager(mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
-		networkID:   networkID,
-		eventMux:    mux,
-		txpool:      txpool,
-		blockchain:  blockchain,
+		networkID:  networkID,
+		eventMux:   mux,
+		txpool:     txpool,
+		blockchain: blockchain,
 		// chainconfig: config,
 		peers:       newPeerSet(),
 		newPeerCh:   make(chan *peer),
@@ -119,3 +120,4 @@ func NewProtocolManager(mode downloader.SyncMode, networkID uint64, mux *event.T
 
 	return manager, nil
 }
+*/
