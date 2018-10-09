@@ -8,7 +8,9 @@ import (
 	"strings"
 	"sync"
 
+	"srcd/accounts"
 	"srcd/database"
+	"srcd/log"
 
 	"github.com/prometheus/prometheus/util/flock"
 )
@@ -16,17 +18,17 @@ import (
 // Node is a container on which services can be registered.
 type Node struct {
 	// eventmux *event.TypeMux		// Event multiplexer used between the services of a stack
-	config            *Config
-	accman            *accounts.Manager
+	config *Config
+	accman *accounts.Manager
 
-	ephemeralKeystore string	// if non-empty, the key directory that will be removed by Stop
-	instanceDirLock   flock.Releaser	// prevents concurrent use of instance directory
+	ephemeralKeystore string         // if non-empty, the key directory that will be removed by Stop
+	instanceDirLock   flock.Releaser // prevents concurrent use of instance directory
 
 	// serverConfig p2p.Config
 	// server       *p2p.Server		// Currently running P2P networking layer
 
-	serviceFuncs      []ServiceConstructor	// Service constructors (in dependency order)
-	services          map[reflect.Type]Service	// Currently running services
+	serviceFuncs []ServiceConstructor     // Service constructors (in dependency order)
+	services     map[reflect.Type]Service // Currently running services
 
 	// rpcAPIs       []rpc.API   // List of APIs currently provided by the node
 	// inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
@@ -47,7 +49,7 @@ type Node struct {
 	stop chan struct{} // Channel to wait for termination notifications
 	lock sync.RWMutex
 
-	// log log.Logger
+	log log.Logger
 }
 
 // New creates a new P2P node, ready for protocol registration.
@@ -101,7 +103,7 @@ func (n *Node) Register(constructor ServiceConstructor) error {
 	defer n.lock.Unlock()
 
 	// if n.server != nil {
-		// return ErrNodeRunning
+	// return ErrNodeRunning
 	// }
 
 	n.serviceFuncs = append(n.serviceFuncs, constructor)
@@ -115,7 +117,7 @@ func (n *Node) Start() error {
 
 	// Short circuit if the node's already running
 	// if n.server != nil {
-		// return ErrNodeRunning
+	// return ErrNodeRunning
 	// }
 	if err := n.openDataDir(); err != nil {
 		return err
@@ -152,12 +154,12 @@ func (n *Node) Start() error {
 	}
 	// Gather the protocols and start the freshly assembled P2P server
 	// for _, service := range services {
-		// running.Protocols = append(running.Protocols, service.Protocols()...)
+	// running.Protocols = append(running.Protocols, service.Protocols()...)
 	// }
 
 	// run p2p server
 	// if err := running.Start(); err != nil {
-		// return convertFileLockError(err)
+	// return convertFileLockError(err)
 	// }
 
 	// Start each of the services
@@ -213,9 +215,9 @@ func (n *Node) Stop() error {
 	defer n.lock.Unlock()
 
 	// Short circuit if the node's not running
-	if n.server == nil {
-		return ErrNodeStopped
-	}
+	//if n.server == nil {
+	//return ErrNodeStopped
+	//}
 
 	// Terminate the API, services and the p2p server.
 	// n.stopWS()
@@ -265,8 +267,8 @@ func (n *Node) Stop() error {
 func (n *Node) Wait() {
 	n.lock.RLock()
 	// if n.server == nil {
-		// n.lock.RUnlock()
-		// return
+	// n.lock.RUnlock()
+	// return
 	// }
 	stop := n.stop
 	n.lock.RUnlock()
@@ -281,7 +283,7 @@ func (n *Node) Service(service interface{}) error {
 
 	// Short circuit if the node's not running
 	// if n.server == nil {
-		// return ErrNodeStopped
+	// return ErrNodeStopped
 	// }
 	// Otherwise try to find the service to return
 	element := reflect.ValueOf(service).Elem()
