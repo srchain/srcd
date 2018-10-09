@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/srchain/srcd/cmd/utils"
+	"srcd/cmd/utils"
 
 	"gopkg.in/urfave/cli.v1"
 )
@@ -14,16 +14,5 @@ var (
 		configFileFlag,
 	}
 
-	rpcFlags = []cli.Flag{
-		utils.RPCEnabledFlag,
-		utils.RPCListenAddrFlag,
-		utils.RPCPortFlag,
-	}
-)
-
-var (
-	configFileFlag = cli.StringFlag{
-		Name:  "config",
-		Usage: "TOML configuration file",
-	}
+	rpcFlags = []cli.Flag{}
 )

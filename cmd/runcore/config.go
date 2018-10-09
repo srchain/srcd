@@ -4,15 +4,14 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"reflect"
 	"unicode"
-	"path/filepath"
 
-	"srcd/node"
-	"srcd/server"
 	"srcd/cmd/utils"
+	"srcd/node"
+	"srcd/params"
+	"srcd/server"
 
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
@@ -25,9 +24,26 @@ var (
 	}
 )
 
+// These settings ensure that TOML keys use the same names as Go struct fields.
+var tomlSettings = toml.Config{
+	NormFieldName: func(rt reflect.Type, key string) string {
+		return key
+	},
+	FieldToKey: func(rt reflect.Type, field string) string {
+		return field
+	},
+	MissingField: func(rt reflect.Type, field string) error {
+		link := ""
+		if unicode.IsUpper(rune(rt.Name()[0])) && rt.PkgPath() != "main" {
+			link = fmt.Sprintf(", see https://godoc.org/%s#%s for available fields", rt.PkgPath(), rt.Name())
+		}
+		return fmt.Errorf("field '%s' is not defined in %s%s", field, rt.String(), link)
+	},
+}
+
 type config struct {
-	Server    server.Config
-	Node      node.Config
+	Server server.Config
+	Node   node.Config
 }
 
 func loadConfig(file string, cfg *config) error {
@@ -53,11 +69,11 @@ func defaultNodeConfig() node.Config {
 	return cfg
 }
 
-func makeConfigNode(ctx *cli.Context) *config {
+func makeConfigNode(ctx *cli.Context) (*node.Node, config) {
 	// Default config.
 	cfg := config{
-		Server:    server.DefaultConfig,
-		Node:      defaultNodeConfig,
+		Server: server.DefaultConfig,
+		Node:   defaultNodeConfig(),
 	}
 
 	// Load config file.

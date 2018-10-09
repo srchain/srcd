@@ -1,12 +1,12 @@
 package main
 
 import (
-	"os"
 	"encoding/json"
+	"os"
 
 	"srcd/cmd/utils"
 	"srcd/core/blockchain"
-	"srcd/node"
+	"srcd/log"
 
 	"gopkg.in/urfave/cli.v1"
 )
@@ -29,7 +29,7 @@ participating.
 
 It expects the genesis file as argument.`,
 	}
-}
+)
 
 // initGenesis will initialise the given JSON format genesis file and writes it as
 // the zero'd block or will fail hard if it can't succeed.
@@ -57,11 +57,11 @@ func initGenesis(ctx *cli.Context) error {
 	if err != nil {
 		utils.Fatalf("Failed to open database: %v", err)
 	}
-	_, hash, err := blockchain.SetupGenesisBlock(chaindb, genesis)
+	hash, err := blockchain.SetupGenesisBlock(chaindb, genesis)
 	if err != nil {
 		utils.Fatalf("Failed to write genesis block: %v", err)
 	}
-	// log.Info("Successfully wrote genesis state", "database", name, "hash", hash)
+	log.Info("Successfully wrote genesis state", "database", "chaindata", "hash", hash)
 
 	return nil
 }
