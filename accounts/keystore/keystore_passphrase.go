@@ -1,13 +1,16 @@
 package keystore
 
 import (
+	"bytes"
 	"crypto/aes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 
 	"srcd/common/common"
+	"srcd/common/math"
 	"srcd/crypto/crypto"
 	"srcd/crypto/randentropy"
 
@@ -57,8 +60,8 @@ func (ks keyStorePassphrase) GetKey(addr common.Address, filename, auth string) 
 
 // // StoreKey generates a key, encrypts with 'auth' and stores in the given directory
 // func StoreKey(dir, auth string, scryptN, scryptP int) (common.Address, error) {
-	// _, a, err := storeNewKey(&keyStorePassphrase{dir, scryptN, scryptP}, crand.Reader, auth)
-	// return a.Address, err
+// _, a, err := storeNewKey(&keyStorePassphrase{dir, scryptN, scryptP}, crand.Reader, auth)
+// return a.Address, err
 // }
 
 func (ks keyStorePassphrase) StoreKey(filename string, key *Key, auth string) error {

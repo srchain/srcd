@@ -10,7 +10,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"srcd/accounts"
 	"srcd/common/common"
+	"srcd/crypto/crypto"
 
 	"github.com/pborman/uuid"
 )
@@ -37,7 +39,6 @@ type encryptedKeyJSON struct {
 	Address string     `json:"address"`
 	Crypto  cryptoJSON `json:"crypto"`
 	Id      string     `json:"id"`
-	Version int        `json:"version"`
 }
 
 type cryptoJSON struct {
