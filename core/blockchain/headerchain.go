@@ -9,6 +9,7 @@ import (
 	"srcd/database"
 	"srcd/common/common"
 	"srcd/consensus"
+	"math/big"
 )
 
 // HeaderChain implements the basic block header chain logic that is shared by

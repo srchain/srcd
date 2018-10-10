@@ -3,6 +3,7 @@ package blockchain
 import (
 	"srcd/consensus"
 	"srcd/core/types"
+	"fmt"
 )
 
 // BlockValidator is responsible for validating block headers and processed state.

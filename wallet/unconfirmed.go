@@ -57,4 +57,3 @@ func txOutToUtxos(tx transaction.Tx)[]*Utxo{
 	}
 	return utxos
 }
-

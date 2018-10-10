@@ -10,7 +10,6 @@ import (
 	"srcd/common/hexutil"
 	"srcd/crypto/sha3"
 	"srcd/rlp"
-	"sort"
 )
 
 var EmptyRootHash  = DeriveSha(Transactions{})

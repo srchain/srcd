@@ -8,6 +8,8 @@ import (
 	"srcd/common/common"
 	"srcd/log"
 	"srcd/params"
+	"fmt"
+	"srcd/database"
 )
 
 // Genesis specifies the header fields, state of a genesis block.
@@ -49,6 +51,7 @@ func (e *GenesisMismatchError) Error() string {
 }
 
 // SetupGenesisBlock writes or updates the genesis block in db.
+
 func SetupGenesisBlock(db database.Database, genesis *Genesis) (common.Hash, error) {
 	// Just commit the new block if there is no stored genesis block.
 	stored := rawdb.ReadCanonicalHash(db, 0)

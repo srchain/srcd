@@ -74,7 +74,7 @@ func New(config Config) (*Console, error) {
 	return console, nil
 }
 func (c *Console) Welcome() {
-	fmt.Fprintf(c.printer, "Welcome to the unitcoin console!\n\n")
+	fmt.Fprintf(c.printer, "Welcome to the silkroadchain console!\n\n")
 }
 func (c *Console) Interactive() {
 	var (

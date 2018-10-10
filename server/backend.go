@@ -8,6 +8,9 @@ import (
 	"srcd/database"
 	"srcd/consensus"
 	"srcd/consensus/pow"
+	"sync"
+	"runtime"
+	"sync/atomic"
 )
 
 type ProtocolManager struct {

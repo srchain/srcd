@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 	jww "github.com/spf13/jwalterweatherman"
 
+	"fmt"
 )
 
 func TxFeedCmd()  {
@@ -33,6 +34,9 @@ var listTransactionFeedsCmd = &cobra.Command{
 		//	os.Exit(exitCode)
 		//}
 		//printJSONList(data)
+		//printJSON('1')
+		printJSON(1)
+		fmt.Print(111)
 	},
 }
 

@@ -14,6 +14,8 @@ import(
 	"srcd/log"
 
 	"github.com/hashicorp/golang-lru"
+	"fmt"
+	"math/big"
 )
 
 var ErrNoGenesis = errors.New("Genesis not found in chain")
@@ -318,7 +320,6 @@ func (bc *BlockChain) addBadBlock(block *types.Block) {
 // reportBlock logs a bad block error.
 func (bc *BlockChain) reportBlock(block *types.Block, err error) {
 	bc.addBadBlock(block)
-
 	log.Error(fmt.Sprintf(`
 ########## BAD BLOCK #########
 Number: %v
