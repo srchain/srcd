@@ -9,6 +9,10 @@ import (
 // provides the specified account.
 var ErrUnknownAccount = errors.New("unknown account")
 
+// ErrUnknownWallet is returned for any requested operation for which no backend
+// provides the specified wallet.
+var ErrUnknownWallet = errors.New("unknown wallet")
+
 // AuthNeededError is returned by backends for signing requests where the user
 // is required to provide further authentication before signing can succeed.
 //

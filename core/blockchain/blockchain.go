@@ -1,16 +1,19 @@
 package blockchain
 
-import(
+import (
 	"errors"
+	"fmt"
+	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"srcd/database"
-	"srcd/core/types"
-	"srcd/core/rawdb"
-	"srcd/consensus"
 	"srcd/common/common"
+	"srcd/consensus"
+	"srcd/core"
+	"srcd/core/rawdb"
+	"srcd/core/types"
+	"srcd/database"
 	"srcd/log"
 
 	"github.com/hashicorp/golang-lru"
@@ -21,51 +24,50 @@ import(
 var ErrNoGenesis = errors.New("Genesis not found in chain")
 
 const (
+	bodyCacheLimit      = 256
 	blockCacheLimit     = 256
 	maxFutureBlocks     = 256
 	maxTimeFutureBlocks = 30
 	badBlockLimit       = 10
+	triesInMemory       = 128
 )
 
 type BlockChain struct {
 	// chainConfig *params.ChainConfig // Chain & network configuration
 	// cacheConfig *CacheConfig        // Cache configuration for pruning
 
-	db            database.Database // Low level persistent database to store final content in
+	db database.Database // Low level persistent database to store final content in
 	// triegc *prque.Prque   // Priority queue mapping block numbers to tries to gc
 	// gcproc time.Duration  // Accumulates canonical block processing for trie dumping
 
-	hc            *HeaderChain
+	hc *HeaderChain
 	// rmLogsFeed    event.Feed
 	// chainFeed     event.Feed
 	// chainSideFeed event.Feed
 	// chainHeadFeed event.Feed
 	// logsFeed      event.Feed
 	// scope         event.SubscriptionScope
-	genesisBlock  *types.Block
+	genesisBlock *types.Block
 
-	mu      sync.RWMutex // global mutex for locking chain operations
-	chainmu sync.RWMutex // blockchain insertion lock
-	procmu  sync.RWMutex // block processor lock
+	mu           sync.RWMutex // global mutex for locking chain operations
+	chainmu      sync.RWMutex // blockchain insertion lock
+	procmu       sync.RWMutex // block processor lock
 
-	checkpoint       int          // checkpoint counts towards the new checkpoint
-	currentBlock     atomic.Value // Current head of the block chain
-	// currentFastBlock atomic.Value // Current head of the fast-sync chain (may be above the block chain!)
+	checkpoint   int          // checkpoint counts towards the new checkpoint
+	currentBlock atomic.Value // Current head of the block chain
 
-	// stateCache   state.Database // State database to reuse between imports (contains state cache)
-	// bodyCache    *lru.Cache     // Cache for the most recent block bodies
-	// bodyRLPCache *lru.Cache     // Cache for the most recent block bodies in RLP encoded format
-	blockCache   *lru.Cache     // Cache for the most recent entire blocks
-	futureBlocks *lru.Cache     // future blocks are blocks added for later processing
+	bodyCache    *lru.Cache // Cache for the most recent block bodies
+	bodyRLPCache *lru.Cache // Cache for the most recent block bodies in RLP encoded format
+	blockCache   *lru.Cache // Cache for the most recent entire blocks
+	futureBlocks *lru.Cache // future blocks are blocks added for later processing
 
-	quit    chan struct{} // blockchain quit channel
-	running int32         // running must be called atomically
+	quit         chan struct{} // blockchain quit channel
+	running      int32         // running must be called atomically
 	// procInterrupt must be atomically called
 	procInterrupt int32          // interrupt signaler for block processing
 	wg            sync.WaitGroup // chain processing wait group for shutting down
 
 	engine    consensus.Engine
-	// processor Processor // block processor interface
 	validator Validator // block validator interface
 
 	badBlocks *lru.Cache // Bad block cache
@@ -74,6 +76,8 @@ type BlockChain struct {
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database.
 func NewBlockChain(db database.Database, engine consensus.Engine) (*BlockChain, error) {
+	bodyCache, _ := lru.New(bodyCacheLimit)
+	bodyRLPCache, _ := lru.New(bodyCacheLimit)
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 	badBlocks, _ := lru.New(badBlockLimit)
@@ -81,6 +85,8 @@ func NewBlockChain(db database.Database, engine consensus.Engine) (*BlockChain, 
 	bc := &BlockChain{
 		db:           db,
 		quit:         make(chan struct{}),
+		bodyCache:    bodyCache,
+		bodyRLPCache: bodyRLPCache,
 		blockCache:   blockCache,
 		futureBlocks: futureBlocks,
 		engine:       engine,
@@ -120,7 +126,6 @@ func (bc *BlockChain) loadLastState() error {
 		log.Warn("Empty database, resetting chain")
 		return bc.Reset()
 	}
-
 	// Make sure the entire head block is available
 	currentBlock := bc.GetBlockByHash(head)
 	if currentBlock == nil {
@@ -161,15 +166,20 @@ func (bc *BlockChain) SetHead(head uint64) error {
 	bc.hc.SetHead(head, delFn)
 	currentHeader := bc.hc.CurrentHeader()
 
+	// Clear out any stale content from the caches
+	bc.bodyCache.Purge()
+	bc.bodyRLPCache.Purge()
+	bc.blockCache.Purge()
+	bc.futureBlocks.Purge()
+
 	// Rewind the block chain, ensuring we don't end up with a stateless head block
 	if currentBlock := bc.CurrentBlock(); currentBlock != nil && currentHeader.Number.Uint64() < currentBlock.NumberU64() {
 		bc.currentBlock.Store(bc.GetBlock(currentHeader.Hash(), currentHeader.Number.Uint64()))
 	}
-
+	// If either blocks reached nil, reset to the genesis state
 	if currentBlock := bc.CurrentBlock(); currentBlock == nil {
 		bc.currentBlock.Store(bc.genesisBlock)
 	}
-
 	currentBlock := bc.CurrentBlock()
 
 	rawdb.WriteHeadBlockHash(bc.db, currentBlock.Hash())
@@ -224,13 +234,24 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 	return nil
 }
 
-// insert injects a new head block into the current block chain.
+// insert injects a new head block into the current block chain. This method
+// assumes that the block is indeed a true head. It will also reset the head
+// header and the head fast sync block to this very same block if they are older
+// or if they are on a different side chain.
 func (bc *BlockChain) insert(block *types.Block) {
+	// If the block is on a side chain or an unknown one, force other heads onto it too
+	updateHeads := rawdb.ReadCanonicalHash(bc.db, block.NumberU64()) != block.Hash()
+
 	// Add the block to the canonical chain number scheme and mark as the head
 	rawdb.WriteCanonicalHash(bc.db, block.Hash(), block.NumberU64())
 	rawdb.WriteHeadBlockHash(bc.db, block.Hash())
 
 	bc.currentBlock.Store(block)
+
+	// If the block is better than our head or is on a different chain, force update heads
+	if updateHeads {
+		bc.hc.SetCurrentHeader(block.Header())
+	}
 }
 
 // HasBlock checks if a block is fully present in the database or not.
@@ -241,13 +262,19 @@ func (bc *BlockChain) HasBlock(hash common.Hash, number uint64) bool {
 	return rawdb.HasBody(bc.db, hash, number)
 }
 
-// GetBlock retrieves a block from the database by hash and number.
+// GetBlock retrieves a block from the database by hash and number,
+// caching it if found.
 func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
+	// Short circuit if the block's already in the cache, retrieve otherwise
+	if block, ok := bc.blockCache.Get(hash); ok {
+		return block.(*types.Block)
+	}
 	block := rawdb.ReadBlock(bc.db, hash, number)
 	if block == nil {
 		return nil
 	}
-
+	// Cache the found block for next time and return
+	bc.blockCache.Add(block.Hash(), block)
 	return block
 }
 
@@ -267,6 +294,21 @@ func (bc *BlockChain) GetBlockByNumber(number uint64) *types.Block {
 		return nil
 	}
 	return bc.GetBlock(hash, number)
+}
+
+// Stop stops the blockchain service. If any imports are currently in progress
+// it will abort them using the procInterrupt.
+func (bc *BlockChain) Stop() {
+	if !atomic.CompareAndSwapInt32(&bc.running, 0, 1) {
+		return
+	}
+	// Unsubscribe all subscriptions registered from blockchain
+	// bc.scope.Close()
+	close(bc.quit)
+	atomic.StoreInt32(&bc.procInterrupt, 1)
+
+	bc.wg.Wait()
+	log.Info("Blockchain manager stopped")
 }
 
 func (bc *BlockChain) procFutureBlocks() {
@@ -330,7 +372,7 @@ Error: %v
 `, block.Number(), block.Hash(), err))
 }
 
-// WriteBlockWithState writes the block to the database.
+// WriteBlock writes the block to the database.
 func (bc *BlockChain) WriteBlock(block *types.Block) {
 	bc.wg.Add(1)
 	defer bc.wg.Done()
@@ -354,7 +396,7 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 	return n, err
 }
 
-// insertChain will execute the actual chain insertion and event aggregation.
+// insertChain will execute the actual chain insertion.
 func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, error) {
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
@@ -385,8 +427,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, error
 	// faster than direct delivery and requires much less mutex
 	// acquiring.
 	var (
-		events        = make([]interface{}, 0, len(chain))
-		lastCanon     *types.Block
+		events    = make([]interface{}, 0, len(chain))
+		lastCanon *types.Block
 	)
 	// Start the parallel header verifier
 	headers := make([]*types.Header, len(chain))
@@ -400,7 +442,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, error
 	defer close(abort)
 
 	// Start a parallel signature recovery
-	// senderCacher.recoverFromBlocks(types.MakeSigner(bc.chainConfig, chain[0].Number()), chain)
+	// senderCacher.recoverFromBlocks(types.MakeSigner(), chain)
 
 	// Iterate over the blocks and insert when the verifier permits
 	for i, block := range chain {
@@ -415,10 +457,9 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, error
 		if err == nil {
 			err = bc.Validator().ValidateBody(block)
 		}
-
 		switch {
 		case err == ErrKnownBlock:
-			// Block already known
+			// Block already known.
 			if bc.CurrentBlock().NumberU64() >= block.NumberU64() {
 				continue
 			}
@@ -446,13 +487,13 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, error
 		bc.WriteBlock(block)
 		log.Debug("Inserted new block", "number", block.Number(), "hash", block.Hash(), "txs", len(block.Transactions()))
 
-		events = append(events, ChainEvent{block, block.Hash()})
+		events = append(events, core.ChainEvent{block, block.Hash()})
 		lastCanon = block
 	}
 
 	// Append a single chain head event if we've progressed the chain
 	if lastCanon != nil && bc.CurrentBlock().Hash() == lastCanon.Hash() {
-		events = append(events, ChainHeadEvent{lastCanon})
+		events = append(events, core.ChainHeadEvent{lastCanon})
 	}
 	return 0, events, nil
 }
@@ -483,10 +524,10 @@ func (bc *BlockChain) GetHeaderByNumber(number uint64) *types.Header {
 
 // SubscribeChainEvent registers a subscription of ChainEvent.
 // func (bc *BlockChain) SubscribeChainEvent(ch chan<- ChainEvent) event.Subscription {
-	// return bc.scope.Track(bc.chainFeed.Subscribe(ch))
+// return bc.scope.Track(bc.chainFeed.Subscribe(ch))
 // }
 
 // // SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
 // func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription {
-	// return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
+// return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
 // }

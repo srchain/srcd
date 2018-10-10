@@ -1,24 +1,27 @@
 package pow
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
+	"runtime"
 	"time"
 
-	"srcd/core/types"
 	"srcd/common/common"
+	"srcd/consensus"
+	"srcd/core/types"
 	"srcd/params"
 )
 
 // Max time from current time allowed for blocks, before they're considered future blocks
-var allowedFutureBlockTime          = 15 * time.Second
+var allowedFutureBlockTime = 15 * time.Second
 
 // Various error messages to mark blocks invalid. These should be private to
 // prevent engine specific errors from being referenced in the remainder of the
 // codebase, inherently breaking if the engine is swapped out. Please put common
 // error types into the consensus package.
 var (
-	errZeroBlockTime     = errors.New("timestamp equals parent's")
+	errZeroBlockTime = errors.New("timestamp equals parent's")
 )
 
 // Author implements consensus.Engine, returning the header's coinbase as the
@@ -133,7 +136,7 @@ func (pow *Pow) verifyHeader(chain consensus.ChainReader, header, parent *types.
 	}
 
 	// Verify the block's difficulty based in it's timestamp and parent's difficulty
-	expected := pow.CalcDifficulty(header.Time.Uint64(), parent)
+	expected := pow.CalcDifficulty(chain, header.Time.Uint64(), parent)
 
 	if expected.Cmp(header.Difficulty) != 0 {
 		return fmt.Errorf("invalid difficulty: have %v, want %v", header.Difficulty, expected)
@@ -157,7 +160,7 @@ func (pow *Pow) verifyHeader(chain consensus.ChainReader, header, parent *types.
 // CalcDifficulty is the difficulty adjustment algorithm. It returns
 // the difficulty that a new block should have when created at time
 // given the parent block's time and difficulty.
-func (pow *Pow) CalcDifficulty(time uint64, parent *types.Header) *big.Int {
+func (pow *Pow) CalcDifficulty(chain consensus.ChainReader, time uint64, parent *types.Header) *big.Int {
 	return calcDifficulty(time, parent)
 }
 
@@ -179,14 +182,16 @@ func (pow *Pow) Prepare(chain consensus.ChainReader, header *types.Header) error
 	if parent == nil {
 		return consensus.ErrUnknownAncestor
 	}
-	header.Difficulty = ethash.CalcDifficulty(header.Time.Uint64(), parent)
+	header.Difficulty = pow.CalcDifficulty(chain, header.Time.Uint64(), parent)
 	return nil
 }
 
 // Finalize implements consensus.Engine, accumulating the block rewards, assembling the block.
-func (pow *Pow) Finalize(header *types.Header, txs []*types.Transaction) (*types.Block, error) {
+func (pow *Pow) Finalize(chain consensus.ChainReader, header *types.Header, txs []*types.Transaction) (*types.Block, error) {
 	// Accumulate any block rewards
 	accumulateRewards(header)
+
+	// txs = append(txs, reward)
 
 	// Header seems complete, assemble into a block and return
 	return types.NewBlock(header, txs), nil
@@ -195,7 +200,5 @@ func (pow *Pow) Finalize(header *types.Header, txs []*types.Transaction) (*types
 // AccumulateRewards credits the coinbase of the given block with the mining reward.
 func accumulateRewards(header *types.Header) {
 	// Accumulate the rewards for the miner.
-	reward := new(big.Int).Set(10000)
-
-	// AddBalance(header.Coinbase, reward)
+	// reward := big.NewInt(10000)
 }

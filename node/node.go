@@ -8,8 +8,9 @@ import (
 	"strings"
 	"sync"
 
-	"srcd/wallet"
+	"srcd/accounts"
 	"srcd/database"
+	"srcd/log"
 
 	"github.com/prometheus/prometheus/util/flock"
 )
@@ -17,18 +18,17 @@ import (
 // Node is a container on which services can be registered.
 type Node struct {
 	// eventmux *event.TypeMux		// Event multiplexer used between the services of a stack
-	config            *Config
-	accman   *accounts.Manager
-	// wallet            *wallet.Wallet
+	config *Config
+	accman *accounts.Manager
 
-	ephemeralKeystore string	// if non-empty, the key directory that will be removed by Stop
-	instanceDirLock   flock.Releaser	// prevents concurrent use of instance directory
+	ephemeralKeystore string         // if non-empty, the key directory that will be removed by Stop
+	instanceDirLock   flock.Releaser // prevents concurrent use of instance directory
 
 	// serverConfig p2p.Config
 	// server       *p2p.Server		// Currently running P2P networking layer
 
-	serviceFuncs []ServiceConstructor	// Service constructors (in dependency order)
-	services     map[reflect.Type]Service	// Currently running services
+	serviceFuncs []ServiceConstructor     // Service constructors (in dependency order)
+	services     map[reflect.Type]Service // Currently running services
 
 	// rpcAPIs       []rpc.API   // List of APIs currently provided by the node
 	// inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
@@ -49,7 +49,7 @@ type Node struct {
 	stop chan struct{} // Channel to wait for termination notifications
 	lock sync.RWMutex
 
-	// log log.Logger
+	log log.Logger
 }
 
 // New creates a new P2P node, ready for protocol registration.
@@ -84,12 +84,9 @@ func New(conf *Config) (*Node, error) {
 		return nil, err
 	}
 
-	// wallet := makeWalletManager()
-
 	return &Node{
 		accman:            am,
 		ephemeralKeystore: ephemeralKeystore,
-		// wallet:		   wallet,
 		config:            conf,
 		serviceFuncs:      []ServiceConstructor{},
 		// ipcEndpoint:       conf.IPCEndpoint(),
@@ -106,7 +103,7 @@ func (n *Node) Register(constructor ServiceConstructor) error {
 	defer n.lock.Unlock()
 
 	// if n.server != nil {
-		// return ErrNodeRunning
+	// return ErrNodeRunning
 	// }
 
 	n.serviceFuncs = append(n.serviceFuncs, constructor)
@@ -120,7 +117,7 @@ func (n *Node) Start() error {
 
 	// Short circuit if the node's already running
 	// if n.server != nil {
-		// return ErrNodeRunning
+	// return ErrNodeRunning
 	// }
 	if err := n.openDataDir(); err != nil {
 		return err
@@ -138,7 +135,7 @@ func (n *Node) Start() error {
 		ctx := &ServiceContext{
 			config:         n.config,
 			services:       make(map[reflect.Type]Service),
-			Wallet:         n.wallet,
+			AccountManager: n.accman,
 		}
 		// copy needed for threaded access
 		for kind, s := range services {
@@ -157,12 +154,12 @@ func (n *Node) Start() error {
 	}
 	// Gather the protocols and start the freshly assembled P2P server
 	// for _, service := range services {
-		// running.Protocols = append(running.Protocols, service.Protocols()...)
+	// running.Protocols = append(running.Protocols, service.Protocols()...)
 	// }
 
 	// run p2p server
 	// if err := running.Start(); err != nil {
-		// return convertFileLockError(err)
+	// return convertFileLockError(err)
 	// }
 
 	// Start each of the services
@@ -217,55 +214,66 @@ func (n *Node) Stop() error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	// // Short circuit if the node's not running
-	// if n.server == nil {
-		// return ErrNodeStopped
-	// }
+	// Short circuit if the node's not running
+	//if n.server == nil {
+	//return ErrNodeStopped
+	//}
 
-	// // Terminate the API, services and the p2p server.
-	// // peer.stopWS()
-	// // peer.stopHTTP()
-	// // peer.stopIPC()
-	// // peer.rpcAPIs = nil
-
-	// // failure := &StopError{
-		// // Services: make(map[reflect.Type]error),
-	// // }
-	// // for kind, service := range n.services {
-		// // if err := service.Stop(); err != nil {
-			// // failure.Services[kind] = err
-		// // }
-	// // }
+	// Terminate the API, services and the p2p server.
+	// n.stopWS()
+	// n.stopHTTP()
+	// n.stopIPC()
+	// n.rpcAPIs = nil
+	failure := &StopError{
+		Services: make(map[reflect.Type]error),
+	}
+	for kind, service := range n.services {
+		if err := service.Stop(); err != nil {
+			failure.Services[kind] = err
+		}
+	}
 	// n.server.Stop()
-	// n.services = nil
+	n.services = nil
 	// n.server = nil
 
-	// // Release instance directory lock.
-	// if n.instanceDirLock != nil {
-		// if err := n.instanceDirLock.Release(); err != nil {
-			// n.log.Error("Can't release datadir lock", "err", err)
-		// }
-		// n.instanceDirLock = nil
-	// }
+	// Release instance directory lock.
+	if n.instanceDirLock != nil {
+		if err := n.instanceDirLock.Release(); err != nil {
+			n.log.Error("Can't release datadir lock", "err", err)
+		}
+		n.instanceDirLock = nil
+	}
 
-	// // unblock peer.Wait
-	// close(n.stop)
+	// unblock n.Wait
+	close(n.stop)
 
+	// Remove the keystore if it was created ephemerally.
+	var keystoreErr error
+	if n.ephemeralKeystore != "" {
+		keystoreErr = os.RemoveAll(n.ephemeralKeystore)
+	}
+
+	if len(failure.Services) > 0 {
+		return failure
+	}
+	if keystoreErr != nil {
+		return keystoreErr
+	}
 	return nil
 }
 
 // Wait blocks the thread until the node is stopped. If the node is not running
 // at the time of invocation, the method immediately returns.
 func (n *Node) Wait() {
-	// n.lock.RLock()
+	n.lock.RLock()
 	// if n.server == nil {
-		// n.lock.RUnlock()
-		// return
-	// }
-	// stop := n.stop
 	// n.lock.RUnlock()
+	// return
+	// }
+	stop := n.stop
+	n.lock.RUnlock()
 
-	// <-stop
+	<-stop
 }
 
 // Service retrieves a currently running service registered of a specific type.
@@ -273,21 +281,22 @@ func (n *Node) Service(service interface{}) error {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
 
-	// // Short circuit if the node's not running
+	// Short circuit if the node's not running
 	// if n.server == nil {
-		// return ErrNodeStopped
+	// return ErrNodeStopped
 	// }
-	// // Otherwise try to find the service to return
-	// element := reflect.ValueOf(service).Elem()
-	// if running, ok := n.services[element.Type()]; ok {
-		// element.Set(reflect.ValueOf(running))
-		// return nil
-	// }
-	// return ErrServiceUnknown
+	// Otherwise try to find the service to return
+	element := reflect.ValueOf(service).Elem()
+	if running, ok := n.services[element.Type()]; ok {
+		element.Set(reflect.ValueOf(running))
+		return nil
+	}
+	return ErrServiceUnknown
+}
 
-
-	// only for return
-	return nil
+// AccountManager retrieves the account manager used by the protocol stack.
+func (n *Node) AccountManager() *accounts.Manager {
+	return n.accman
 }
 
 // OpenDatabase opens an existing database with the given name (or creates one if no

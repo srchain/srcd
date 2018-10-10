@@ -7,10 +7,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"runtime"
 	"sync"
+	"time"
 
 	"srcd/accounts"
 	"srcd/common/common"
+	"srcd/core/types"
 	"srcd/crypto/crypto"
 )
 
@@ -20,22 +24,25 @@ var (
 	ErrDecrypt = errors.New("could not decrypt key with given passphrase")
 )
 
+// KeyStoreType is the reflect type of a keystore backend.
+var KeyStoreType = reflect.TypeOf(&KeyStore{})
+
 // KeyStoreScheme is the protocol scheme prefixing account and wallet URLs.
 const KeyStoreScheme = "keystore"
 
 // KeyStore manages a key storage directory on disk.
 type KeyStore struct {
-	storage     keyStore                     // Storage backend, might be cleartext or encrypted
-	cache       *accountCache                // In-memory account cache over the filesystem storage
-	changes     chan struct{}                // Channel receiving change notifications from the cache
-	unlocked    map[common.Address]*unlocked // Currently unlocked account (decrypted private keys)
+	storage  keyStore                     // Storage backend, might be cleartext or encrypted
+	cache    *accountCache                // In-memory account cache over the filesystem storage
+	changes  chan struct{}                // Channel receiving change notifications from the cache
+	unlocked map[common.Address]*unlocked // Currently unlocked account (decrypted private keys)
 
-	wallets     []accounts.Wallet            // Wallet wrappers around the individual key files
+	wallets []accounts.Wallet // Wallet wrappers around the individual key files
 	// updateFeed  event.Feed                   // Event feed to notify wallet additions/removals
 	// updateScope event.SubscriptionScope      // Subscription scope tracking current live listeners
 	// updating    bool                         // Whether the event notification loop is running
 
-	mu          sync.RWMutex
+	mu sync.RWMutex
 }
 
 type unlocked struct {
@@ -183,7 +190,7 @@ func (ks *KeyStore) SignTx(a accounts.Account, tx *types.Transaction) (*types.Tr
 		return nil, ErrLocked
 	}
 
-	return types.SignTx(tx, types.FrontierSigner{}, unlockedKey.PrivateKey)
+	return types.SignTx(tx, types.MasterSigner{}, unlockedKey.PrivateKey)
 }
 
 // SignHashWithPassphrase signs hash if the private key matching the given address
@@ -208,7 +215,7 @@ func (ks *KeyStore) SignTxWithPassphrase(a accounts.Account, passphrase string, 
 	}
 	defer zeroKey(key.PrivateKey)
 
-	return types.SignTx(tx, types.FrontierSigner{}, key.PrivateKey)
+	return types.SignTx(tx, types.MasterSigner{}, key.PrivateKey)
 }
 
 // Unlock unlocks the given account indefinitely.
