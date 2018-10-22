@@ -51,6 +51,24 @@ func (s Transactions) GetRlp(i int) []byte {
 	return enc
 }
 
+// TxDifference returns a new set which is the difference between a and b.
+func TxDifference(a, b Transactions) Transactions {
+	keep := make(Transactions, 0, len(a))
+
+	remove := make(map[common.Hash]struct{})
+	for _, tx := range b {
+		remove[tx.Hash()] = struct{}{}
+	}
+
+	for _, tx := range a {
+		if _, ok := remove[tx.Hash()]; !ok {
+			keep = append(keep, tx)
+		}
+	}
+
+	return keep
+}
+
 // Hash hashes the RLP encoding of tx.
 // It uniquely identifies the transaction.
 func (tx *Transaction) Hash() common.Hash {
