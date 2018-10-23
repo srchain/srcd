@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"srcd/common/mclock"
+	"srcd/common/common"
 )
 
 // Subscription represents a stream of events. The carrier of the events is typically a
@@ -94,11 +94,12 @@ func Resubscribe(backoffMax time.Duration, fn ResubscribeFunc) Subscription {
 type ResubscribeFunc func(context.Context) (Subscription, error)
 
 type resubscribeSub struct {
-	fn                   ResubscribeFunc
-	err                  chan error
-	unsub                chan struct{}
-	unsubOnce            sync.Once
-	lastTry              mclock.AbsTime
+	fn        ResubscribeFunc
+	err       chan error
+	unsub     chan struct{}
+	unsubOnce sync.Once
+
+	lastTry              common.AbsTime
 	waitTime, backoffMax time.Duration
 }
 
@@ -131,7 +132,7 @@ func (s *resubscribeSub) subscribe() Subscription {
 	var sub Subscription
 retry:
 	for {
-		s.lastTry = mclock.Now()
+		s.lastTry = common.Now()
 		ctx, cancel := context.WithCancel(context.Background())
 		go func() {
 			rsub, err := s.fn(ctx)
@@ -170,7 +171,7 @@ func (s *resubscribeSub) waitForError(sub Subscription) bool {
 }
 
 func (s *resubscribeSub) backoffWait() bool {
-	if time.Duration(mclock.Now()-s.lastTry) > s.backoffMax {
+	if time.Duration(common.Now()-s.lastTry) > s.backoffMax {
 		s.waitTime = s.backoffMax / 10
 	} else {
 		s.waitTime *= 2

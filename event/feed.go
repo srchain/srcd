@@ -132,9 +132,7 @@ func (f *Feed) Send(value interface{}) (nsent int) {
 		f.sendCases[i].Send = rvalue
 	}
 
-	// Send until all channels except removeSub have been chosen. 'cases' tracks a prefix
-	// of sendCases. When a send succeeds, the corresponding case moves to the end of
-	// 'cases' and it shrinks by one element.
+	// Send until all channels except removeSub have been chosen.
 	cases := f.sendCases
 	for {
 		// Fast path: try sending without blocking before adding to the select set.
@@ -156,7 +154,6 @@ func (f *Feed) Send(value interface{}) (nsent int) {
 			index := f.sendCases.find(recv.Interface())
 			f.sendCases = f.sendCases.delete(index)
 			if index >= 0 && index < len(cases) {
-				// Shrink 'cases' too because the removed case was still active.
 				cases = f.sendCases[:len(cases)-1]
 			}
 		} else {
@@ -214,19 +211,3 @@ func (cs caseList) deactivate(index int) caseList {
 	cs[index], cs[last] = cs[last], cs[index]
 	return cs[:last]
 }
-
-// func (cs caseList) String() string {
-//     s := "["
-//     for i, cas := range cs {
-//             if i != 0 {
-//                     s += ", "
-//             }
-//             switch cas.Dir {
-//             case reflect.SelectSend:
-//                     s += fmt.Sprintf("%v<-", cas.Chan.Interface())
-//             case reflect.SelectRecv:
-//                     s += fmt.Sprintf("<-%v", cas.Chan.Interface())
-//             }
-//     }
-//     return s + "]"
-// }
