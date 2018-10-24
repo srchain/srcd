@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"srcd/database"
-	"srcd/core/blockchain"
 	"encoding/json"
 	"context"
 	"srcd/errors"
@@ -11,7 +10,7 @@ import (
 type TxFeedManager struct {
 	DB       database.LDBDatabase
 	TxFeeds  []*TxFeed
-	chain    *blockchain.BlockChain
+	//chain    *blockchain.BlockChain
 	txfeedCh chan *Tx
 }
 //TxFeed describe a filter
@@ -29,11 +28,11 @@ type filter struct {
 	TransType        string `json:"transtype,omitempty"`
 }
 
-func NewTxFeedManager(db database.LDBDatabase, chain *blockchain.BlockChain) *TxFeedManager {
+func NewTxFeedManager(db database.LDBDatabase) *TxFeedManager {
 	s := &TxFeedManager{
 		DB:       db,
 		TxFeeds:  make([]*TxFeed, 0, 10),
-		chain:    chain,
+		//chain:    chain,
 		txfeedCh: make(chan *Tx, 100),
 	}
 
