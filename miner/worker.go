@@ -61,33 +61,33 @@ type newWorkReq struct {
 // worker is the main object which takes care of submitting new work to consensus engine
 // and gathering the sealing result.
 type worker struct {
-	engine consensus.Engine
-	server Backend
-	chain  *blockchain.BlockChain
+	engine      consensus.Engine
+	server      Backend
+	chain       *blockchain.BlockChain
 
 	// Subscriptions
-	mux    *event.TypeMux
-	txsCh  chan core.NewTxsEvent
-	// txsSub        event.Subscription
+	// mux         *event.TypeMux
+	txsCh       chan core.NewTxsEvent
+	txsSub      event.Subscription
 	chainHeadCh chan core.ChainHeadEvent
 	// chainHeadSub event.Subscription
 
 	// Channels
-	newWorkCh chan *newWorkReq
-	taskCh    chan *task
-	resultCh  chan *task
-	startCh   chan struct{}
-	exitCh    chan struct{}
+	newWorkCh   chan *newWorkReq
+	taskCh      chan *task
+	resultCh    chan *task
+	startCh     chan struct{}
+	exitCh      chan struct{}
 
 	current     *environment       // An environment for current running cycle.
 	unconfirmed *unconfirmedBlocks // A set of locally mined blocks pending canonicalness confirmations.
 
-	mu       sync.RWMutex // The lock used to protect the coinbase and extra fields
-	coinbase common.Address
-	extra    []byte
+	mu          sync.RWMutex // The lock used to protect the coinbase and extra fields
+	coinbase    common.Address
+	extra       []byte
 
 	// atomic status counters
-	running  int32 // The indicator whether the consensus engine is running or not.
+	running     int32 // The indicator whether the consensus engine is running or not.
 }
 
 func newWorker(engine consensus.Engine, server Backend) *worker {
@@ -105,7 +105,7 @@ func newWorker(engine consensus.Engine, server Backend) *worker {
 		exitCh:      make(chan struct{}),
 		startCh:     make(chan struct{}, 1),
 	}
-	// // Subscribe NewTxsEvent for tx pool
+	// Subscribe NewTxsEvent for tx pool
 	// worker.txsSub = server.TxPool().SubscribeNewTxsEvent(worker.txsCh)
 	// // Subscribe events for blockchain
 	// worker.chainHeadSub = server.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
@@ -205,7 +205,7 @@ func (w *worker) newWorkLoop() {
 
 // mainLoop is a standalone goroutine to regenerate the sealing task based on the received event.
 func (w *worker) mainLoop() {
-	// defer w.txsSub.Unsubscribe()
+	defer w.txsSub.Unsubscribe()
 	// defer w.chainHeadSub.Unsubscribe()
 
 	for {
@@ -213,32 +213,32 @@ func (w *worker) mainLoop() {
 		case req := <-w.newWorkCh:
 			w.commitNewWork(req.interrupt)
 
-		//case ev := <-w.txsCh:
-		// Apply transactions to the pending state if we're not mining.
-		//
-		// Note all transactions received may not be continuous with transactions
-		// already included in the current mining block. These transactions will
-		// be automatically eliminated.
-		//	if !w.isRunning() && w.current != nil {
-		//w.mu.RLock()
-		//		coinbase := w.coinbase
-		//w.mu.RUnlock()
+		// case ev := <-w.txsCh:
+			// // Apply transactions to the pending state if we're not mining.
+			// //
+			// // Note all transactions received may not be continuous with transactions
+			// // already included in the current mining block. These transactions will
+			// // be automatically eliminated.
+			// if !w.isRunning() && w.current != nil {
+				// w.mu.RLock()
+				// coinbase := w.coinbase
+				// w.mu.RUnlock()
 
-		//				txs := make(map[common.Address]types.Transactions)
-		//		for _, tx := range ev.Txs {
-		//	acc, _ := types.Sender(w.current.signer, tx)
-		//txs[acc] = append(txs[acc], tx)
-		//}
-		//	txset := types.NewTransactionsByPriceAndNonce(w.current.signer, txs)
-		//w.commitTransactions(txset, coinbase, nil)
-		//}
+				// txs := make(map[common.Address]types.Transactions)
+				// for _, tx := range ev.Txs {
+					// acc, _ := types.Sender(w.current.signer, tx)
+					// txs[acc] = append(txs[acc], tx)
+				// }
+				// txset := types.NewTransactionsByPrice(w.current.signer, txs)
+				// w.commitTransactions(txset, coinbase, nil)
+			// }
 
 		// System stopped
 		case <-w.exitCh:
 			return
-			// case <-w.txsSub.Err():
+		// case <-w.txsSub.Err():
 			// return
-			// case <-w.chainHeadSub.Err():
+		// case <-w.chainHeadSub.Err():
 			// return
 		}
 	}
@@ -335,73 +335,18 @@ func (w *worker) makeCurrent(header *types.Header) {
 	w.current = env
 }
 
-func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) error {
-	// receipt, _, err := core.ApplyTransaction(w.config, w.chain, &coinbase, w.current.gasPool, w.current.state, w.current.header, tx, &w.current.header.GasUsed)
-	// if err != nil {
-	// w.current.state.RevertToSnapshot(snap)
-	// return err
-	// }
-
-	w.current.txs = append(w.current.txs, tx)
-
-	return nil
-}
-
-/*
-func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coinbase common.Address, interrupt *int32) bool {
+func (w *worker) commitTransactions(txs types.Transactions) bool {
 	// Short circuit if current is nil
 	if w.current == nil {
-		return true
+		return false
 	}
 
-	for {
-		// In the following three cases, we will interrupt the execution of the transaction.
-		// (1) new head block event arrival, the interrupt signal is 1
-		// (2) worker start or restart, the interrupt signal is 1
-		// (3) worker recreate the mining block with any newly arrived transactions, the interrupt signal is 2.
-		// For the first two cases, the semi-finished work will be discarded.
-		// For the third case, the semi-finished work will be submitted to the consensus engine.
-		// TODO(rjl493456442) give feedback to newWorkLoop to adjust resubmit interval if it is too short.
-		if interrupt != nil && atomic.LoadInt32(interrupt) != commitInterruptNone {
-			return atomic.LoadInt32(interrupt) == commitInterruptNewHead
-		}
-
-		// check tx fees ...
-
-		// Retrieve the next transaction and abort if all done
-		tx := txs.Peek()
-		if tx == nil {
-			break
-		}
-		// Error may be ignored here. The error has already been checked
-		// during transaction acceptance is the transaction pool.
-		from, _ := types.Sender(w.current.signer, tx)
-		// Check whether the tx is replay protected.
-		if tx.Protected() {
-			log.Trace("Ignoring reply protected transaction", "hash", tx.Hash())
-
-			txs.Pop()
-			continue
-		}
-
-		err := w.commitTransaction(tx, coinbase)
-		switch err {
-		case nil:
-			// Everything ok, shift in the next transaction from the same account
-			w.current.tcount++
-			txs.Shift()
-
-		default:
-			// Strange error, discard the transaction and get the next in line (note, the
-			// nonce-too-high clause will prevent us from executing in vain).
-			log.Debug("Transaction failed, account skipped", "hash", tx.Hash(), "err", err)
-			txs.Shift()
-		}
+	for _, tx := range txs {
+		w.current.txs = append(w.current.txs, tx)
 	}
 
-	return false
+	return true
 }
-*/
 
 // commitNewWork generates several new sealing tasks based on the parent block.
 func (w *worker) commitNewWork(interrupt *int32) {
@@ -443,22 +388,22 @@ func (w *worker) commitNewWork(interrupt *int32) {
 	}
 
 	w.makeCurrent(header)
-	/*
-		// Fill the block with all available pending transactions.
-		pending, err := w.server.TxPool().Pending()
-		if err != nil {
-			log.Error("Failed to fetch pending transactions", "err", err)
-			return
-		}
-		// Short circuit if there is no available pending transactions
-		if len(pending) == 0 {
-			return
-		}
-		txs := types.NewTransactionsByPriceAndNonce(w.current.signer, pending)
-		if w.commitTransactions(txs, w.coinbase, interrupt) {
-			return
-		}
-	*/
+
+	// Fill the block with all available pending transactions.
+	pending, err := w.server.TxPool().Pending()
+	if err != nil {
+		log.Error("Failed to fetch pending transactions", "err", err)
+		return
+	}
+	// Short circuit if there is no available pending transactions
+	if len(pending) == 0 {
+		return
+	}
+	// txs := types.NewTransactionsByPriceAndNonce(w.current.signer, pending)
+	if w.commitTransactions(pending) {
+		return
+	}
+
 	w.commit(tstart)
 }
 

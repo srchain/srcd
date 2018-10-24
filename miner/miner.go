@@ -7,7 +7,7 @@ import (
 	"srcd/common/common"
 	"srcd/consensus"
 	"srcd/core/blockchain"
-	"srcd/event"
+	"srcd/core/mempool"
 	"srcd/log"
 	"srcd/params"
 )
@@ -15,12 +15,12 @@ import (
 // Backend wraps all methods required for mining.
 type Backend interface {
 	BlockChain() *blockchain.BlockChain
-	// TxPool() *core.TxPool
+	TxPool()     *mempool.TxPool
 }
 
 // Miner creates blocks and searches for proof-of-work values.
 type Miner struct {
-	mux      *event.TypeMux
+	// mux      *event.TypeMux
 	worker   *worker
 	coinbase common.Address
 	server   Backend
