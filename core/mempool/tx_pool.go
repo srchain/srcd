@@ -1,18 +1,12 @@
 package mempool
 
 import (
-	"errors"
-	"fmt"
-	"math"
-	"math/big"
-	"sort"
 	"sync"
 	"time"
 
 	"srcd/common/common"
 	"srcd/core/types"
-	"srcd/event"
-	"srcd/log"
+	"srcd/core/transaction"
 )
 
 // blockChain provides the state of blockchain and current gas limit to do
@@ -21,7 +15,7 @@ type blockChain interface {
 	CurrentBlock() *types.Block
 	GetBlock(hash common.Hash, number uint64) *types.Block
 
-	SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription
+	// SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription
 }
 
 // TxPoolConfig are the configuration parameters of the transaction pool.
@@ -87,13 +81,16 @@ func (pool *TxPool) loop() {
 	for {
 		select {
 		case ev := <-txCh:
-			pool.enqueueTx((types.Transaction)ev.Tx)
+			tx := &types.Transaction{
+				Tx: ev.Tx,
+			}
+			pool.enqueueTx(tx)
 		}
 	}
 }
 
 func (pool *TxPool) enqueueTx(tx *types.Transaction) {
-	pool.pending = append(pool.pendin, tx)
+	pool.pending = append(pool.pending, tx)
 }
 
 func (pool *TxPool) Pending() (types.Transactions, error) {
