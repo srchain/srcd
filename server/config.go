@@ -3,6 +3,7 @@ package server
 import (
 	"srcd/common/common"
 	"srcd/core/blockchain"
+	"srcd/core/mempool"
 )
 
 // DefaultConfig contains default settings for use on main net.
@@ -39,7 +40,7 @@ type Config struct {
 	ExtraData       []byte         `toml:",omitempty"`
 
 	// Transaction pool options
-	// TxPool core.TxPoolConfig
+	TxPool mempool.TxPoolConfig
 
 	// Gas Price Oracle options
 	// GPO gasprice.Config

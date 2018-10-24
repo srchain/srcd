@@ -12,6 +12,7 @@ import (
 	"srcd/consensus"
 	"srcd/consensus/pow"
 	"srcd/core/blockchain"
+	"srcd/core/mempool"
 	"srcd/database"
 	"srcd/log"
 	"srcd/miner"
@@ -29,7 +30,7 @@ type Server struct {
 	shutdownChan    chan bool
 
 	// Handlers
-	// txPool          *core.TxPool
+	txPool          *mempool.TxPool
 	blockchain      *blockchain.BlockChain
 	protocolManager *ProtocolManager
 
@@ -84,7 +85,7 @@ func New(ctx *node.ServiceContext, config *Config) (*Server, error) {
 	// if config.TxPool.Journal != "" {
 	// config.TxPool.Journal = ctx.ResolvePath(config.TxPool.Journal)
 	// }
-	// server.txPool = core.NewTxPool(config.TxPool, server.blockchain)
+	server.txPool = mempool.NewTxPool(config.TxPool, server.blockchain)
 
 	// if server.protocolManager, err = NewProtocolManager(eth.chainConfig, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb); err != nil {
 	// return nil, err
@@ -169,6 +170,7 @@ func (s *Server) StartMining(local bool) error {
 
 func (s *Server) AccountManager() *accounts.Manager  { return s.accountManager }
 func (s *Server) BlockChain() *blockchain.BlockChain { return s.blockchain }
+func (s *Server) TxPool() *mempool.TxPool            { return s.txPool }
 func (s *Server) Engine() consensus.Engine           { return s.engine }
 func (s *Server) ChainDb() database.Database         { return s.chainDb }
 
