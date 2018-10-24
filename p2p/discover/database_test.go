@@ -1,26 +1,39 @@
-package discover5
+// Copyright 2015 The go-ethereum Authors
+// This file is part of the go-ethereum library.
+//
+// The go-ethereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-ethereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+
+package discover
 
 import (
-	"testing"
 	"bytes"
-	"net"
-	"time"
-	"reflect"
-
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
+	"reflect"
+	"testing"
+	"time"
 )
 
-
-
-var nodeDBKeyTests = []struct{
-	id NodeID
+var nodeDBKeyTests = []struct {
+	id    NodeID
 	field string
-	key []byte
-} {
+	key   []byte
+}{
 	{
-		id:	NodeID{},
+		id:    NodeID{},
 		field: "version",
 		key:   []byte{0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e}, // field
 	},
@@ -43,11 +56,11 @@ var nodeDBKeyTests = []struct{
 
 func TestNodeDBKeys(t *testing.T) {
 	for i, tt := range nodeDBKeyTests {
-		if key := makeKey(tt.id, tt.field); !bytes.Equal(key,tt.key) {
+		if key := makeKey(tt.id, tt.field); !bytes.Equal(key, tt.key) {
 			t.Errorf("make test %d: key mismatch: have 0x%x, want 0x%x", i, key, tt.key)
 		}
-		id , field := splitKey(tt.key)
-		if !bytes.Equal(id[:],tt.id[:]) {
+		id, field := splitKey(tt.key)
+		if !bytes.Equal(id[:], tt.id[:]) {
 			t.Errorf("split test %d: id mismatch: have 0x%x, want 0x%x", i, id, tt.id)
 		}
 		if field != tt.field {
@@ -56,29 +69,29 @@ func TestNodeDBKeys(t *testing.T) {
 	}
 }
 
-var nodeDBInt64Tests = []struct{
-	key []byte
+var nodeDBInt64Tests = []struct {
+	key   []byte
 	value int64
-} {
+}{
 	{key: []byte{0x01}, value: 1},
 	{key: []byte{0x02}, value: 2},
 	{key: []byte{0x03}, value: 3},
 }
 
 func TestNodeDBInt64(t *testing.T) {
-
-	db, _ := newNodeDB("",Version,NodeID{})
+	db, _ := newNodeDB("", nodeDBVersion, NodeID{})
 	defer db.close()
 
 	tests := nodeDBInt64Tests
-	for i := 0 ; i< len(tests); i++ {
-		if err := db.storeInt64(tests[i].key,tests[i].value); err != nil {
+	for i := 0; i < len(tests); i++ {
+		// Insert the next value
+		if err := db.storeInt64(tests[i].key, tests[i].value); err != nil {
 			t.Errorf("test %d: failed to store value: %v", i, err)
 		}
-
+		// Check all existing and non existing values
 		for j := 0; j < len(tests); j++ {
 			num := db.fetchInt64(tests[j].key)
-			switch  {
+			switch {
 			case j <= i && num != tests[j].value:
 				t.Errorf("test %d, item %d: value mismatch: have %v, want %v", i, j, num, tests[j].value)
 			case j > i && num != 0:
@@ -93,31 +106,32 @@ func TestNodeDBFetchStore(t *testing.T) {
 		MustHexID("0x1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
 		net.IP{192, 168, 0, 1},
 		30303,
-		30303)
+		30303,
+	)
 	inst := time.Now()
 	num := 314
 
-	db, _ := newNodeDB("",Version,NodeID{})
+	db, _ := newNodeDB("", nodeDBVersion, NodeID{})
 	defer db.close()
 
 	// Check fetch/store operations on a node ping object
-	if stored := db.lastPing(node.ID); stored.Unix() != 0 {
+	if stored := db.lastPingReceived(node.ID); stored.Unix() != 0 {
 		t.Errorf("ping: non-existing object: %v", stored)
 	}
-	if err := db.updateLastPing(node.ID, inst); err != nil {
+	if err := db.updateLastPingReceived(node.ID, inst); err != nil {
 		t.Errorf("ping: failed to update: %v", err)
 	}
-	if stored := db.lastPing(node.ID); stored.Unix() != inst.Unix() {
+	if stored := db.lastPingReceived(node.ID); stored.Unix() != inst.Unix() {
 		t.Errorf("ping: value mismatch: have %v, want %v", stored, inst)
 	}
 	// Check fetch/store operations on a node pong object
-	if stored := db.lastPong(node.ID); stored.Unix() != 0 {
+	if stored := db.lastPongReceived(node.ID); stored.Unix() != 0 {
 		t.Errorf("pong: non-existing object: %v", stored)
 	}
-	if err := db.updateLastPong(node.ID, inst); err != nil {
+	if err := db.updateLastPongReceived(node.ID, inst); err != nil {
 		t.Errorf("pong: failed to update: %v", err)
 	}
-	if stored := db.lastPong(node.ID); stored.Unix() != inst.Unix() {
+	if stored := db.lastPongReceived(node.ID); stored.Unix() != inst.Unix() {
 		t.Errorf("pong: value mismatch: have %v, want %v", stored, inst)
 	}
 	// Check fetch/store operations on a node findnode-failure object
@@ -143,7 +157,6 @@ func TestNodeDBFetchStore(t *testing.T) {
 		t.Errorf("node: data mismatch: have %v, want %v", stored, node)
 	}
 }
-
 
 var nodeDBSeedQueryNodes = []struct {
 	node *Node
@@ -202,20 +215,22 @@ var nodeDBSeedQueryNodes = []struct {
 	},
 }
 
-
 func TestNodeDBSeedQuery(t *testing.T) {
-	db, _ := newNodeDB("",Version,nodeDBSeedQueryNodes[1].node.ID)
+	db, _ := newNodeDB("", nodeDBVersion, nodeDBSeedQueryNodes[1].node.ID)
 	defer db.close()
+
+	// Insert a batch of nodes for querying
 	for i, seed := range nodeDBSeedQueryNodes {
 		if err := db.updateNode(seed.node); err != nil {
 			t.Fatalf("node %d: failed to insert: %v", i, err)
 		}
-		if err := db.updateLastPong(seed.node.ID, seed.pong); err != nil {
-			t.Fatalf("node %d: failed to insert lastPong: %v", i, err)
+		if err := db.updateLastPongReceived(seed.node.ID, seed.pong); err != nil {
+			t.Fatalf("node %d: failed to insert bondTime: %v", i, err)
 		}
 	}
 
-	seeds := db.querySeeds(len(nodeDBSeedQueryNodes) * 2, time.Hour)
+	// Retrieve the entire batch and check for duplicates
+	seeds := db.querySeeds(len(nodeDBSeedQueryNodes)*2, time.Hour)
 	have := make(map[NodeID]struct{})
 	for _, seed := range seeds {
 		have[seed.ID] = struct{}{}
@@ -228,56 +243,59 @@ func TestNodeDBSeedQuery(t *testing.T) {
 		t.Errorf("seed count mismatch: have %v, want %v", len(seeds), len(want))
 	}
 	for id := range have {
-		if id , ok := want[id]; !ok {
+		if _, ok := want[id]; !ok {
 			t.Errorf("extra seed: %v", id)
 		}
 	}
 	for id := range want {
-		if _, ok := want[id]; !ok {
+		if _, ok := have[id]; !ok {
 			t.Errorf("missing seed: %v", id)
 		}
 	}
-
 }
 
 func TestNodeDBPersistency(t *testing.T) {
-	root, err := ioutil.TempDir("","nodedb-")
+	root, err := ioutil.TempDir("", "nodedb-")
 	if err != nil {
-		t.Fatalf("failed to create temporary data folder: %v",err)
+		t.Fatalf("failed to create temporary data folder: %v", err)
 	}
 	defer os.RemoveAll(root)
+
 	var (
 		testKey = []byte("somekey")
 		testInt = int64(314)
 	)
-	db, err := newNodeDB(filepath.Join(root,"database"),Version,NodeID{})
-	if err != nil {
-		t.Fatalf("failed to crate persistent database: %v",err)
-	}
-	if err := db.storeInt64(testKey,testInt); err != nil {
-		t.Fatalf("failed to store value: %v.",err)
 
+	// Create a persistent database and store some values
+	db, err := newNodeDB(filepath.Join(root, "database"), nodeDBVersion, NodeID{})
+	if err != nil {
+		t.Fatalf("failed to create persistent database: %v", err)
+	}
+	if err := db.storeInt64(testKey, testInt); err != nil {
+		t.Fatalf("failed to store value: %v.", err)
 	}
 	db.close()
-	db, err = newNodeDB(filepath.Join(root,"database"),Version,NodeID{})
+
+	// Reopen the database and check the value
+	db, err = newNodeDB(filepath.Join(root, "database"), nodeDBVersion, NodeID{})
 	if err != nil {
-		t.Fatalf("failed to open persistent database: %v",err)
+		t.Fatalf("failed to open persistent database: %v", err)
 	}
 	if val := db.fetchInt64(testKey); val != testInt {
-		t.Fatalf("value mismatch: have %v, want %v",val,testInt)
-
+		t.Fatalf("value mismatch: have %v, want %v", val, testInt)
 	}
 	db.close()
-	db, err = newNodeDB(filepath.Join(root,"database"),Version+1,NodeID{})
+
+	// Change the database version and check flush
+	db, err = newNodeDB(filepath.Join(root, "database"), nodeDBVersion+1, NodeID{})
 	if err != nil {
-		t.Fatalf("failed to open persistent database: %v",err)
+		t.Fatalf("failed to open persistent database: %v", err)
 	}
 	if val := db.fetchInt64(testKey); val != 0 {
-		t.Fatalf("value mismatch: have %v, vant %v",val,0)
+		t.Fatalf("value mismatch: have %v, want %v", val, 0)
 	}
 	db.close()
 }
-
 
 var nodeDBExpirationNodes = []struct {
 	node *Node
@@ -306,29 +324,32 @@ var nodeDBExpirationNodes = []struct {
 }
 
 func TestNodeDBExpiration(t *testing.T) {
-	db, _ := newNodeDB("",Version,NodeID{})
+	db, _ := newNodeDB("", nodeDBVersion, NodeID{})
 	defer db.close()
 
+	// Add all the test nodes and set their last pong time
 	for i, seed := range nodeDBExpirationNodes {
 		if err := db.updateNode(seed.node); err != nil {
-			t.Fatalf("node %d: failed to insert: %v",i, err)
+			t.Fatalf("node %d: failed to insert: %v", i, err)
 		}
-		if err := db.updateLastPong(seed.node.ID,seed.pong); err != nil {
-			t.Fatalf("node %d: failed to update pong: %v",i,err )
+		if err := db.updateLastPongReceived(seed.node.ID, seed.pong); err != nil {
+			t.Fatalf("node %d: failed to update bondTime: %v", i, err)
 		}
 	}
+	// Expire some of them, and check the rest
 	if err := db.expireNodes(); err != nil {
 		t.Fatalf("failed to expire nodes: %v", err)
 	}
 	for i, seed := range nodeDBExpirationNodes {
 		node := db.node(seed.node.ID)
 		if (node == nil && !seed.exp) || (node != nil && seed.exp) {
-			t.Errorf("node %d: expiration mismatch: have %v,want %v",i,node,seed.exp)
+			t.Errorf("node %d: expiration mismatch: have %v, want %v", i, node, seed.exp)
 		}
 	}
 }
 
 func TestNodeDBSelfExpiration(t *testing.T) {
+	// Find a node in the tests that shouldn't expire, and assign it as self
 	var self NodeID
 	for _, node := range nodeDBExpirationNodes {
 		if !node.exp {
@@ -336,43 +357,24 @@ func TestNodeDBSelfExpiration(t *testing.T) {
 			break
 		}
 	}
-
-	db, _ := newNodeDB("",Version,self)
+	db, _ := newNodeDB("", nodeDBVersion, self)
 	defer db.close()
 
+	// Add all the test nodes and set their last pong time
 	for i, seed := range nodeDBExpirationNodes {
 		if err := db.updateNode(seed.node); err != nil {
-			t.Fatalf("node %d: failed to insert: %v",i,err)
+			t.Fatalf("node %d: failed to insert: %v", i, err)
 		}
-		if err := db.updateLastPong(seed.node.ID,seed.pong); err != nil {
-			t.Fatalf("node %d, failed to update pong: %v",i,err)
+		if err := db.updateLastPongReceived(seed.node.ID, seed.pong); err != nil {
+			t.Fatalf("node %d: failed to update bondTime: %v", i, err)
 		}
 	}
-
-
+	// Expire the nodes and make sure self has been evacuated too
 	if err := db.expireNodes(); err != nil {
-		t.Fatalf("failed to expire nodes: %v",err)
+		t.Fatalf("failed to expire nodes: %v", err)
 	}
 	node := db.node(self)
 	if node != nil {
 		t.Errorf("self not evacuated")
 	}
-
-
-
-
-
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
