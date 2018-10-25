@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"srcd/cmd/utils"
 	"srcd/node"
 	"srcd/server"
@@ -29,6 +30,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) {
+		fmt.Println("ssss")
 		var server *server.Server
 
 		if err := stack.Service(&server); err != nil {
