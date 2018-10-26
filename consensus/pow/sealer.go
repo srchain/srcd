@@ -72,7 +72,7 @@ func (pow *Pow) mine(block *types.Block, id int, seed uint64, abort chan struct{
 	// Extract some data from the header
 	var (
 		header = block.Header()
-		target = new(big.Int).Div(two256, header.Difficulty)
+		target  = new(big.Int).Div(two256, header.Difficulty)
 	)
 
 	// Start generating random nonces until we abort or find a good one
