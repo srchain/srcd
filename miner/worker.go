@@ -1,7 +1,6 @@
 package miner
 
 import (
-	"fmt"
 	"math/big"
 	"sync"
 	"sync/atomic"
