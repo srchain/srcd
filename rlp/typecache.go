@@ -127,6 +127,7 @@ func parseStructTag(typ reflect.Type, fi int) (tags, error) {
 func genTypeInfo(typ reflect.Type, tags tags) (info *typeinfo, err error) {
 	info = new(typeinfo)
 	if info.decoder, err = makeDecoder(typ, tags); err != nil {
+		fmt.Println(err)
 		return nil, err
 	}
 	if info.writer, err = makeWriter(typ, tags); err != nil {

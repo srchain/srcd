@@ -1,12 +1,12 @@
 package transaction
 
 import (
-	"srcd/crypto/sha3pool"
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"srcd/core/transaction/extend"
-	"fmt"
+	"srcd/crypto/sha3pool"
 	"srcd/errors"
 )
 
@@ -20,6 +20,7 @@ type TxWrap struct {
 	SpentOutputIDs []Hash
 	GasInputIDs    []Hash
 }
+
 // TxData encodes a transaction in the blockchain.
 type TxData struct {
 	Version        uint64
@@ -48,12 +49,13 @@ type Tx struct {
 	TxWrap `json:"-"`
 }
 
-func NewTx(data TxData) Tx{
+func NewTx(data TxData) Tx {
 	return Tx{
 		data,
 		MapTxWrap(data),
 	}
 }
+
 // OutputID return the hash of the output position
 func (tx *Tx) OutputID(outputIndex int) *Hash {
 	return tx.ResultIds[outputIndex]
@@ -97,7 +99,7 @@ func (tx *TxData) readFrom(r *extend.Reader) (err error) {
 	}
 
 	if tx.Version, err = extend.ReadVarint63(r); err != nil {
-		return errors.New( "reading transaction version")
+		return errors.New("reading transaction version")
 	}
 	if tx.TimeRange, err = extend.ReadVarint63(r); err != nil {
 		return err
@@ -142,6 +144,7 @@ func (tx *TxWrap) SigHash(n uint32) (hash Hash) {
 	hash.ReadFrom(hasher)
 	return hash
 }
+
 // SetInputArguments sets the Arguments field in input n.
 func (tx *Tx) SetInputArguments(n uint32, args [][]byte) {
 	tx.Inputs[n].SetArguments(args)
@@ -152,6 +155,7 @@ func (tx *Tx) SetInputArguments(n uint32, args [][]byte) {
 		e.WitnessArguments = args
 	}
 }
+
 // SetArguments set the args for the input
 func (t *TxInput) SetArguments(args [][]byte) {
 	switch inp := t.TypedInput.(type) {
@@ -171,6 +175,7 @@ func (tx *TxData) MarshalText() ([]byte, error) {
 	hex.Encode(b, buf.Bytes())
 	return b, nil
 }
+
 const serRequired = 0x7 // Bit mask accepted serialization flag.
 // WriteTo writes tx to w.
 func (tx *TxData) WriteTo(w io.Writer) (int64, error) {
@@ -186,14 +191,14 @@ func (tx *TxData) writeTo(w io.Writer, serflags byte) error {
 		return errors.New("write byte error")
 	}
 	if _, err := extend.WriteVarint63(w, tx.Version); err != nil {
-		return errors.New( "writing transaction version")
+		return errors.New("writing transaction version")
 	}
 	if _, err := extend.WriteVarint63(w, tx.TimeRange); err != nil {
 		return errors.New("writing transaction maxtime")
 	}
 
 	if _, err := extend.WriteVarint31(w, uint64(len(tx.Inputs))); err != nil {
-		return errors.New( "writing tx input count")
+		return errors.New("writing tx input count")
 	}
 
 	for _, ti := range tx.Inputs {

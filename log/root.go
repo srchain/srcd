@@ -1,6 +1,7 @@
 package log
 
 import (
+	"fmt"
 	"os"
 )
 
@@ -41,6 +42,7 @@ func Debug(msg string, ctx ...interface{}) {
 
 // Info is a convenient alias for Root().Info
 func Info(msg string, ctx ...interface{}) {
+	fmt.Println(msg)
 	root.write(msg, LvlInfo, ctx, skipLevel)
 }
 
@@ -56,6 +58,7 @@ func Error(msg string, ctx ...interface{}) {
 
 // Crit is a convenient alias for Root().Crit
 func Crit(msg string, ctx ...interface{}) {
+	fmt.Println(msg)
 	root.write(msg, LvlCrit, ctx, skipLevel)
 	os.Exit(1)
 }

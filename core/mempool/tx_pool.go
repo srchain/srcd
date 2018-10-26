@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"srcd/common/common"
-	"srcd/core/types"
 	"srcd/core/transaction"
+	"srcd/core/types"
 )
 
 // blockChain provides the state of blockchain and current gas limit to do
@@ -43,13 +43,13 @@ type TxPoolConfig struct {
 // current state) and future transactions. Transactions move between those
 // two states over time as they are received and processed.
 type TxPool struct {
-	config       TxPoolConfig
-	chain        blockChain
-	pool         *transaction.TxPool
-	pending      types.Transactions
+	config  TxPoolConfig
+	chain   blockChain
+	pool    *transaction.TxPool
+	pending types.Transactions
 
-	mu           sync.RWMutex
-	wg           sync.WaitGroup // for shutdown sync
+	mu sync.RWMutex
+	wg sync.WaitGroup // for shutdown sync
 }
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
@@ -57,10 +57,10 @@ type TxPool struct {
 func NewTxPool(config TxPoolConfig, chain blockChain) *TxPool {
 	// Create the transaction pool with its initial settings
 	pool := &TxPool{
-		pool:        transaction.NewTxPool(),
-		config:      config,
-		chain:       chain,
-		pending:     make(types.Transactions, 1024),
+		pool:    transaction.NewTxPool(),
+		config:  config,
+		chain:   chain,
+		pending: make(types.Transactions, 1024),
 	}
 
 	// Start the event loop and return
@@ -82,7 +82,7 @@ func (pool *TxPool) loop() {
 		select {
 		case ev := <-txCh:
 			tx := &types.Transaction{
-				Tx: ev.Tx,
+				Tx: ev.Tx.TxData,
 			}
 			pool.enqueueTx(tx)
 		}

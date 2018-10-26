@@ -3,6 +3,7 @@ package blockchain
 import (
 	"fmt"
 	"math/big"
+	"time"
 
 	"srcd/common/common"
 	"srcd/common/hexutil"
@@ -24,8 +25,8 @@ type Genesis struct {
 
 	// These fields are used for consensus tests. Please don't use them
 	// in actual genesis blocks.
-	Number     uint64         `json:"number"`
-	ParentHash common.Hash    `json:"parentHash"`
+	Number     uint64      `json:"number"`
+	ParentHash common.Hash `json:"parentHash"`
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.
@@ -118,9 +119,10 @@ func (g *Genesis) Commit(db database.Database) (*types.Block, error) {
 func DefaultGenesisBlock() *Genesis {
 	return &Genesis{
 		Nonce:      66,
+		Timestamp:  uint64(time.Now().Unix()),
 		ExtraData:  hexutil.MustDecode("0x3535353535353535353535353535353535353535353535353535353535353535"),
-		Difficulty: big.NewInt(1048576),
-		// Alloc:      decodePrealloc(mainnetAllocData),
+		Difficulty: big.NewInt(6),
+		//Alloc:      decodePrealloc(mainnetAllocData),
 	}
 }
 
