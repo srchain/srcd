@@ -1,6 +1,7 @@
 package miner
 
 import (
+	"fmt"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -31,7 +32,7 @@ const (
 
 	// blockRecommitInterval is the time interval to recreate the mining block with
 	// any newly arrived transactions.
-	blockRecommitInterval = 3 * time.Second
+	blockRecommitInterval = 10 * time.Second
 )
 
 // environment is the worker's current environment and holds all of the current state information.
@@ -338,14 +339,14 @@ func (w *worker) makeCurrent(header *types.Header) {
 func (w *worker) commitTransactions(txs types.Transactions) bool {
 	// Short circuit if current is nil
 	if w.current == nil {
-		return false
+		return true
 	}
 
 	for _, tx := range txs {
 		w.current.txs = append(w.current.txs, tx)
 	}
 
-	return true
+	return false
 }
 
 // commitNewWork generates several new sealing tasks based on the parent block.
@@ -382,11 +383,11 @@ func (w *worker) commitNewWork(interrupt *int32) {
 		}
 		header.Coinbase = w.coinbase
 	}
+
 	if err := w.engine.Prepare(w.chain, header); err != nil {
 		log.Error("Failed to prepare header for mining", "err", err)
 		return
 	}
-
 	w.makeCurrent(header)
 
 	// Fill the block with all available pending transactions.
@@ -396,9 +397,9 @@ func (w *worker) commitNewWork(interrupt *int32) {
 		return
 	}
 	// Short circuit if there is no available pending transactions
-	if len(pending) == 0 {
-		return
-	}
+	// if len(pending) == 0 {
+		// return
+	// }
 	// txs := types.NewTransactionsByPriceAndNonce(w.current.signer, pending)
 	if w.commitTransactions(pending) {
 		return
