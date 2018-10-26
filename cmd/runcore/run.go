@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"srcd/cmd/utils"
 	"srcd/node"
 	"srcd/server"
@@ -26,19 +25,17 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	// Start up the node itself
 	utils.StartNode(stack)
 
-	// wallet op ...
-
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) {
-		fmt.Println("ssss")
 		var server *server.Server
 
 		if err := stack.Service(&server); err != nil {
 			utils.Fatalf("Srcd service not running: %v", err)
 		}
 
-		// Start mining
-		if err := server.StartMining(true); err != nil {
+		// Set miner thread from the CLI and start mining
+		threads := ctx.GlobalInt(utils.MinerThreadsFlag.Name)
+		if err := server.StartMining(threads); err != nil {
 			utils.Fatalf("Failed to start mining: %v", err)
 		}
 	}

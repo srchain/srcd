@@ -12,6 +12,7 @@ var (
 		utils.IdentityFlag,
 		utils.DataDirFlag,
 		utils.MiningEnabledFlag,
+		utils.MinerThreadsFlag,
 		configFileFlag,
 	}
 
