@@ -166,7 +166,7 @@ func (pow *Pow) CalcDifficulty(chain consensus.ChainReader, time uint64, parent 
 
 // calcDifficulty is the difficulty adjustment algorithm.
 func calcDifficulty(time uint64, parent *types.Header) *big.Int {
-	return big.NewInt(2)
+	return big.NewInt(100000000)
 }
 
 // VerifySeal implements consensus.Engine, checking whether the given block satisfies
