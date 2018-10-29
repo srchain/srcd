@@ -31,7 +31,7 @@ const (
 
 	// blockRecommitInterval is the time interval to recreate the mining block with
 	// any newly arrived transactions.
-	blockRecommitInterval = 10 * time.Second
+	blockRecommitInterval = 3 * time.Second
 )
 
 // environment is the worker's current environment and holds all of the current state information.
@@ -67,10 +67,10 @@ type worker struct {
 
 	// Subscriptions
 	// mux         *event.TypeMux
-	txsCh       chan core.NewTxsEvent
-	txsSub      event.Subscription
-	chainHeadCh chan core.ChainHeadEvent
-	// chainHeadSub event.Subscription
+	txsCh        chan core.NewTxsEvent
+	txsSub       event.Subscription
+	chainHeadCh  chan core.ChainHeadEvent
+	chainHeadSub event.Subscription
 
 	// Channels
 	newWorkCh chan *newWorkReq
@@ -87,7 +87,7 @@ type worker struct {
 	extra    []byte
 
 	// atomic status counters
-	running int32 // The indicator whether the consensus engine is running or not.
+	running  int32 // The indicator whether the consensus engine is running or not.
 }
 
 func newWorker(engine consensus.Engine, server Backend) *worker {
@@ -107,8 +107,8 @@ func newWorker(engine consensus.Engine, server Backend) *worker {
 	}
 	// Subscribe NewTxsEvent for tx pool
 	// worker.txsSub = server.TxPool().SubscribeNewTxsEvent(worker.txsCh)
-	// // Subscribe events for blockchain
-	// worker.chainHeadSub = server.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
+	// Subscribe events for blockchain
+	worker.chainHeadSub = server.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
 
 	go worker.mainLoop()
 	go worker.newWorkLoop()
@@ -309,10 +309,10 @@ func (w *worker) resultLoop() {
 			// // Broadcast the block and announce chain insertion event
 			// w.mux.Post(core.NewMinedBlockEvent{Block: block})
 
-			// var events []interface{}
+			var events []interface{}
 			// events = append(events, core.ChainEvent{Block: block, Hash: block.Hash()})
-			// events = append(events, core.ChainHeadEvent{Block: block})
-			// w.chain.PostChainEvents(events)
+			events = append(events, core.ChainHeadEvent{Block: block})
+			w.chain.PostChainEvents(events)
 
 			// Insert the block into the set of pending ones to resultLoop for confirmations
 			w.unconfirmed.Insert(block.NumberU64(), block.Hash())
