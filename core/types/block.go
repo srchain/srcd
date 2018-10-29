@@ -60,6 +60,19 @@ func (h *Header) Hash() common.Hash {
 	return rlpHash(h)
 }
 
+// HashNoNonce returns the hash which is used as input for the proof-of-work search.
+func (h *Header) HashNoNonce() common.Hash {
+	return rlpHash([]interface{}{
+		h.ParentHash,
+		h.Coinbase,
+		h.TxHash,
+		h.Difficulty,
+		h.Number,
+		h.Time,
+		h.Extra,
+	})
+}
+
 func rlpHash(x interface{}) (h common.Hash) {
 	hw := sha3.NewKeccak256()
 	rlp.Encode(hw, x)
