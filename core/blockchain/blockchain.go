@@ -15,6 +15,7 @@ import (
 	"srcd/core/types"
 	"srcd/database"
 	"srcd/log"
+	"srcd/event"
 
 	"github.com/hashicorp/golang-lru"
 )
@@ -42,10 +43,10 @@ type BlockChain struct {
 	// rmLogsFeed    event.Feed
 	// chainFeed     event.Feed
 	// chainSideFeed event.Feed
-	// chainHeadFeed event.Feed
+	chainHeadFeed event.Feed
 	// logsFeed      event.Feed
-	// scope         event.SubscriptionScope
-	genesisBlock *types.Block
+	scope         event.SubscriptionScope
+	genesisBlock  *types.Block
 
 	mu      sync.RWMutex // global mutex for locking chain operations
 	chainmu sync.RWMutex // blockchain insertion lock
@@ -526,7 +527,7 @@ func (bc *BlockChain) GetHeaderByNumber(number uint64) *types.Header {
 // return bc.scope.Track(bc.chainFeed.Subscribe(ch))
 // }
 
-// // SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
-// func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription {
-// return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
-// }
+// SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
+func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription {
+	return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
+}
