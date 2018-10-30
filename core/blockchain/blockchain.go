@@ -60,8 +60,8 @@ type BlockChain struct {
 	blockCache   *lru.Cache // Cache for the most recent entire blocks
 	futureBlocks *lru.Cache // future blocks are blocks added for later processing
 
-	quit    chan struct{} // blockchain quit channel
-	running int32         // running must be called atomically
+	quit          chan struct{}  // blockchain quit channel
+	running       int32          // running must be called atomically
 	// procInterrupt must be atomically called
 	procInterrupt int32          // interrupt signaler for block processing
 	wg            sync.WaitGroup // chain processing wait group for shutting down
@@ -234,9 +234,8 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 }
 
 // insert injects a new head block into the current block chain. This method
-// assumes that the block is indeed a true head. It will also reset the head
-// header and the head fast sync block to this very same block if they are older
-// or if they are on a different side chain.
+// assumes that the block is indeed a true head. It will reset the head header
+// to this same block if it's older.
 func (bc *BlockChain) insert(block *types.Block) {
 	// If the block is on a side chain or an unknown one, force other heads onto it too
 	updateHeads := rawdb.ReadCanonicalHash(bc.db, block.NumberU64()) != block.Hash()
@@ -302,7 +301,7 @@ func (bc *BlockChain) Stop() {
 		return
 	}
 	// Unsubscribe all subscriptions registered from blockchain
-	// bc.scope.Close()
+	bc.scope.Close()
 	close(bc.quit)
 	atomic.StoreInt32(&bc.procInterrupt, 1)
 
