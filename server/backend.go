@@ -61,10 +61,6 @@ func New(ctx *node.ServiceContext, config *Config) (*Server, error) {
 		return nil, err
 	}
 
-	if _, genesisErr := blockchain.SetupGenesisBlock(chainDb, config.Genesis); genesisErr != nil {
-		return nil, genesisErr
-	}
-
 	server := &Server{
 		config:         config,
 		chainDb:        chainDb,
@@ -74,6 +70,9 @@ func New(ctx *node.ServiceContext, config *Config) (*Server, error) {
 		coinbase:       config.Coinbase,
 	}
 
+	if _, genesisErr := blockchain.SetupGenesisBlock(chainDb, config.Genesis); genesisErr != nil {
+		return nil, genesisErr
+	}
 	server.blockchain, err = blockchain.NewBlockChain(chainDb, server.engine)
 	if err != nil {
 		return nil, err
@@ -219,13 +218,12 @@ func (s *Server) Start() error {
 func (s *Server) Stop() error {
 	// s.bloomIndexer.Close()
 	s.blockchain.Stop()
-	// s.engine.Close()
 	// s.protocolManager.Stop()
 	// s.txPool.Stop()
 	s.miner.Stop()
 	// s.eventMux.Stop()
 
 	s.chainDb.Close()
-	close(s.shutdownChan)
+	// close(s.shutdownChan)
 	return nil
 }
