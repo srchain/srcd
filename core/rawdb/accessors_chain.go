@@ -180,7 +180,7 @@ func WriteBody(db DatabaseWriter, hash common.Hash, number uint64, body *types.B
 		log.Crit("Failed to RLP encode body", "err", err)
 	}
 
-	WriteBodyRLP(db, hash, number, body)
+	WriteBodyRLP(db, hash, number, data)
 }
 
 // DeleteBody removes all block body data associated with a hash.
