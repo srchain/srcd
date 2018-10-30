@@ -99,7 +99,7 @@ func (fs MasterSigner) SignatureValues(tx *Transaction, sig []byte) (r, s, v *bi
 // It does not uniquely identify the transaction.
 func (fs MasterSigner) Hash(tx *Transaction) common.Hash {
 	return rlpHash([]interface{}{
-		tx.Tx,
+		// tx.Tx,
 	})
 }
 
