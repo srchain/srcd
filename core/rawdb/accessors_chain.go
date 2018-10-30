@@ -165,13 +165,11 @@ func ReadBody(db DatabaseReader, hash common.Hash, number uint64) *types.Body {
 	if len(data) == 0 {
 		return nil
 	}
-
 	body := new(types.Body)
 	if err := rlp.Decode(bytes.NewReader(data), body); err != nil {
 		log.Error("Invalid block body RLP", "hash", hash, "err", err)
 		return nil
 	}
-
 	return body
 }
 
@@ -182,7 +180,7 @@ func WriteBody(db DatabaseWriter, hash common.Hash, number uint64, body *types.B
 		log.Crit("Failed to RLP encode body", "err", err)
 	}
 
-	WriteBodyRLP(db, hash, number, data)
+	WriteBodyRLP(db, hash, number, body)
 }
 
 // DeleteBody removes all block body data associated with a hash.
