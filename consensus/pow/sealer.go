@@ -1,6 +1,7 @@
 package pow
 
 import (
+	"encoding/binary"
 	crand "crypto/rand"
 	"math"
 	"math/big"
@@ -10,6 +11,7 @@ import (
 
 	"srcd/consensus"
 	"srcd/core/types"
+	"srcd/crypto/crypto"
 	"srcd/log"
 )
 
@@ -72,6 +74,7 @@ func (pow *Pow) mine(block *types.Block, id int, seed uint64, abort chan struct{
 	// Extract some data from the header
 	var (
 		header = block.Header()
+		hash   = header.HashNoNonce().Bytes()
 		target = new(big.Int).Div(two256, header.Difficulty)
 	)
 
@@ -90,12 +93,12 @@ search:
 
 		default:
 			// Compute the PoW value of this nonce
-			header.Nonce = types.EncodeNonce(nonce)
-			result := header.Hash().Bytes()
+			result := hashimoto(hash, nonce)
 
 			if new(big.Int).SetBytes(result).Cmp(target) <= 0 {
 				// Correct nonce found, create a new header with it
 				header = types.CopyHeader(header)
+				header.Nonce = types.EncodeNonce(nonce)
 
 				// Seal and return a block (if still needed)
 				select {
@@ -110,4 +113,13 @@ search:
 			nonce++
 		}
 	}
+}
+
+func hashimoto(hash []byte, nonce uint64) []byte {
+	// Combine header+nonce into a 64 byte seed
+	seed := make([]byte, 40)
+	copy(seed, hash)
+	binary.LittleEndian.PutUint64(seed[32:], nonce)
+
+	return crypto.Keccak256(seed)
 }

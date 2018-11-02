@@ -77,7 +77,6 @@ func Encode(w io.Writer, val interface{}) error {
 }
 
 // EncodeToBytes returns the RLP encoding of val.
-// Please see the documentation of Encode for the encoding rules.
 func EncodeToBytes(val interface{}) ([]byte, error) {
 	eb := encbufPool.Get().(*encbuf)
 	defer encbufPool.Put(eb)

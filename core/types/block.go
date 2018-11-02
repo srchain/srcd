@@ -47,17 +47,30 @@ type Header struct {
 	Coinbase   common.Address `json:"miner"            gencodec:"required"`
 	TxHash     common.Hash    `json:"transactionsRoot" gencodec:"required"`
 	// Bloom       Bloom          `json:"logsBloom"        gencodec:"required"`
-	Difficulty *big.Int       `json:"difficulty"       gencodec:"required"`
-	Number     *big.Int       `json:"number"           gencodec:"required"`
-	Time       *big.Int       `json:"timestamp"        gencodec:"required"`
-	Extra      []byte         `json:"extraData"        gencodec:"required"`
-	Nonce      BlockNonce     `json:"nonce"            gencodec:"required"`
+	Difficulty *big.Int   `json:"difficulty"       gencodec:"required"`
+	Number     *big.Int   `json:"number"           gencodec:"required"`
+	Time       *big.Int   `json:"timestamp"        gencodec:"required"`
+	Extra      []byte     `json:"extraData"        gencodec:"required"`
+	Nonce      BlockNonce `json:"nonce"            gencodec:"required"`
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
 // RLP encoding.
 func (h *Header) Hash() common.Hash {
 	return rlpHash(h)
+}
+
+// HashNoNonce returns the hash which is used as input for the proof-of-work search.
+func (h *Header) HashNoNonce() common.Hash {
+	return rlpHash([]interface{}{
+		h.ParentHash,
+		h.Coinbase,
+		h.TxHash,
+		h.Difficulty,
+		h.Number,
+		h.Time,
+		h.Extra,
+	})
 }
 
 func rlpHash(x interface{}) (h common.Hash) {
@@ -78,8 +91,8 @@ type Block struct {
 	transactions Transactions
 
 	// caches
-	hash         atomic.Value
-	size         atomic.Value
+	hash atomic.Value
+	size atomic.Value
 
 	// These fields are used by package eth to track
 	// inter-peer block relay.
@@ -141,21 +154,21 @@ func (b *Block) Transaction(hash common.Hash) *Transaction {
 
 func (b *Block) Transactions() Transactions { return b.transactions }
 
-func (b *Block) Number() *big.Int           { return new(big.Int).Set(b.header.Number) }
-func (b *Block) Difficulty() *big.Int       { return new(big.Int).Set(b.header.Difficulty) }
-func (b *Block) Time() *big.Int             { return new(big.Int).Set(b.header.Time) }
+func (b *Block) Number() *big.Int     { return new(big.Int).Set(b.header.Number) }
+func (b *Block) Difficulty() *big.Int { return new(big.Int).Set(b.header.Difficulty) }
+func (b *Block) Time() *big.Int       { return new(big.Int).Set(b.header.Time) }
 
-func (b *Block) NumberU64() uint64          { return b.header.Number.Uint64() }
-func (b *Block) Nonce() uint64              { return binary.BigEndian.Uint64(b.header.Nonce[:]) }
-func (b *Block) Coinbase() common.Address   { return b.header.Coinbase }
-func (b *Block) ParentHash() common.Hash    { return b.header.ParentHash }
-func (b *Block) TxHash() common.Hash        { return b.header.TxHash }
-func (b *Block) Extra() []byte              { return common.CopyBytes(b.header.Extra) }
+func (b *Block) NumberU64() uint64        { return b.header.Number.Uint64() }
+func (b *Block) Nonce() uint64            { return binary.BigEndian.Uint64(b.header.Nonce[:]) }
+func (b *Block) Coinbase() common.Address { return b.header.Coinbase }
+func (b *Block) ParentHash() common.Hash  { return b.header.ParentHash }
+func (b *Block) TxHash() common.Hash      { return b.header.TxHash }
+func (b *Block) Extra() []byte            { return common.CopyBytes(b.header.Extra) }
 
-func (b *Block) Header() *Header            { return CopyHeader(b.header) }
+func (b *Block) Header() *Header { return CopyHeader(b.header) }
 
 // Body returns the non-header content of the block.
-func (b *Block) Body() *Body                { return &Body{b.transactions} }
+func (b *Block) Body() *Body { return &Body{b.transactions} }
 
 // Size returns the true RLP encoded storage size of the block, either by encoding
 // and returning it, or returning a previsouly cached value.

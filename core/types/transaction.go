@@ -16,7 +16,7 @@ var (
 
 type Transaction struct {
 	data txdata
-	Tx   transaction.Tx
+	Tx   transaction.TxData
 	// caches
 	hash atomic.Value
 	size atomic.Value
@@ -52,7 +52,7 @@ func (s Transactions) GetRlp(i int) []byte {
 // It uniquely identifies the transaction.
 func (tx *Transaction) Hash() common.Hash {
 	if hash := tx.hash.Load(); hash != nil {
-	return hash.(common.Hash)
+		return hash.(common.Hash)
 	}
 	v := rlpHash(tx)
 	tx.hash.Store(v)
@@ -63,7 +63,7 @@ func (tx *Transaction) Hash() common.Hash {
 // encoding and returning it, or returning a previsouly cached value.
 func (tx *Transaction) Size() common.StorageSize {
 	if size := tx.size.Load(); size != nil {
-	return size.(common.StorageSize)
+		return size.(common.StorageSize)
 	}
 	c := writeCounter(0)
 	rlp.Encode(&c, &tx.data)

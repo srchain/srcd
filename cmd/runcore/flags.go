@@ -11,6 +11,8 @@ var (
 	nodeFlags = []cli.Flag{
 		utils.IdentityFlag,
 		utils.DataDirFlag,
+		utils.MiningEnabledFlag,
+		utils.MinerThreadsFlag,
 		configFileFlag,
 	}
 

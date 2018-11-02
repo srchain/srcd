@@ -7,32 +7,29 @@ import (
 	"sync"
 )
 
-var (
-	// two256 is a big integer representing 2^256
-	two256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
-)
+// two256 is a big integer representing 2^256
+var two256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
 
 // Pow is a consensus engine based on proot-of-work
 type Pow struct {
-	rand    *rand.Rand    // Properly seeded random source for nonces
-	threads int           // Number of threads to mine on if mining
-	update  chan struct{} // Notification channel to update mining parameters
+	rand     *rand.Rand        // Properly seeded random source for nonces
+	threads  int               // Number of threads to mine on if mining
+	update   chan struct{}     // Notification channel to update mining parameters
 
-	// Remote sealer related fields
-	// workCh       chan *types.Block // Notification channel to push new work to remote sealer
 	resultCh chan *types.Block // Channel used by mining threads to return result
+
+	// workCh       chan *types.Block // Notification channel to push new work to remote sealer
 	// fetchWorkCh  chan *sealWork    // Channel used for remote sealer to fetch mining work
 	// submitWorkCh chan *mineResult  // Channel used for remote sealer to submit their mining result
-	// fetchRateCh  chan chan uint64  // Channel used to gather submitted hash rate for local or remote sealer.
-	// submitRateCh chan *hashrate    // Channel used for remote sealer to submit their mining hashrate
 
-	lock sync.Mutex // Ensures thread safety for the in-memory caches and mining fields
+	lock      sync.Mutex      // Ensures thread safety for the in-memory caches and mining fields
 }
 
 // New creates a full sized PoW scheme.
 func New() *Pow {
 	pow := &Pow{
-		update: make(chan struct{}),
+		update:   make(chan struct{}),
+		resultCh: make(chan *types.Block),
 	}
 
 	return pow

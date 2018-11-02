@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
-	"sync/atomic"
 
 	"srcd/accounts"
 	"srcd/common/common"
@@ -23,11 +22,11 @@ import (
 
 // Server implements the full node service.
 type Server struct {
-	config          *Config
+	config *Config
 	// chainConfig *params.ChainConfig
 
 	// Channel for shutting down the service
-	shutdownChan    chan bool
+	shutdownChan chan bool
 
 	// Handlers
 	txPool          *mempool.TxPool
@@ -35,24 +34,24 @@ type Server struct {
 	protocolManager *ProtocolManager
 
 	// DB interfaces
-	chainDb         database.Database // Block chain database
+	chainDb database.Database // Block chain database
 
 	// eventMux       *event.TypeMux
-	engine          consensus.Engine
-	accountManager  *accounts.Manager
+	engine         consensus.Engine
+	accountManager *accounts.Manager
 
 	// bloomRequests chan chan *bloombits.Retrieval // Channel receiving bloom data retrieval requests
 	// bloomIndexer  *core.ChainIndexer             // Bloom indexer operating during block imports
 
 	// APIBackend *EthAPIBackend
 
-	miner           *miner.Miner
-	coinbase        common.Address
+	miner    *miner.Miner
+	coinbase common.Address
 
 	// networkID     uint64
 	// netRPCService *ethapi.PublicNetAPI
 
-	lock            sync.RWMutex
+	lock sync.RWMutex
 }
 
 // New creates a new Server object
@@ -60,10 +59,6 @@ func New(ctx *node.ServiceContext, config *Config) (*Server, error) {
 	chainDb, err := CreateDB(ctx, config, "chaindata")
 	if err != nil {
 		return nil, err
-	}
-
-	if _, genesisErr := blockchain.SetupGenesisBlock(chainDb, config.Genesis); genesisErr != nil {
-		return nil, genesisErr
 	}
 
 	server := &Server{
@@ -75,6 +70,9 @@ func New(ctx *node.ServiceContext, config *Config) (*Server, error) {
 		coinbase:       config.Coinbase,
 	}
 
+	if _, genesisErr := blockchain.SetupGenesisBlock(chainDb, config.Genesis); genesisErr != nil {
+		return nil, genesisErr
+	}
 	server.blockchain, err = blockchain.NewBlockChain(chainDb, server.engine)
 	if err != nil {
 		return nil, err
@@ -122,7 +120,7 @@ func CreateDB(ctx *node.ServiceContext, config *Config, name string) (database.D
 // CreateConsensusEngine creates the required type of consensus engine instance for Server
 func CreateConsensusEngine() consensus.Engine {
 	engine := pow.New()
-	engine.SetThreads(1)
+	engine.SetThreads(-1)
 
 	return engine
 }
@@ -150,23 +148,39 @@ func (s *Server) Coinbase() (cb common.Address, err error) {
 	return common.Address{}, fmt.Errorf("coinbase must be explicitly specified")
 }
 
-func (s *Server) StartMining(local bool) error {
-	cb, err := s.Coinbase()
-	if err != nil {
-		log.Error("Cannot start mining without coinbase", "err", err)
-		return fmt.Errorf("coinbase missing: %v", err)
+// StartMining starts the miner with the given number of CPU threads. If mining
+// is already running, this method adjust the number of threads allowed to use.
+func (s *Server) StartMining(threads int) error {
+	// Update the thread count within the consensus engine
+	type threaded interface {
+		SetThreads(threads int)
 	}
+	if th, ok := s.engine.(threaded); ok {
+		log.Info("Updated mining threads", "threads", threads)
+		if threads == 0 {
+			threads = -1 // Disable the miner from within
+		}
+		th.SetThreads(threads)
+	}
+	// If the miner was not running, initialize it
+	if !s.IsMining() {
+		// Configure the local mining address
+		cb, err := s.Coinbase()
+		if err != nil {
+			log.Error("Cannot start mining without coinbase", "err", err)
+			return fmt.Errorf("coinbase missing: %v", err)
+		}
 
-	if local {
-		// If local (CPU) mining is started, we can disable the transaction rejection
-		// mechanism introduced to speed sync times. CPU mining on mainnet is ludicrous
-		// so none will ever hit this path, whereas marking sync done on CPU mining
-		// will ensure that private networks work in single miner mode too.
-		atomic.StoreUint32(&s.protocolManager.acceptTxs, 1)
+		// If mining is started, we can disable the transaction rejection mechanism
+		// introduced to speed sync times.
+		// atomic.StoreUint32(&s.protocolManager.acceptTxs, 1)
+
+		go s.miner.Start(cb)
 	}
-	go s.miner.Start(cb)
 	return nil
 }
+
+func (s *Server) IsMining() bool      { return s.miner.Mining() }
 
 func (s *Server) AccountManager() *accounts.Manager  { return s.accountManager }
 func (s *Server) BlockChain() *blockchain.BlockChain { return s.blockchain }
@@ -204,13 +218,12 @@ func (s *Server) Start() error {
 func (s *Server) Stop() error {
 	// s.bloomIndexer.Close()
 	s.blockchain.Stop()
-	// s.engine.Close()
 	// s.protocolManager.Stop()
 	// s.txPool.Stop()
 	s.miner.Stop()
 	// s.eventMux.Stop()
 
 	s.chainDb.Close()
-	close(s.shutdownChan)
+	// close(s.shutdownChan)
 	return nil
 }

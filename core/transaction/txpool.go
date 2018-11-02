@@ -1,10 +1,10 @@
 package transaction
 
 import (
-	"time"
-	"sync"
-	"srcd/log"
 	"srcd/errors"
+	"srcd/log"
+	"sync"
+	"time"
 )
 
 const (
@@ -61,13 +61,13 @@ func (tp *TxPool) AddTransaction(tx Tx, height, fee uint64) error {
 	return nil
 }
 
-func (tp *TxPool) GetTransaction(hash *Hash)(*TxPoolMsg,error){
+func (tp *TxPool) GetTransaction(hash *Hash) (*TxPoolMsg, error) {
 	tp.Mtx.RLock()
 	defer tp.Mtx.RUnlock()
 
 	msg := tp.Pool[*hash]
-	if msg!=nil{
-		return msg,nil
+	if msg != nil {
+		return msg, nil
 	}
-	return &TxPoolMsg{},errors.New("txpool has no this tx")
+	return &TxPoolMsg{}, errors.New("txpool has no this tx")
 }

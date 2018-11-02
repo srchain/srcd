@@ -23,10 +23,11 @@ func init() {
 	app.Copyright = "Copyright 2018 The SilkRoad Authors"
 	app.Commands = []cli.Command{
 		initCommand,
+		accountCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 
-	// app.Flags = append(app.Flags, nodeFlags...)
+	app.Flags = append(app.Flags, nodeFlags...)
 	// app.Flags = append(app.Flags, rpcFlags...)
 
 	app.Before = func(ctx *cli.Context) error {

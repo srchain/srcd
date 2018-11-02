@@ -3,6 +3,7 @@ package blockchain
 import (
 	"fmt"
 	"math/big"
+	"time"
 
 	"srcd/common/common"
 	"srcd/common/hexutil"
@@ -24,8 +25,8 @@ type Genesis struct {
 
 	// These fields are used for consensus tests. Please don't use them
 	// in actual genesis blocks.
-	Number     uint64         `json:"number"`
-	ParentHash common.Hash    `json:"parentHash"`
+	Number     uint64      `json:"number"`
+	ParentHash common.Hash `json:"parentHash"`
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.
@@ -67,7 +68,7 @@ func SetupGenesisBlock(db database.Database, genesis *Genesis) (common.Hash, err
 
 	// Check whether the genesis block is already written.
 	if genesis != nil {
-		hash := genesis.ToBlock(nil).Hash()
+		hash := genesis.ToBlock().Hash()
 		if hash != stored {
 			return hash, &GenesisMismatchError{stored, hash}
 		}
@@ -76,13 +77,8 @@ func SetupGenesisBlock(db database.Database, genesis *Genesis) (common.Hash, err
 	return stored, nil
 }
 
-// ToBlock creates the genesis block and writes state of a genesis specification
-// to the given database (or discards it if nil).
-func (g *Genesis) ToBlock(db database.Database) *types.Block {
-	if db == nil {
-		db = database.NewMemDatabase()
-	}
-
+// ToBlock creates the genesis block.
+func (g *Genesis) ToBlock() *types.Block {
 	head := &types.Header{
 		Number:     new(big.Int).SetUint64(g.Number),
 		Nonce:      types.EncodeNonce(g.Nonce),
@@ -101,7 +97,7 @@ func (g *Genesis) ToBlock(db database.Database) *types.Block {
 
 // Commit writes the block and state of a genesis specification to the database.
 func (g *Genesis) Commit(db database.Database) (*types.Block, error) {
-	block := g.ToBlock(db)
+	block := g.ToBlock()
 	if block.Number().Sign() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with number > 0")
 	}
@@ -117,10 +113,11 @@ func (g *Genesis) Commit(db database.Database) (*types.Block, error) {
 // DefaultGenesisBlock returns main net genesis block.
 func DefaultGenesisBlock() *Genesis {
 	return &Genesis{
-		Nonce:      66,
-		ExtraData:  hexutil.MustDecode("0x3535353535353535353535353535353535353535353535353535353535353535"),
-		Difficulty: big.NewInt(1048576),
-		// Alloc:      decodePrealloc(mainnetAllocData),
+		Nonce:      2505,
+		Timestamp:  uint64(time.Now().Unix()),
+		ExtraData:  hexutil.MustDecode("0xf7f480febb057fb7176fabad3fc28b602052a4e76043a5d7cffe066a62daa84b"),
+		Difficulty: big.NewInt(1000),
+		//Alloc:      decodePrealloc(mainnetAllocData),
 	}
 }
 
