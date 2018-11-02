@@ -2,6 +2,7 @@ package params
 
 import (
 	"math/big"
+	"strings"
 )
 
 var (
@@ -37,4 +38,20 @@ type ConfigCompatError struct {
 	StoredConfig, NewConfig *big.Int
 	// the block number to which the local chain must be rewound to correct the error
 	RewindTo uint64
+}
+
+type NetParams struct {
+	// Name defines a human-readable identifier for the network.
+	Name            string
+	Bech32HRPSegwit string
+}
+
+var TestNetParams  = NetParams{
+	Name:            "testnet",
+	Bech32HRPSegwit: "sr",
+}
+
+func IsBech32SegwitPrefix(prefix string, params NetParams) bool {
+	prefix = strings.ToLower(prefix)
+	return prefix == params.Bech32HRPSegwit+"1"
 }
