@@ -1,6 +1,6 @@
 package account
 
 type Account struct {
-	Sign string
+	Sign    string
 	Address string
 }

@@ -1,10 +1,11 @@
 package account
 
 import (
-	"srcd/database"
-	"srcd/crypto/ed25519/chainkd"
 	"crypto/rand"
 	"fmt"
+
+	"srcd/crypto/ed25519/chainkd"
+	"srcd/database"
 	"srcd/log"
 )
 
@@ -13,7 +14,7 @@ var (
 )
 
 type AccountManager struct {
-	db database.Database
+	db       database.Database
 	accounts []Account
 }
 
@@ -37,7 +38,7 @@ func (am AccountManager) CreateAccount() (Account, error) {
 	return Account{"", program.Address}, nil
 }
 
-func (am AccountManager) GetCurrentNodeAccounts(id []byte)([]Account,error){
+func (am AccountManager) GetCurrentNodeAccounts(id []byte) ([]Account,error) {
 	accounts := []Account{}
 	iter := am.db.NewIteratorWithPrefix(IDPrefix)
 	defer iter.Release()
@@ -50,5 +51,5 @@ func (am AccountManager) GetCurrentNodeAccounts(id []byte)([]Account,error){
 		acc.Address = string(account_address)
 		accounts = append([]Account{acc}, accounts...)
 	}
-	return accounts,nil
+	return accounts, nil
 }

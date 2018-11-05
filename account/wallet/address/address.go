@@ -1,11 +1,12 @@
 package address
 
 import (
-	"srcd/params"
-	"strings"
-	"srcd/errors"
-	"fmt"
 	"bytes"
+	"fmt"
+	"strings"
+
+	"srcd/errors"
+	"srcd/params"
 	"github.com/bytom/common/bech32"
 )
 
@@ -24,7 +25,7 @@ type AddressWitnessPubKeyHash struct {
 }
 
 //NewAddressWitnessPubKeyHash returns a new AddressWitnessPubKeyHash.
-func NewAddressWitnessPubKeyHash(witnessProg []byte,param *params.NetParams)(*AddressWitnessPubKeyHash,error)  {
+func NewAddressWitnessPubKeyHash(witnessProg []byte, param *params.NetParams) (*AddressWitnessPubKeyHash, error) {
 	return newAddressWitnessPubKeyHash(param.Bech32HRPSegwit, witnessProg)
 }
 
