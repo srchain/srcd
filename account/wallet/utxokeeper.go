@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"sync"
+
 	"srcd/protocol/transaction"
 )
 

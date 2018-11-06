@@ -7,6 +7,7 @@ import (
 
 	"srcd/errors"
 	"srcd/params"
+
 	"github.com/bytom/common/bech32"
 )
 
@@ -14,6 +15,7 @@ type Address interface {
 	String() string
 	EncodeAddress() string
 }
+
 // AddressWitnessPubKeyHash is an Address for a pay-to-witness-pubkey-hash
 // (P2WPKH) output. See BIP 173 for further details regarding native segregated
 // witness address encoding:
@@ -61,8 +63,7 @@ func (a *AddressWitnessPubKeyHash) String() string {
 // AddressWitnessPubKeyHash.
 // Part of the Address interface.
 func (a *AddressWitnessPubKeyHash) EncodeAddress() string {
-	str, err := encodeSegWitAddress(a.hrp, a.witnessVersion,
-		a.witnessProgram[:])
+	str, err := encodeSegWitAddress(a.hrp, a.witnessVersion, a.witnessProgram[:])
 	if err != nil {
 		return ""
 	}

@@ -1,9 +1,10 @@
 package wallet
 
 import (
-	"srcd/log"
-	"github.com/gin-gonic/gin/json"
 	"srcd/core/transaction"
+	"srcd/log"
+
+	"github.com/gin-gonic/gin/json"
 )
 
 type Utxo struct {
@@ -17,7 +18,7 @@ type Utxo struct {
 	Address             string
 	ControlProgramIndex uint64
 	Change              bool
-} 
+}
 
 // AddUnconfirmedTx handle wallet status update when tx add into txpool
 func (w *Wallet) AddUnconfirmedTx(tx *transaction.TxPoolMsg) {
@@ -32,13 +33,13 @@ func (w *Wallet) AddUnconfirmedTx(tx *transaction.TxPoolMsg) {
 
 func (w *Wallet) saveUnconfirmedTx(tx transaction.Tx) error {
 	bytes, e := json.Marshal(tx)
-	if e != nil{
+	if e != nil {
 		return e
 	}
-	w.db.Put([]byte("UTXS:"+tx.ID.String()),bytes)
+	w.db.Put([]byte("UTXS:" + tx.ID.String()), bytes)
 }
 
-func txOutToUtxos(tx transaction.Tx)[]*Utxo{
+func txOutToUtxos(tx transaction.Tx) []*Utxo {
 	utxos := []*Utxo{}
 	for i, out := range tx.Outputs {
 		bcOut, err := tx.Output(*tx.ResultIds[i])

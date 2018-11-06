@@ -3,6 +3,6 @@ package wallet
 import "srcd/database"
 
 type Wallet struct {
-	db database.Database
+	db         database.Database
 	utxokeeper utxoKeeper
 }

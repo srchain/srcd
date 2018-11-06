@@ -9,18 +9,17 @@ import (
 const (
 	addr = "sr1q0p8attf4l0vg6lqjfxf0rdenmpdqruhug6pd2t"
 )
-func TestAddrPrefix(t *testing.T)  {
 
+func TestAddrPrefix(t *testing.T) {
 	oneIndex := strings.LastIndexByte(addr, '1')
 	prefix := addr[:oneIndex+1]
 	hrp := prefix[:len(prefix)-1]
 
 	fmt.Println(prefix)
 	fmt.Println(hrp)
-
 }
 
-func TestDecodeSegWitAddress(t *testing.T)  {
+func TestDecodeSegWitAddress(t *testing.T) {
 	// Decode the bech32 encoded address.
 	_, data, err := Bech32Decode(addr)
 	if err != nil {
@@ -58,6 +57,5 @@ func TestDecodeSegWitAddress(t *testing.T)  {
 			"version 0: %v", len(regrouped))
 	}
 
-	fmt.Printf("%x,%x\n",version,regrouped)
-
+	fmt.Printf("%x,%x\n", version, regrouped)
 }

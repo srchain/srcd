@@ -1,14 +1,8 @@
 package address
 
-
-// Copyright (c) 2017 The btcsuite developers
-// Use of this source code is governed by an ISC
-// license that can be found in the LICENSE file.
-
-
 import (
-"fmt"
-"strings"
+	"fmt"
+	"strings"
 )
 
 const charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
@@ -144,7 +138,6 @@ func ConvertBits(data []byte, fromBits, toBits uint8, pad bool) ([]byte, error) 
 	filledBits := uint8(0)
 
 	for _, b := range data {
-
 		// Discard unused bits.
 		b = b << (8 - fromBits)
 
