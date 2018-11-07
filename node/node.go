@@ -11,6 +11,7 @@ import (
 	"srcd/accounts"
 	"srcd/database"
 	"srcd/log"
+	"srcd/p2p"
 
 	"github.com/prometheus/prometheus/util/flock"
 )
@@ -18,17 +19,17 @@ import (
 // Node is a container on which services can be registered.
 type Node struct {
 	// eventmux *event.TypeMux		// Event multiplexer used between the services of a stack
-	config *Config
-	accman *accounts.Manager
+	config            *Config
+	accman            *accounts.Manager
 
-	ephemeralKeystore string         // if non-empty, the key directory that will be removed by Stop
-	instanceDirLock   flock.Releaser // prevents concurrent use of instance directory
+	ephemeralKeystore string                   // if non-empty, the key directory that will be removed by Stop
+	instanceDirLock   flock.Releaser           // prevents concurrent use of instance directory
 
-	// serverConfig p2p.Config
-	// server       *p2p.Server		// Currently running P2P networking layer
+	serverConfig      p2p.Config
+	server            *p2p.Server		   // Currently running P2P networking layer
 
-	serviceFuncs []ServiceConstructor     // Service constructors (in dependency order)
-	services     map[reflect.Type]Service // Currently running services
+	serviceFuncs      []ServiceConstructor     // Service constructors (in dependency order)
+	services          map[reflect.Type]Service // Currently running services
 
 	// rpcAPIs       []rpc.API   // List of APIs currently provided by the node
 	// inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
@@ -116,17 +117,30 @@ func (n *Node) Start() error {
 	defer n.lock.Unlock()
 
 	// Short circuit if the node's already running
-	// if n.server != nil {
-	// return ErrNodeRunning
-	// }
+	if n.server != nil {
+		return ErrNodeRunning
+	}
 	if err := n.openDataDir(); err != nil {
 		return err
 	}
 
-	// init p2p server config
-
-	// create p2p server
-	// running := &p2p.Server{Config: n.serverConfig}
+	// Initialize the p2p server. This creates the node key and
+	// discovery databases.
+	n.serverConfig = n.config.P2P
+	n.serverConfig.PrivateKey = n.config.NodeKey()
+	n.serverConfig.Name = n.config.NodeName()
+	// n.serverConfig.Logger = n.log
+	if n.serverConfig.StaticNodes == nil {
+		n.serverConfig.StaticNodes = n.config.StaticNodes()
+	}
+	if n.serverConfig.TrustedNodes == nil {
+		n.serverConfig.TrustedNodes = n.config.TrustedNodes()
+	}
+	if n.serverConfig.NodeDatabase == "" {
+		n.serverConfig.NodeDatabase = n.config.NodeDB()
+	}
+	running := &p2p.Server{Config: n.serverConfig}
+	// n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
 
 	// Otherwise copy and specialize the P2P configuration
 	services := make(map[reflect.Type]Service)
@@ -152,15 +166,14 @@ func (n *Node) Start() error {
 		}
 		services[kind] = service
 	}
-	// Gather the protocols and start the freshly assembled P2P server
-	// for _, service := range services {
-	// running.Protocols = append(running.Protocols, service.Protocols()...)
-	// }
 
-	// run p2p server
-	// if err := running.Start(); err != nil {
-	// return convertFileLockError(err)
-	// }
+	// Gather the protocols and start the freshly assembled P2P server
+	for _, service := range services {
+		running.Protocols = append(running.Protocols, service.Protocols()...)
+	}
+	if err := running.Start(); err != nil {
+		return convertFileLockError(err)
+	}
 
 	// Start each of the services
 	started := []reflect.Type{}
@@ -183,7 +196,7 @@ func (n *Node) Start() error {
 
 	// Finish initializing the startup
 	n.services = services
-	// n.server = running
+	n.server = running
 	n.stop = make(chan struct{})
 
 	return nil
@@ -215,9 +228,9 @@ func (n *Node) Stop() error {
 	defer n.lock.Unlock()
 
 	// Short circuit if the node's not running
-	//if n.server == nil {
-	//return ErrNodeStopped
-	//}
+	if n.server == nil {
+		return ErrNodeStopped
+	}
 
 	// Terminate the API, services and the p2p server.
 	// n.stopWS()
@@ -232,9 +245,9 @@ func (n *Node) Stop() error {
 			failure.Services[kind] = err
 		}
 	}
-	// n.server.Stop()
+	n.server.Stop()
 	n.services = nil
-	// n.server = nil
+	n.server = nil
 
 	// Release instance directory lock.
 	if n.instanceDirLock != nil {
@@ -266,10 +279,10 @@ func (n *Node) Stop() error {
 // at the time of invocation, the method immediately returns.
 func (n *Node) Wait() {
 	n.lock.RLock()
-	// if n.server == nil {
-	// n.lock.RUnlock()
-	// return
-	// }
+	if n.server == nil {
+		n.lock.RUnlock()
+		return
+	}
 	stop := n.stop
 	n.lock.RUnlock()
 
@@ -282,9 +295,9 @@ func (n *Node) Service(service interface{}) error {
 	defer n.lock.RUnlock()
 
 	// Short circuit if the node's not running
-	// if n.server == nil {
-	// return ErrNodeStopped
-	// }
+	if n.server == nil {
+		return ErrNodeStopped
+	}
 	// Otherwise try to find the service to return
 	element := reflect.ValueOf(service).Elem()
 	if running, ok := n.services[element.Type()]; ok {

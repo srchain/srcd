@@ -5,6 +5,9 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+
+	"srcd/p2p"
+	"srcd/p2p/nat"
 )
 
 const (
@@ -18,11 +21,11 @@ var DefaultConfig = Config{
 	HTTPPort:         DefaultHTTPPort,
 	// HTTPModules:      []string{"net", "web3"},
 	// HTTPVirtualHosts: []string{"localhost"},
-	// P2P: p2p.Config{
-		// ListenAddr: ":30303",
-		// MaxPeers:   25,
-		// NAT:        nat.Any(),
-	// },
+	P2P: p2p.Config{
+		ListenAddr: ":10101",
+		MaxPeers:   25,
+		NAT:        nat.Any(),
+	},
 }
 
 // DefaultDataDir is the default data directory to use for the databases and other

@@ -1,22 +1,29 @@
 package node
 
 import (
+	"crypto/ecdsa"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"srcd/accounts"
 	"srcd/accounts/keystore"
 	"srcd/common/common"
+	"srcd/crypto/crypto"
+	"srcd/log"
+	"srcd/p2p"
+	"srcd/p2p/discover"
 )
 
 const (
-	// datadirPrivateKey      = "nodekey"            // Path within the datadir to the node's private key
-	datadirDefaultKeyStore = "keystore" // Path within the datadir to the keystore
-	// datadirStaticNodes     = "static-nodes.json"  // Path within the datadir to the static node list
-	// datadirTrustedNodes    = "trusted-nodes.json" // Path within the datadir to the trusted node list
-	// datadirNodeDatabase    = "nodes"              // Path within the datadir to store the node infos
+	datadirPrivateKey      = "nodekey"            // Path within the datadir to the node's private key
+	datadirDefaultKeyStore = "keystore"           // Path within the datadir to the keystore
+	datadirStaticNodes     = "static-nodes.json"  // Path within the datadir to the static node list
+	datadirTrustedNodes    = "trusted-nodes.json" // Path within the datadir to the trusted node list
+	datadirNodeDatabase    = "nodes"              // Path within the datadir to store the node infos
 )
 
 // Config represents a small collection of configuration values to fine tune the
@@ -24,7 +31,7 @@ const (
 // all registered services.
 type Config struct {
 	// Name sets the instance name of the node. It must not contain the / character and is
-	// used in the devp2p node identifier. The instance name of geth is "geth". If no
+	// used in the devp2p node identifier. The instance name of srcd is "srcd". If no
 	// value is specified, the basename of the current executable is used.
 	Name string `toml:"-"`
 
@@ -43,7 +50,7 @@ type Config struct {
 	DataDir string
 
 	// Configuration of peer-to-peer networking.
-	// P2P p2p.Config
+	P2P p2p.Config
 
 	// KeyStoreDir is the file system folder that contains private keys. The directory can
 	// be specified as a relative path, in which case it is resolved relative to the
@@ -118,6 +125,29 @@ type Config struct {
 	// Logger log.Logger `toml:",omitempty"`
 }
 
+// NodeDB returns the path to the discovery node database.
+func (c *Config) NodeDB() string {
+	if c.DataDir == "" {
+		return "" // ephemeral
+	}
+	return c.resolvePath(datadirNodeDatabase)
+}
+
+// NodeName returns the devp2p node identifier.
+func (c *Config) NodeName() string {
+	name := c.name()
+	if c.UserIdent != "" {
+		name += "/" + c.UserIdent
+	}
+	if c.Version != "" {
+		name += "/v" + c.Version
+	}
+	name += "/" + runtime.GOOS + "-" + runtime.GOARCH
+	name += "/" + runtime.Version()
+
+	return name
+}
+
 func (c *Config) name() string {
 	if c.Name == "" {
 		progname := strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
@@ -131,11 +161,11 @@ func (c *Config) name() string {
 
 // These resources are resolved differently.
 var isOldResource = map[string]bool{
-	"chaindata": true,
-	// "nodes":              true,
-	// "nodekey":            true,
-	// "static-nodes.json":  true,
-	// "trusted-nodes.json": true,
+	"chaindata":          true,
+	"nodes":              true,
+	"nodekey":            true,
+	"static-nodes.json":  true,
+	"trusted-nodes.json": true,
 }
 
 // resolvePath resolves path in the instance directory.
@@ -165,6 +195,86 @@ func (c *Config) instanceDir() string {
 		return ""
 	}
 	return filepath.Join(c.DataDir, c.name())
+}
+
+// NodeKey retrieves the currently configured private key of the node, checking
+// first any manually set key, falling back to the one found in the configured
+// data folder. If no key can be found, a new one is generated.
+func (c *Config) NodeKey() *ecdsa.PrivateKey {
+	// Use any specifically configured key.
+	if c.P2P.PrivateKey != nil {
+		return c.P2P.PrivateKey
+	}
+	// Generate ephemeral key if no datadir is being used.
+	if c.DataDir == "" {
+		key, err := crypto.GenerateKey()
+		if err != nil {
+			log.Crit(fmt.Sprintf("Failed to generate ephemeral node key: %v", err))
+		}
+		return key
+	}
+
+	keyfile := c.resolvePath(datadirPrivateKey)
+	if key, err := crypto.LoadECDSA(keyfile); err == nil {
+		return key
+	}
+	// No persistent key found, generate and store a new one.
+	key, err := crypto.GenerateKey()
+	if err != nil {
+		log.Crit(fmt.Sprintf("Failed to generate node key: %v", err))
+	}
+	instanceDir := filepath.Join(c.DataDir, c.name())
+	if err := os.MkdirAll(instanceDir, 0700); err != nil {
+		log.Error(fmt.Sprintf("Failed to persist node key: %v", err))
+		return key
+	}
+	keyfile = filepath.Join(instanceDir, datadirPrivateKey)
+	if err := crypto.SaveECDSA(keyfile, key); err != nil {
+		log.Error(fmt.Sprintf("Failed to persist node key: %v", err))
+	}
+	return key
+}
+
+// StaticNodes returns a list of node enode URLs configured as static nodes.
+func (c *Config) StaticNodes() []*discover.Node {
+	return c.parsePersistentNodes(c.resolvePath(datadirStaticNodes))
+}
+
+// TrustedNodes returns a list of node enode URLs configured as trusted nodes.
+func (c *Config) TrustedNodes() []*discover.Node {
+	return c.parsePersistentNodes(c.resolvePath(datadirTrustedNodes))
+}
+
+// parsePersistentNodes parses a list of discovery node URLs loaded from a .json
+// file from within the data directory.
+func (c *Config) parsePersistentNodes(path string) []*discover.Node {
+	// Short circuit if no node config is present
+	if c.DataDir == "" {
+		return nil
+	}
+	if _, err := os.Stat(path); err != nil {
+		return nil
+	}
+	// Load the nodes from the config file.
+	var nodelist []string
+	if err := common.LoadJSON(path, &nodelist); err != nil {
+		log.Error(fmt.Sprintf("Can't load node file %s: %v", path, err))
+		return nil
+	}
+	// Interpret the list as a discovery node array
+	var nodes []*discover.Node
+	for _, url := range nodelist {
+		if url == "" {
+			continue
+		}
+		node, err := discover.ParseNode(url)
+		if err != nil {
+			log.Error(fmt.Sprintf("Node URL %s: %v\n", url, err))
+			continue
+		}
+		nodes = append(nodes, node)
+	}
+	return nodes
 }
 
 // AccountConfig determines the settings for scrypt and keydirectory
