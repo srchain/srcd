@@ -85,9 +85,9 @@ func New(ctx *node.ServiceContext, config *Config) (*Server, error) {
 	// }
 	server.txPool = mempool.NewTxPool(config.TxPool, server.blockchain)
 
-	// if server.protocolManager, err = NewProtocolManager(eth.chainConfig, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb); err != nil {
-	// return nil, err
-	// }
+	if server.protocolManager, err = NewProtocolManager(eth.chainConfig, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb); err != nil {
+		return nil, err
+	}
 
 	server.miner = miner.New(server, server.engine)
 	server.miner.SetExtra(makeExtraData(config.ExtraData))
@@ -187,6 +187,12 @@ func (s *Server) BlockChain() *blockchain.BlockChain { return s.blockchain }
 func (s *Server) TxPool() *mempool.TxPool            { return s.txPool }
 func (s *Server) Engine() consensus.Engine           { return s.engine }
 func (s *Server) ChainDb() database.Database         { return s.chainDb }
+
+// Protocols implements node.Service, returning all the currently configured
+// network protocols to start.
+func (s *Server) Protocols() []p2p.Protocol {
+	return s.protocolManager.SubProtocols
+}
 
 // Start implements node.Service, starting all internal goroutines needed by the
 // Server protocol implementation.
