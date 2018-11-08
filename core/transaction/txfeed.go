@@ -1,11 +1,13 @@
 package transaction
 
 import (
-	"srcd/database"
-	"encoding/json"
 	"context"
-	"srcd/errors"
+	"encoding/json"
+
+	"github.com/srchain/srcd/database"
+	"github.com/srchain/srcd/errors"
 )
+
 //Tracker filter tracker object.
 type TxFeedManager struct {
 	DB       database.LDBDatabase
@@ -13,6 +15,7 @@ type TxFeedManager struct {
 	//chain    *blockchain.BlockChain
 	txfeedCh chan *Tx
 }
+
 //TxFeed describe a filter
 type TxFeed struct {
 	ID     string `json:"id,omitempty"`

@@ -3,13 +3,14 @@
 
 package transaction
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
 import (
 	"encoding/binary"
 	"io"
 	math "math"
-	"srcd/core/transaction/extend"
+	"fmt"
+
+	"github.com/srchain/srcd/core/transaction/extend"
+	proto "github.com/golang/protobuf/proto"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.

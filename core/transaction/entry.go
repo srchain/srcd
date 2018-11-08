@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"srcd/core/transaction/extend"
-	"srcd/crypto/sha3pool"
-	"srcd/errors"
 
+	"github.com/srchain/srcd/core/transaction/extend"
+	"github.com/srchain/srcd/crypto/sha3pool"
+	"github.com/srchain/srcd/errors"
 	"github.com/golang/protobuf/proto"
 )
 

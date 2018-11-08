@@ -2,7 +2,8 @@ package transaction
 
 import (
 	"encoding/binary"
-	vm2 "srcd/core/vm"
+
+	vm2 "github.com/srchain/srcd/core/vm"
 )
 
 var SRCAssetID = &AssetID{

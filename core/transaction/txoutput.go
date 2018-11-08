@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 
-	"srcd/core/transaction/extend"
-	"srcd/errors"
+	"github.com/srchain/srcd/core/transaction/extend"
+	"github.com/srchain/srcd/errors"
 )
 
 type TxOutput struct {

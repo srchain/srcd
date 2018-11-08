@@ -1,8 +1,9 @@
 package transaction
 
 import (
-	"srcd/crypto/ed25519/chainkd"
 	"encoding/json"
+
+	"github.com/srchain/srcd/crypto/ed25519/chainkd"
 )
 
 // RawTxSigWitness is like SignatureWitness but doesn't involve

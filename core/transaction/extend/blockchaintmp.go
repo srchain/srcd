@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
-	"srcd/common/math"
-	"srcd/core/transaction/bufpool"
-	"srcd/errors"
+
+	"github.com/srchain/srcd/common/math"
+	"github.com/srchain/srcd/core/transaction/bufpool"
+	"github.com/srchain/srcd/errors"
 )
 
 var ErrRange = errors.New("value out of range")

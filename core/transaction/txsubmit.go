@@ -2,7 +2,8 @@ package transaction
 
 import (
 	"encoding/json"
-	"srcd/errors"
+
+	"github.com/srchain/srcd/errors"
 )
 
 type TxSubmitResponse struct {

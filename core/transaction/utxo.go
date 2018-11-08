@@ -1,7 +1,7 @@
 package transaction
 
 import (
-	 "srcd/crypto/ed25519/chainkd"
+	 "github.com/srchain/srcd/crypto/ed25519/chainkd"
 )
 
 type UTXO struct {

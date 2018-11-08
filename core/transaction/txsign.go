@@ -1,8 +1,9 @@
 package transaction
 
 import (
-	"srcd/crypto/ed25519/chainkd"
 	"fmt"
+
+	"github.com/srchain/srcd/crypto/ed25519/chainkd"
 )
 
 func TxSign(tpl *Template,xprv chainkd.XPrv,xpub chainkd.XPub) error{

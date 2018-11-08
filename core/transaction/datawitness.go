@@ -1,8 +1,7 @@
 package transaction
 
-
 import (
-"encoding/json"
+	"encoding/json"
 )
 
 // DataWitness used sign transaction

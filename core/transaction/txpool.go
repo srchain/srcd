@@ -1,10 +1,11 @@
 package transaction
 
 import (
-	"srcd/errors"
-	"srcd/log"
 	"sync"
 	"time"
+
+	"github.com/srchain/srcd/errors"
+	"github.com/srchain/srcd/log"
 )
 
 const (

@@ -5,9 +5,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"srcd/core/transaction/extend"
-	"srcd/crypto/sha3pool"
-	"srcd/errors"
+
+	"github.com/srchain/srcd/core/transaction/extend"
+	"github.com/srchain/srcd/crypto/sha3pool"
+	"github.com/srchain/srcd/errors"
 )
 
 // Tx is a wrapper for the entries-based representation of a transaction.
