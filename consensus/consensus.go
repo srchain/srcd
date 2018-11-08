@@ -3,8 +3,8 @@ package consensus
 import (
 	"math/big"
 
-	"srcd/core/types"
-	"srcd/common/common"
+	"github.com/srchain/srcd/core/types"
+	"github.com/srchain/srcd/common/common"
 )
 
 // ChainReader defines a small collection of methods needed to access the local
