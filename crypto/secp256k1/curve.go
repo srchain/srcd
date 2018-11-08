@@ -36,7 +36,7 @@ import (
 	"math/big"
 	"unsafe"
 
-	"srcd/common/math"
+	"github.com/srchain/srcd/common/math"
 )
 
 /*
