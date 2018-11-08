@@ -1,9 +1,9 @@
 package server
 
 import (
-	"srcd/common/common"
-	"srcd/core/blockchain"
-	"srcd/core/mempool"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/core/blockchain"
+	"github.com/srchain/srcd/core/mempool"
 )
 
 // DefaultConfig contains default settings for use on main net.
