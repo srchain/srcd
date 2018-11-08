@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"srcd/common/common"
+	"github.com/srchain/srcd/common/common"
 )
 
 // Subscription represents a stream of events. The carrier of the events is typically a
