@@ -3,9 +3,9 @@ package types
 import (
 	"bytes"
 
-	"srcd/common/common"
-	"srcd/rlp"
-	"srcd/trie"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/rlp"
+	"github.com/srchain/srcd/trie"
 )
 
 type DerivableList interface {

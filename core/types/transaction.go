@@ -5,9 +5,9 @@ import (
 	"math/big"
 	"sync/atomic"
 
-	"srcd/common/common"
-	"srcd/core/transaction"
-	"srcd/rlp"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/core/transaction"
+	"github.com/srchain/srcd/rlp"
 )
 
 var (
