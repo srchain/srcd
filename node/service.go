@@ -5,6 +5,7 @@ import (
 
 	"github.com/srchain/srcd/accounts"
 	"github.com/srchain/srcd/database"
+	"github.com/srchain/srcd/p2p"
 )
 
 // ServiceContext is a collection of service independent options inherited from
@@ -46,14 +47,13 @@ type ServiceConstructor func(ctx *ServiceContext) (Service, error)
 type Service interface {
 	// // Protocols retrieves the P2P protocols the service wishes to start.
 	// Protocols() []p2p.Protocol
-
+	Protocols() []p2p.Protocol
 	// // APIs retrieves the list of RPC descriptors the service provides
 	// APIs() []rpc.API
-
 	// Start is called after all services have been constructed and the networking
 	// layer was also initialized to spawn any goroutines required by the service.
 	// Start(server *p2p.Server) error
-	Start() error
+	Start(server *p2p.Server) error
 
 	// Stop terminates all goroutines belonging to the service, blocking until they
 	// are all terminated.
