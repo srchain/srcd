@@ -7,10 +7,10 @@ import (
 	"runtime"
 	"time"
 
-	"srcd/common/common"
-	"srcd/consensus"
-	"srcd/core/types"
-	"srcd/params"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/consensus"
+	"github.com/srchain/srcd/core/types"
+	"github.com/srchain/srcd/params"
 )
 
 // Max time from current time allowed for blocks, before they're considered future blocks

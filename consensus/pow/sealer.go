@@ -9,10 +9,10 @@ import (
 	"runtime"
 	"sync"
 
-	"srcd/consensus"
-	"srcd/core/types"
-	"srcd/crypto/crypto"
-	"srcd/log"
+	"github.com/srchain/srcd/consensus"
+	"github.com/srchain/srcd/core/types"
+	"github.com/srchain/srcd/crypto/crypto"
+	"github.com/srchain/srcd/log"
 )
 
 // Seal implements consensus.Engine, attempting to find a nonce that satisfies
