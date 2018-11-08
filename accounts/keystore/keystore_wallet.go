@@ -1,8 +1,8 @@
 package keystore
 
 import (
-	"srcd/accounts"
-	"srcd/core/types"
+	"github.com/srchain/srcd/accounts"
+	"github.com/srchain/srcd/core/types"
 )
 
 // keystoreWallet implements the accounts.Wallet interface for the original

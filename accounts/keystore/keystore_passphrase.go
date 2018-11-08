@@ -10,11 +10,10 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"srcd/common/common"
-	"srcd/common/math"
-	"srcd/crypto/crypto"
-	"srcd/crypto/randentropy"
-
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/common/math"
+	"github.com/srchain/srcd/crypto/crypto"
+	"github.com/srchain/srcd/crypto/randentropy"
 	"github.com/pborman/uuid"
 	"golang.org/x/crypto/scrypt"
 )

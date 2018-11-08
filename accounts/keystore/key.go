@@ -10,10 +10,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"srcd/accounts"
-	"srcd/common/common"
-	"srcd/crypto/crypto"
-
+	"github.com/srchain/srcd/accounts"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/crypto/crypto"
 	"github.com/pborman/uuid"
 )
 

@@ -5,7 +5,7 @@ package keystore
 import (
 	"time"
 
-	"srcd/log"
+	"github.com/srchain/srcd/log"
 	"github.com/rjeczalik/notify"
 )
 

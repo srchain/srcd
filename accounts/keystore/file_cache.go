@@ -8,7 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"srcd/log"
+	"github.com/srchain/srcd/log"
+
 	set "gopkg.in/fatih/set.v0"
 )
 

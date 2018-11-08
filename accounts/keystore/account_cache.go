@@ -11,10 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"srcd/accounts"
-	"srcd/common/common"
-	"srcd/log"
-
+	"github.com/srchain/srcd/accounts"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/log"
 	"gopkg.in/fatih/set.v0"
 )
 

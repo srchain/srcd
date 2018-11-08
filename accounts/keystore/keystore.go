@@ -12,10 +12,10 @@ import (
 	"sync"
 	"time"
 
-	"srcd/accounts"
-	"srcd/common/common"
-	"srcd/core/types"
-	"srcd/crypto/crypto"
+	"github.com/srchain/srcd/accounts"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/core/types"
+	"github.com/srchain/srcd/crypto/crypto"
 )
 
 var (

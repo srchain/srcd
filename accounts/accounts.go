@@ -1,8 +1,8 @@
 package accounts
 
 import (
-	"srcd/common/common"
-	"srcd/core/types"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/core/types"
 )
 
 type Account struct {
