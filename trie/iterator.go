@@ -5,8 +5,8 @@ import (
 	"container/heap"
 	"errors"
 
-	"srcd/common/common"
-	"srcd/rlp"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/rlp"
 )
 
 // Iterator is a key-value trie iterator that traverses a Trie.

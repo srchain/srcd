@@ -4,9 +4,9 @@ import (
 	"hash"
 	"sync"
 
-	"srcd/common/common"
-	"srcd/crypto/sha3"
-	"srcd/rlp"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/crypto/sha3"
+	"github.com/srchain/srcd/rlp"
 )
 
 type hasher struct {

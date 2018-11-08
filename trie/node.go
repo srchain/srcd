@@ -5,8 +5,8 @@ import (
 	"io"
 	"strings"
 
-	"srcd/common/common"
-	"srcd/rlp"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/rlp"
 )
 
 var indices = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "[17]"}

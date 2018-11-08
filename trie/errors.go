@@ -3,7 +3,7 @@ package trie
 import (
 	"fmt"
 
-	"srcd/common/common"
+	"github.com/srchain/srcd/common/common"
 )
 
 // MissingNodeError is returned by the trie functions (TryGet, TryUpdate, TryDelete)

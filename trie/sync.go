@@ -4,8 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"srcd/common/common"
-	"srcd/database"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/database"
+
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
 

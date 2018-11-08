@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"fmt"
 
-	"srcd/common/common"
-	"srcd/crypto/crypto"
-	"srcd/log"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/crypto/crypto"
+	"github.com/srchain/srcd/log"
 )
 
 var (

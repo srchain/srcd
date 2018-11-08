@@ -3,8 +3,8 @@ package trie
 import (
 	"fmt"
 
-	"srcd/common/common"
-	"srcd/log"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/log"
 )
 
 // SecureTrie wraps a trie with key hashing. In a secure trie, all

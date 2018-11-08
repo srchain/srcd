@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"srcd/common/common"
-	"srcd/database"
-	"srcd/log"
-	"srcd/rlp"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/database"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/rlp"
 )
 
 // secureKeyPrefix is the database key prefix used to store trie node preimages.

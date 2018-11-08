@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"fmt"
 
-	"srcd/common/common"
-	"srcd/database"
-	"srcd/log"
-	"srcd/rlp"
-	"srcd/crypto/crypto"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/database"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/rlp"
+	"github.com/srchain/srcd/crypto/crypto"
 )
 
 // Prove constructs a merkle proof for key. The result contains all encoded nodes
