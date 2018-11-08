@@ -2,10 +2,11 @@ package chainkd
 
 import (
 	"strconv"
-	"crypto/sha512"
-	"srcd/crypto/ed25519/internal/edwards25519"
 	"crypto"
-	"srcd/crypto/ed25519"
+	"crypto/sha512"
+
+	"github.com/srchain/srcd/crypto/ed25519"
+	"github.com/srchain/srcd/crypto/ed25519/internal/edwards25519"
 )
 const (
 	// ExpandedPrivateKeySize is the size, in bytes, of a "secret key" as defined in NaCl.

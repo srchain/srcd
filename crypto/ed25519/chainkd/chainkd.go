@@ -5,8 +5,9 @@ import (
 	"crypto/rand"
 	"crypto/hmac"
 	"crypto/sha512"
-	"srcd/crypto/ed25519/ecmath"
-	"srcd/crypto/ed25519"
+
+	"github.com/srchain/srcd/crypto/ed25519/ecmath"
+	"github.com/srchain/srcd/crypto/ed25519"
 )
 
 type (
