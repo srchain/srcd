@@ -17,7 +17,7 @@ import (
 	"github.com/srchain/srcd/core/types"
 	"github.com/srchain/srcd/eth/downloader"
 	"github.com/srchain/srcd/eth/fetcher"
-	"github.com/srchain/srcd/ethdb"
+	"github.com/srchain/srcd/database"
 	"github.com/srchain/srcd/event"
 	"github.com/srchain/srcd/log"
 	"github.com/srchain/srcd/p2p"
