@@ -1,8 +1,8 @@
 package mempool
 
 import (
-	"srcd/core/blockchain"
-	"srcd/consensus"
+	"github.com/srchain/srcd/core/blockchain"
+	"github.com/srchain/srcd/consensus"
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
