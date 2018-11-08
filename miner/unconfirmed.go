@@ -4,9 +4,9 @@ import (
 	"container/ring"
 	"sync"
 
-	"srcd/common/common"
-	"srcd/core/types"
-	"srcd/log"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/core/types"
+	"github.com/srchain/srcd/log"
 )
 
 // headerRetriever is used by the unconfirmed block set to verify whether a previously

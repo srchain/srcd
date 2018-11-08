@@ -6,13 +6,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"srcd/common/common"
-	"srcd/consensus"
-	"srcd/core"
-	"srcd/core/blockchain"
-	"srcd/core/types"
-	"srcd/event"
-	"srcd/log"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/consensus"
+	"github.com/srchain/srcd/core"
+	"github.com/srchain/srcd/core/blockchain"
+	"github.com/srchain/srcd/core/types"
+	"github.com/srchain/srcd/event"
+	"github.com/srchain/srcd/log"
 )
 
 const (

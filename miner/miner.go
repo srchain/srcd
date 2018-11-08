@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"srcd/common/common"
-	"srcd/consensus"
-	"srcd/core/blockchain"
-	"srcd/core/mempool"
-	"srcd/log"
-	"srcd/params"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/consensus"
+	"github.com/srchain/srcd/core/blockchain"
+	"github.com/srchain/srcd/core/mempool"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/params"
 )
 
 // Backend wraps all methods required for mining.
