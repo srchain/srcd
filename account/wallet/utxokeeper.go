@@ -3,7 +3,7 @@ package wallet
 import (
 	"sync"
 
-	"srcd/protocol/transaction"
+	"github.com/srchain/srcd/protocol/transaction"
 )
 
 type utxoKeeper struct {

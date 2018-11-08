@@ -4,9 +4,9 @@ import (
 	"crypto/rand"
 	"fmt"
 
-	"srcd/crypto/ed25519/chainkd"
-	"srcd/database"
-	"srcd/log"
+	"github.com/srchain/srcd/crypto/ed25519/chainkd"
+	"github.com/srchain/srcd/database"
+	"github.com/srchain/srcd/log"
 )
 
 var (

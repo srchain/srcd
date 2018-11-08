@@ -1,11 +1,11 @@
 package account
 
 import (
-	"srcd/account/wallet/address"
-	"srcd/core/vm"
-	"srcd/crypto/ed25519/chainkd"
-	"srcd/crypto/ripemd160"
-	"srcd/params"
+	"github.com/srchain/srcd/account/wallet/address"
+	"github.com/srchain/srcd/core/vm"
+	"github.com/srchain/srcd/crypto/ed25519/chainkd"
+	"github.com/srchain/srcd/crypto/ripemd160"
+	"github.com/srchain/srcd/params"
 )
 
 type CtrlProgram struct {

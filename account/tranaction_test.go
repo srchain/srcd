@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"testing"
 
-	"srcd/crypto/ed25519/chainkd"
-	"srcd/core/transaction"
-	"srcd/core/vm"
+	"github.com/srchain/srcd/crypto/ed25519/chainkd"
+	"github.com/srchain/srcd/core/transaction"
+	"github.com/srchain/srcd/core/vm"
 )
 
 func must(err error) {

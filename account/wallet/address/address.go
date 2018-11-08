@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"srcd/errors"
-	"srcd/params"
+	"github.com/srchain/srcd/errors"
+	"github.com/srchain/srcd/params"
 
 	"github.com/bytom/common/bech32"
 )
