@@ -7,8 +7,8 @@ import (
 	"runtime/debug"
 	"sort"
 
-	"srcd/cmd/utils"
-	"srcd/console"
+	"github.com/srchain/srcd/cmd/utils"
+	"github.com/srchain/srcd/console"
 
 	"gopkg.in/urfave/cli.v1"
 )

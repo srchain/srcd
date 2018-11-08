@@ -8,12 +8,12 @@ import (
 	"reflect"
 	"unicode"
 
-	"srcd/cmd/utils"
-	"srcd/node"
-	"srcd/params"
-	"srcd/server"
-
+	"github.com/srchain/srcd/cmd/utils"
+	"github.com/srchain/srcd/node"
+	"github.com/srchain/srcd/params"
+	"github.com/srchain/srcd/server"
 	"github.com/naoina/toml"
+
 	"gopkg.in/urfave/cli.v1"
 )
 

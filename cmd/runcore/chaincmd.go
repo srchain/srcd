@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"os"
 
-	"srcd/cmd/utils"
-	"srcd/core/blockchain"
-	"srcd/log"
+	"github.com/srchain/srcd/cmd/utils"
+	"github.com/srchain/srcd/core/blockchain"
+	"github.com/srchain/srcd/log"
 
 	"gopkg.in/urfave/cli.v1"
 )

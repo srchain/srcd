@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 
-	"srcd/accounts/keystore"
-	"srcd/cmd/utils"
-	"srcd/console"
-	"srcd/crypto/crypto"
+	"github.com/srchain/srcd/accounts/keystore"
+	"github.com/srchain/srcd/cmd/utils"
+	"github.com/srchain/srcd/console"
+	"github.com/srchain/srcd/crypto/crypto"
 
 	"gopkg.in/urfave/cli.v1"
 )

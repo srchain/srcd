@@ -1,9 +1,9 @@
 package main
 
 import (
-	"srcd/cmd/utils"
-	"srcd/node"
-	"srcd/server"
+	"github.com/srchain/srcd/cmd/utils"
+	"github.com/srchain/srcd/node"
+	"github.com/srchain/srcd/server"
 
 	"gopkg.in/urfave/cli.v1"
 )
