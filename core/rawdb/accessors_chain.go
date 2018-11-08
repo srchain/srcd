@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"srcd/common/common"
-	"srcd/core/types"
-	"srcd/log"
-	"srcd/rlp"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/core/types"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/rlp"
 )
 
 // ReadCanonicalHash retrieves the hash assigned to a canonical block number.

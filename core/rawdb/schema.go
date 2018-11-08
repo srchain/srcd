@@ -3,7 +3,7 @@ package rawdb
 import (
 	"encoding/binary"
 
-	"srcd/common/common"
+	"github.com/srchain/srcd/common/common"
 )
 
 var (
