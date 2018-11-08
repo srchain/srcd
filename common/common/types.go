@@ -9,8 +9,8 @@ import (
 	"reflect"
 	"strings"
 
-	"srcd/common/hexutil"
-	"srcd/crypto/sha3"
+	"github.com/srchain/srcd/common/hexutil"
+	"github.com/srchain/srcd/crypto/sha3"
 )
 
 // Lengths of hashes and addresses in bytes.
