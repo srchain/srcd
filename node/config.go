@@ -9,13 +9,13 @@ import (
 	"runtime"
 	"strings"
 
-	"srcd/accounts"
-	"srcd/accounts/keystore"
-	"srcd/common/common"
-	"srcd/crypto/crypto"
-	"srcd/log"
-	"srcd/p2p"
-	"srcd/p2p/discover"
+	"github.com/srchain/srcd/accounts"
+	"github.com/srchain/srcd/accounts/keystore"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/crypto/crypto"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/p2p"
+	"github.com/srchain/srcd/p2p/discover"
 )
 
 const (

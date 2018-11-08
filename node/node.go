@@ -8,11 +8,10 @@ import (
 	"strings"
 	"sync"
 
-	"srcd/accounts"
-	"srcd/database"
-	"srcd/log"
-	"srcd/p2p"
-
+	"github.com/srchain/srcd/accounts"
+	"github.com/srchain/srcd/database"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/p2p"
 	"github.com/prometheus/prometheus/util/flock"
 )
 

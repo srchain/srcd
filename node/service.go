@@ -3,8 +3,8 @@ package node
 import (
 	"reflect"
 
-	"srcd/accounts"
-	"srcd/database"
+	"github.com/srchain/srcd/accounts"
+	"github.com/srchain/srcd/database"
 )
 
 // ServiceContext is a collection of service independent options inherited from

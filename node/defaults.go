@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"srcd/p2p"
-	"srcd/p2p/nat"
+	"github.com/srchain/srcd/p2p"
+	"github.com/srchain/srcd/p2p/nat"
 )
 
 const (
