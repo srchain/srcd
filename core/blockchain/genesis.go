@@ -5,13 +5,13 @@ import (
 	"math/big"
 	"time"
 
-	"srcd/common/common"
-	"srcd/common/hexutil"
-	"srcd/core/rawdb"
-	"srcd/core/types"
-	"srcd/database"
-	"srcd/log"
-	"srcd/params"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/common/hexutil"
+	"github.com/srchain/srcd/core/rawdb"
+	"github.com/srchain/srcd/core/types"
+	"github.com/srchain/srcd/database"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/params"
 )
 
 // Genesis specifies the header fields, state of a genesis block.

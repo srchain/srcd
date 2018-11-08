@@ -7,12 +7,11 @@ import (
 	mrand "math/rand"
 	"sync/atomic"
 
-	"srcd/common/common"
-	"srcd/consensus"
-	"srcd/core/rawdb"
-	"srcd/core/types"
-	"srcd/database"
-
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/consensus"
+	"github.com/srchain/srcd/core/rawdb"
+	"github.com/srchain/srcd/core/types"
+	"github.com/srchain/srcd/database"
 	"github.com/hashicorp/golang-lru"
 )
 

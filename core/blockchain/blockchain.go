@@ -8,15 +8,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"srcd/common/common"
-	"srcd/consensus"
-	"srcd/core"
-	"srcd/core/rawdb"
-	"srcd/core/types"
-	"srcd/database"
-	"srcd/log"
-	"srcd/event"
-
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/consensus"
+	"github.com/srchain/srcd/core"
+	"github.com/srchain/srcd/core/rawdb"
+	"github.com/srchain/srcd/core/types"
+	"github.com/srchain/srcd/database"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/event"
 	"github.com/hashicorp/golang-lru"
 )
 

@@ -1,7 +1,7 @@
 package blockchain
 
 import (
-	"srcd/core/types"
+	"github.com/srchain/srcd/core/types"
 )
 
 // Validator is an interface which defines the standard for block validation. It
