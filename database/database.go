@@ -3,7 +3,7 @@ package database
 import (
 	"time"
 
-	"srcd/log"
+	"github.com/srchain/srcd/log"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/filter"

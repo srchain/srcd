@@ -3,7 +3,8 @@ package database
 import (
 	"sync"
 	"errors"
-	"srcd/common/common"
+
+	"github.com/srchain/srcd/common/common"
 )
 
 // This is a test memory database. Do not use for any production it does not get persisted
