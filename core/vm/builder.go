@@ -14,7 +14,7 @@ type  Builder struct {
 	// Maps a jump target number to the list of places where its
 	// absolute address must be filled in once known.
 	jumpPlaceholders map[int][]int
-} 
+}
 
 func NewBuilder() *Builder {
 	return &Builder{
