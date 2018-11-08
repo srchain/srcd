@@ -7,8 +7,8 @@ import (
 	"math/rand"
 	"time"
 
-	"srcd/common/mclock"
-	"srcd/log"
+	"github.com/srchain/srcd/common/mclock"
+	"github.com/srchain/srcd/log"
 )
 
 const (

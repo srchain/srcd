@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"sync"
 
-	"srcd/common/math"
-	"srcd/crypto"
-	"srcd/crypto/sha3"
-	"srcd/rlp"
+	"github.com/srchain/srcd/common/math"
+	"github.com/srchain/srcd/crypto"
+	"github.com/srchain/srcd/crypto/sha3"
+	"github.com/srchain/srcd/rlp"
 )
 
 // Registry of known identity schemes.

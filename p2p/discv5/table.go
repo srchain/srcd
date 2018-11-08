@@ -7,7 +7,7 @@ import (
 	"net"
 	"sort"
 
-	"srcd/common/common"
+	"github.com/srchain/srcd/common/common"
 )
 
 const (

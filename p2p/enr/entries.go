@@ -6,8 +6,8 @@ import (
 	"io"
 	"net"
 
-	"srcd/crypto"
-	"srcd/rlp"
+	"github.com/srchain/srcd/crypto"
+	"github.com/srchain/srcd/rlp"
 )
 
 // Entry is implemented by known node record entry types.

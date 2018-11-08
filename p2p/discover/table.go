@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"srcd/common/common"
-	"srcd/crypto"
-	"srcd/log"
-	"srcd/p2p/netutil"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/crypto"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/p2p/netutil"
 )
 
 const (

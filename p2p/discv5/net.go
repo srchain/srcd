@@ -8,13 +8,13 @@ import (
 	"net"
 	"time"
 
-	"srcd/common/common"
-	"srcd/common/mclock"
-	"srcd/crypto"
-	"srcd/crypto/sha3"
-	"srcd/log"
-	"srcd/p2p/netutil"
-	"srcd/rlp"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/common/mclock"
+	"github.com/srchain/srcd/crypto"
+	"github.com/srchain/srcd/crypto/sha3"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/p2p/netutil"
+	"github.com/srchain/srcd/rlp"
 )
 
 var (

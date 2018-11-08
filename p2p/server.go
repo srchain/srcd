@@ -9,14 +9,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"srcd/common/common"
-	"srcd/common/mclock"
-	"srcd/event"
-	"srcd/log"
-	"srcd/p2p/discover"
-	"srcd/p2p/discv5"
-	"srcd/p2p/nat"
-	"srcd/p2p/netutil"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/common/mclock"
+	"github.com/srchain/srcd/event"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/p2p/discover"
+	"github.com/srchain/srcd/p2p/discv5"
+	"github.com/srchain/srcd/p2p/nat"
+	"github.com/srchain/srcd/p2p/netutil"
 )
 
 const (

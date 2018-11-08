@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"srcd/log"
+	"github.com/srchain/srcd/log"
 
 	"github.com/jackpal/go-nat-pmp"
 )

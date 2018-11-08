@@ -8,9 +8,9 @@ import (
 	"net"
 	"time"
 
-	"srcd/log"
-	"srcd/p2p/discover"
-	"srcd/p2p/netutil"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/p2p/discover"
+	"github.com/srchain/srcd/p2p/netutil"
 )
 
 const (

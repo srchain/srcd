@@ -7,13 +7,13 @@ import (
 	"net"
 	"sync"
 
-	"srcd/event"
-	"srcd/log"
-	"srcd/node"
-	"srcd/p2p"
-	"srcd/p2p/discover"
-	"srcd/p2p/simulations/pipes"
-	"srcd/rpc"
+	"github.com/srchain/srcd/event"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/node"
+	"github.com/srchain/srcd/p2p"
+	"github.com/srchain/srcd/p2p/discover"
+	"github.com/srchain/srcd/p2p/simulations/pipes"
+	"github.com/srchain/srcd/rpc"
 )
 
 // SimAdapter is a NodeAdapter which creates in-memory simulation nodes and

@@ -7,7 +7,7 @@ import (
 	"io"
 	"sort"
 
-	"srcd/rlp"
+	"github.com/srchain/srcd/rlp"
 )
 
 const SizeLimit = 300 // maximum encoded size of a node record in bytes

@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"srcd/common/mclock"
-	"srcd/event"
-	"srcd/log"
-	"srcd/p2p/discover"
-	"srcd/rlp"
+	"github.com/srchain/srcd/common/mclock"
+	"github.com/srchain/srcd/event"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/p2p/discover"
+	"github.com/srchain/srcd/rlp"
 )
 
 var (

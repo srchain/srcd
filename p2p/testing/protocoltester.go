@@ -9,14 +9,14 @@ import (
 	"sync"
 	"testing"
 
-	"srcd/log"
-	"srcd/node"
-	"srcd/p2p"
-	"srcd/p2p/discover"
-	"srcd/p2p/simulations"
-	"srcd/p2p/simulations/adapters"
-	"srcd/rlp"
-	"srcd/rpc"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/node"
+	"github.com/srchain/srcd/p2p"
+	"github.com/srchain/srcd/p2p/discover"
+	"github.com/srchain/srcd/p2p/simulations"
+	"github.com/srchain/srcd/p2p/simulations/adapters"
+	"github.com/srchain/srcd/rlp"
+	"github.com/srchain/srcd/rpc"
 )
 
 // ProtocolTester is the tester environment used for unit testing protocol

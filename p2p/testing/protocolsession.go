@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"srcd/log"
-	"srcd/p2p"
-	"srcd/p2p/discover"
-	"srcd/p2p/simulations/adapters"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/p2p"
+	"github.com/srchain/srcd/p2p/discover"
+	"github.com/srchain/srcd/p2p/simulations/adapters"
 )
 
 var errTimedOut = errors.New("timed out")

@@ -11,9 +11,8 @@ import (
 	"runtime"
 	"strings"
 
-	"srcd/node"
-	"srcd/p2p/discover"
-
+	"github.com/srchain/srcd/node"
+	"github.com/srchain/srcd/p2p/discover"
 	"github.com/docker/docker/pkg/reexec"
 )
 

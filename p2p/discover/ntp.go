@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"srcd/log"
+	"github.com/srchain/srcd/log"
 )
 
 const (

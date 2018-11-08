@@ -9,12 +9,11 @@ import (
 	"os"
 	"strconv"
 
-	"srcd/crypto"
-	"srcd/node"
-	"srcd/p2p"
-	"srcd/p2p/discover"
-	"srcd/rpc"
-
+	"github.com/srchain/srcd/crypto"
+	"github.com/srchain/srcd/node"
+	"github.com/srchain/srcd/p2p"
+	"github.com/srchain/srcd/p2p/discover"
+	"github.com/srchain/srcd/rpc"
 	"github.com/docker/docker/pkg/reexec"
 )
 

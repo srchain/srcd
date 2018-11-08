@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"srcd/crypto"
-	"srcd/log"
-	"srcd/rlp"
+	"github.com/srchain/srcd/crypto"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/rlp"
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"

@@ -8,12 +8,12 @@ import (
 	"net"
 	"time"
 
-	"srcd/common/common"
-	"srcd/crypto"
-	"srcd/log"
-	"srcd/p2p/nat"
-	"srcd/p2p/netutil"
-	"srcd/rlp"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/crypto"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/p2p/nat"
+	"github.com/srchain/srcd/p2p/netutil"
+	"github.com/srchain/srcd/rlp"
 )
 
 const Version = 4

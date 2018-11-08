@@ -19,13 +19,12 @@ import (
 	"sync"
 	"time"
 
-	"srcd/crypto"
-	"srcd/crypto/ecies"
-	"srcd/crypto/secp256k1"
-	"srcd/crypto/sha3"
-	"srcd/p2p/discover"
-	"srcd/rlp"
-
+	"github.com/srchain/srcd/crypto"
+	"github.com/srchain/srcd/crypto/ecies"
+	"github.com/srchain/srcd/crypto/secp256k1"
+	"github.com/srchain/srcd/crypto/sha3"
+	"github.com/srchain/srcd/p2p/discover"
+	"github.com/srchain/srcd/rlp"
 	"github.com/golang/snappy"
 )
 

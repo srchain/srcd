@@ -9,13 +9,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"srcd/log"
-	"srcd/node"
-	"srcd/p2p"
-	"srcd/p2p/discover"
-	"srcd/p2p/simulations"
-	"srcd/p2p/simulations/adapters"
-	"srcd/rpc"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/node"
+	"github.com/srchain/srcd/p2p"
+	"github.com/srchain/srcd/p2p/discover"
+	"github.com/srchain/srcd/p2p/simulations"
+	"github.com/srchain/srcd/p2p/simulations/adapters"
+	"github.com/srchain/srcd/rpc"
 )
 
 var adapterType = flag.String("adapter", "sim", `node adapter to use (one of "sim", "exec" or "docker")`)

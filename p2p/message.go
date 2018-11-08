@@ -9,9 +9,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"srcd/event"
-	"srcd/p2p/discover"
-	"srcd/rlp"
+	"github.com/srchain/srcd/event"
+	"github.com/srchain/srcd/p2p/discover"
+	"github.com/srchain/srcd/rlp"
 )
 
 // Msg defines the structure of a p2p message.

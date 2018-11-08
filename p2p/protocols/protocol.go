@@ -10,12 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"srcd/log"
-	"srcd/metrics"
-	"srcd/p2p"
-	"srcd/rlp"
-	"srcd/swarm/spancontext"
-	"srcd/swarm/tracing"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/metrics"
+	"github.com/srchain/srcd/p2p"
+	"github.com/srchain/srcd/rlp"
+	"github.com/srchain/srcd/swarm/spancontext"
+	"github.com/srchain/srcd/swarm/tracing"
 
 	opentracing "github.com/opentracing/opentracing-go"
 )

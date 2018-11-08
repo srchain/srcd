@@ -13,13 +13,13 @@ import (
 	"strings"
 	"sync"
 
-	"srcd/event"
-	"srcd/p2p"
-	"srcd/p2p/discover"
-	"srcd/p2p/simulations/adapters"
-	"srcd/rpc"
-
+	"github.com/srchain/srcd/event"
+	"github.com/srchain/srcd/p2p"
+	"github.com/srchain/srcd/p2p/discover"
+	"github.com/srchain/srcd/p2p/simulations/adapters"
+	"github.com/srchain/srcd/rpc"
 	"github.com/julienschmidt/httprouter"
+
 	"golang.org/x/net/websocket"
 )
 

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"srcd/log"
+	"github.com/srchain/srcd/log"
 )
 
 const (

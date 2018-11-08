@@ -3,7 +3,7 @@ package p2p
 import (
 	"fmt"
 
-	"srcd/p2p/discover"
+	"github.com/srchain/srcd/p2p/discover"
 )
 
 // Protocol represents a P2P subprotocol implementation.
