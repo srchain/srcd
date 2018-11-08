@@ -11,7 +11,7 @@ import (
 	"path"
 	"strings"
 
-	"srcd/common/math"
+	"github.com/srchain/srcd/common/math"
 
 	"gopkg.in/urfave/cli.v1"
 )

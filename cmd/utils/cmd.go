@@ -8,8 +8,8 @@ import (
 	"runtime"
 	"syscall"
 
-	"srcd/log"
-	"srcd/node"
+	"github.com/srchain/srcd/log"
+	"github.com/srchain/srcd/node"
 )
 
 // Fatalf formats a message to standard error and exits the program.

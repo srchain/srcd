@@ -5,12 +5,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"srcd/accounts"
-	"srcd/accounts/keystore"
-	"srcd/common/common"
-	"srcd/node"
-	"srcd/params"
-	"srcd/server"
+	"github.com/srchain/srcd/accounts"
+	"github.com/srchain/srcd/accounts/keystore"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/node"
+	"github.com/srchain/srcd/params"
+	"github.com/srchain/srcd/server"
 
 	"gopkg.in/urfave/cli.v1"
 )
