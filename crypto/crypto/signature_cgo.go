@@ -7,8 +7,8 @@ import (
 	"crypto/elliptic"
 	"fmt"
 
-	"srcd/common/math"
-	"srcd/crypto/secp256k1"
+	"github.com/srchain/srcd/common/math"
+	"github.com/srchain/srcd/crypto/secp256k1"
 )
 
 // Ecrecover returns the uncompressed public key that created the given signature.

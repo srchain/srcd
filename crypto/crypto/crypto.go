@@ -12,10 +12,10 @@ import (
 	"math/big"
 	"os"
 
-	"srcd/common/common"
-	"srcd/common/math"
-	"srcd/crypto/sha3"
-	"srcd/rlp"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/common/math"
+	"github.com/srchain/srcd/crypto/sha3"
+	"github.com/srchain/srcd/rlp"
 )
 
 var (
