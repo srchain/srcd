@@ -26,7 +26,7 @@ type Server struct {
 	// chainConfig *params.ChainConfig
 
 	// Channel for shutting down the service
-	shutdownChan chan bool
+	// shutdownChan chan bool
 
 	// Handlers
 	txPool          *mempool.TxPool
@@ -66,7 +66,7 @@ func New(ctx *node.ServiceContext, config *Config) (*Server, error) {
 		chainDb:        chainDb,
 		accountManager: ctx.AccountManager,
 		engine:         CreateConsensusEngine(),
-		shutdownChan:   make(chan bool),
+		// shutdownChan:   make(chan bool),
 		coinbase:       config.Coinbase,
 	}
 
@@ -196,25 +196,16 @@ func (s *Server) Protocols() []p2p.Protocol {
 
 // Start implements node.Service, starting all internal goroutines needed by the
 // Server protocol implementation.
-// func (s *Server) Start(srvr *p2p.Server) error {
-func (s *Server) Start() error {
+func (s *Server) Start(srvr *p2p.Server) error {
 	// // Start the bloom bits servicing goroutines
 	// s.startBloomHandlers()
 
 	// // Start the RPC service
 	// s.netRPCService = ethapi.NewPublicNetAPI(srvr, s.NetVersion())
 
-	// // Figure out a max peers count based on the server limits
-	// maxPeers := srvr.MaxPeers
-	// if s.config.LightServ > 0 {
-	// if s.config.LightPeers >= srvr.MaxPeers {
-	// return fmt.Errorf("invalid peer config: light peer count (%d) >= total peer count (%d)", s.config.LightPeers, srvr.MaxPeers)
-	// }
-	// maxPeers -= s.config.LightPeers
-	// }
-
-	// Start the networking layer and the light server if requested
-	// s.protocolManager.Start(10)
+	// Start the networking layer
+	maxPeers := srvr.MaxPeers
+	s.protocolManager.Start(maxPeers)
 
 	return nil
 }
@@ -224,7 +215,7 @@ func (s *Server) Start() error {
 func (s *Server) Stop() error {
 	// s.bloomIndexer.Close()
 	s.blockchain.Stop()
-	// s.protocolManager.Stop()
+	s.protocolManager.Stop()
 	// s.txPool.Stop()
 	s.miner.Stop()
 	// s.eventMux.Stop()
