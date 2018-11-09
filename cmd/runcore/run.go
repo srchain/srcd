@@ -27,7 +27,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) {
-		var server *server.Server
+		var server *server.SilkRoad
 
 		if err := stack.Service(&server); err != nil {
 			utils.Fatalf("Srcd service not running: %v", err)

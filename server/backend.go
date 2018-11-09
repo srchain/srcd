@@ -18,10 +18,11 @@ import (
 	"github.com/srchain/srcd/node"
 	"github.com/srchain/srcd/params"
 	"github.com/srchain/srcd/rlp"
+	"github.com/srchain/srcd/p2p"
 )
 
-// Server implements the full node service.
-type Server struct {
+// SilkRoad implements the full node service.
+type SilkRoad struct {
 	config *Config
 	// chainConfig *params.ChainConfig
 
@@ -48,20 +49,20 @@ type Server struct {
 	miner    *miner.Miner
 	coinbase common.Address
 
-	// networkID     uint64
+	networkID     uint64
 	// netRPCService *ethapi.PublicNetAPI
 
 	lock sync.RWMutex
 }
 
-// New creates a new Server object
-func New(ctx *node.ServiceContext, config *Config) (*Server, error) {
+// New creates a new SilkRoad object
+func New(ctx *node.ServiceContext, config *Config) (*SilkRoad, error) {
 	chainDb, err := CreateDB(ctx, config, "chaindata")
 	if err != nil {
 		return nil, err
 	}
 
-	server := &Server{
+	silk := &SilkRoad{
 		config:         config,
 		chainDb:        chainDb,
 		accountManager: ctx.AccountManager,
@@ -73,26 +74,26 @@ func New(ctx *node.ServiceContext, config *Config) (*Server, error) {
 	if _, genesisErr := blockchain.SetupGenesisBlock(chainDb, config.Genesis); genesisErr != nil {
 		return nil, genesisErr
 	}
-	server.blockchain, err = blockchain.NewBlockChain(chainDb, server.engine)
+	silk.blockchain, err = blockchain.NewBlockChain(chainDb, silk.engine)
 	if err != nil {
 		return nil, err
 	}
 
-	// server.bloomIndexer.Start(eth.blockchain)
+	// silk.bloomIndexer.Start(eth.blockchain)
 
 	// if config.TxPool.Journal != "" {
 	// config.TxPool.Journal = ctx.ResolvePath(config.TxPool.Journal)
 	// }
-	server.txPool = mempool.NewTxPool(config.TxPool, server.blockchain)
+	silk.txPool = mempool.NewTxPool(config.TxPool, silk.blockchain)
 
-	if server.protocolManager, err = NewProtocolManager(eth.chainConfig, config.SyncMode, config.NetworkId, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb); err != nil {
+	if silk.protocolManager, err = NewProtocolManager(silk.chainConfig, config.SyncMode, config.NetworkId, silk.eventMux, silk.txPool, silk.engine, silk.blockchain, chainDb); err != nil {
 		return nil, err
 	}
 
-	server.miner = miner.New(server, server.engine)
-	server.miner.SetExtra(makeExtraData(config.ExtraData))
+	silk.miner = miner.New(silk, silk.engine)
+	silk.miner.SetExtra(makeExtraData(config.ExtraData))
 
-	return server, nil
+	return silk, nil
 }
 
 func makeExtraData(extra []byte) []byte {
@@ -117,7 +118,7 @@ func CreateDB(ctx *node.ServiceContext, config *Config, name string) (database.D
 	return ctx.OpenDatabase(name, config.DatabaseCache, config.DatabaseHandles)
 }
 
-// CreateConsensusEngine creates the required type of consensus engine instance for Server
+// CreateConsensusEngine creates the required type of consensus engine instance for SilkRoad
 func CreateConsensusEngine() consensus.Engine {
 	engine := pow.New()
 	engine.SetThreads(-1)
@@ -125,7 +126,7 @@ func CreateConsensusEngine() consensus.Engine {
 	return engine
 }
 
-func (s *Server) Coinbase() (cb common.Address, err error) {
+func (s *SilkRoad) Coinbase() (cb common.Address, err error) {
 	s.lock.RLock()
 	coinbase := s.coinbase
 	s.lock.RUnlock()
@@ -150,7 +151,7 @@ func (s *Server) Coinbase() (cb common.Address, err error) {
 
 // StartMining starts the miner with the given number of CPU threads. If mining
 // is already running, this method adjust the number of threads allowed to use.
-func (s *Server) StartMining(threads int) error {
+func (s *SilkRoad) StartMining(threads int) error {
 	// Update the thread count within the consensus engine
 	type threaded interface {
 		SetThreads(threads int)
@@ -180,24 +181,24 @@ func (s *Server) StartMining(threads int) error {
 	return nil
 }
 
-func (s *Server) IsMining() bool      { return s.miner.Mining() }
+func (s *SilkRoad) IsMining() bool { return s.miner.Mining() }
 
-func (s *Server) AccountManager() *accounts.Manager  { return s.accountManager }
-func (s *Server) BlockChain() *blockchain.BlockChain { return s.blockchain }
-func (s *Server) TxPool() *mempool.TxPool            { return s.txPool }
-func (s *Server) Engine() consensus.Engine           { return s.engine }
-func (s *Server) ChainDb() database.Database         { return s.chainDb }
+func (s *SilkRoad) AccountManager() *accounts.Manager  { return s.accountManager }
+func (s *SilkRoad) BlockChain() *blockchain.BlockChain { return s.blockchain }
+func (s *SilkRoad) TxPool() *mempool.TxPool            { return s.txPool }
+func (s *SilkRoad) Engine() consensus.Engine           { return s.engine }
+func (s *SilkRoad) ChainDb() database.Database         { return s.chainDb }
 
 // Protocols implements node.Service, returning all the currently configured
 // network protocols to start.
-func (s *Server) Protocols() []p2p.Protocol {
+func (s *SilkRoad) Protocols() []p2p.Protocol {
 	return s.protocolManager.SubProtocols
 }
 
 // Start implements node.Service, starting all internal goroutines needed by the
-// Server protocol implementation.
-// func (s *Server) Start(srvr *p2p.Server) error {
-func (s *Server) Start() error {
+// SilkRoad protocol implementation.
+// func (s *SilkRoad) Start(srvr *p2p.SilkRoad) error {
+func (s *SilkRoad) Start(server *p2p.Server) error {
 	// // Start the bloom bits servicing goroutines
 	// s.startBloomHandlers()
 
@@ -220,8 +221,8 @@ func (s *Server) Start() error {
 }
 
 // Stop implements node.Service, terminating all internal goroutines used by the
-// Server protocol.
-func (s *Server) Stop() error {
+// SilkRoad protocol.
+func (s *SilkRoad) Stop() error {
 	// s.bloomIndexer.Close()
 	s.blockchain.Stop()
 	// s.protocolManager.Stop()

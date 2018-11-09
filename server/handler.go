@@ -13,17 +13,17 @@ import (
 	"github.com/srchain/srcd/common/common"
 	"github.com/srchain/srcd/consensus"
 	"github.com/srchain/srcd/consensus/misc"
-	"github.com/srchain/srcd/core"
-	"github.com/srchain/srcd/core/types"
+	bc "github.com/srchain/srcd/core/blockchain"
 	"github.com/srchain/srcd/eth/downloader"
 	"github.com/srchain/srcd/eth/fetcher"
-	"github.com/srchain/srcd/ethdb"
-	"github.com/srchain/srcd/event"
+	srcdb "github.com/srchain/srcd/database"
+	event "github.com/srchain/srcd/event"
 	"github.com/srchain/srcd/log"
 	"github.com/srchain/srcd/p2p"
 	"github.com/srchain/srcd/p2p/discover"
 	"github.com/srchain/srcd/params"
 	"github.com/srchain/srcd/rlp"
+	"github.com/srchain/srcd/core"
 )
 
 const (
@@ -54,7 +54,7 @@ type ProtocolManager struct {
 	acceptTxs uint32 // Flag whether we're considered synchronised (enables transaction processing)
 
 	txpool      txPool
-	blockchain  *core.BlockChain
+	blockchain  *bc.BlockChain
 	chainconfig *params.ChainConfig
 	maxPeers    int
 
@@ -82,7 +82,7 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the Ethereum network.
-func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database) (*ProtocolManager, error) {
+func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb srcdb.Database) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkID:   networkID,

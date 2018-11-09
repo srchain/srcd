@@ -179,7 +179,7 @@ func (n *Node) Start() error {
 	for kind, service := range services {
 		// Start the next service, stopping all previous upon failure
 		// if err := service.Start(running); err != nil {
-		if err := service.Start(); err != nil {
+		if err := service.Start(running); err != nil {
 			for _, kind := range started {
 				services[kind].Stop()
 			}
@@ -191,7 +191,7 @@ func (n *Node) Start() error {
 		started = append(started, kind)
 	}
 
-	// rpc
+	//TODO rpc to be start
 
 	// Finish initializing the startup
 	n.services = services
