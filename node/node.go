@@ -102,10 +102,9 @@ func (n *Node) Register(constructor ServiceConstructor) error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	// if n.server != nil {
-	// return ErrNodeRunning
-	// }
-
+	if n.server != nil {
+		return ErrNodeRunning
+	}
 	n.serviceFuncs = append(n.serviceFuncs, constructor)
 	return nil
 }
