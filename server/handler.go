@@ -24,6 +24,7 @@ import (
 	"github.com/srchain/srcd/params"
 	"github.com/srchain/srcd/rlp"
 	"github.com/srchain/srcd/core"
+	"github.com/srchain/srcd/core/types"
 )
 
 const (
