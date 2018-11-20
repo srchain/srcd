@@ -9,15 +9,24 @@ import (
 	"github.com/srchain/srcd/crypto/ed25519/chainkd"
 	"github.com/srchain/srcd/core/transaction"
 	"github.com/srchain/srcd/core/vm"
+	"github.com/srchain/srcd/database"
+	"github.com/srchain/srcd/trie"
 )
 
 func must(err error) {
 	fmt.Println(err)
 }
 
-func mockAM() AccountManager {
-	return AccountManager{}
+func mockAM() *AccountManager {
+
+	diskdb, err := database.NewLDBDatabase("/Users/zhangrongxing/Downloads/srcd_wallet", 768, 1280)
+	trie.NewDatabase(diskdb)
+	if err != nil {
+		panic(fmt.Sprintf("can't create temporary database: %v", err))
+	}
+	return NewAccountManager(diskdb)
 }
+
 
 func TestCreateAccount(t *testing.T) {
 	am := mockAM()

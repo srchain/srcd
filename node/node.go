@@ -13,6 +13,7 @@ import (
 	"github.com/srchain/srcd/p2p"
 	"github.com/prometheus/prometheus/util/flock"
 	"github.com/srchain/srcd/account"
+	"fmt"
 )
 
 // Node is a container on which services can be registered.
@@ -168,7 +169,8 @@ func (n *Node) Start() error {
 
 	// Gather the protocols and start the freshly assembled P2P server
 	for _, service := range services {
-		running.Protocols = append(running.Protocols, service.Protocols()...)
+		fmt.Println(service)
+		running.Protocols = append(running.Protocols, running.Protocols...)
 	}
 	if err := running.Start(); err != nil {
 		return convertFileLockError(err)

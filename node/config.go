@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/srchain/srcd/accounts/keystore"
 	"github.com/srchain/srcd/common/common"
 	"github.com/srchain/srcd/crypto/crypto"
 	"github.com/srchain/srcd/log"
@@ -276,30 +275,30 @@ func (c *Config) parsePersistentNodes(path string) []*discover.Node {
 }
 
 // AccountConfig determines the settings for scrypt and keydirectory
-func (c *Config) AccountConfig() (int, int, string, error) {
-	scryptN := keystore.StandardScryptN
-	scryptP := keystore.StandardScryptP
-
-	var (
-		keydir string
-		err    error
-	)
-
-	switch {
-	case filepath.IsAbs(c.KeyStoreDir):
-		keydir = c.KeyStoreDir
-	case c.DataDir != "":
-		if c.KeyStoreDir == "" {
-			keydir = filepath.Join(c.DataDir, datadirDefaultKeyStore)
-		} else {
-			keydir, err = filepath.Abs(c.KeyStoreDir)
-		}
-	case c.KeyStoreDir != "":
-		keydir, err = filepath.Abs(c.KeyStoreDir)
-	}
-
-	return scryptN, scryptP, keydir, err
-}
+//func (c *Config) AccountConfig() (int, int, string, error) {
+//	scryptN := keystore.StandardScryptN
+//	scryptP := keystore.StandardScryptP
+//
+//	var (
+//		keydir string
+//		err    error
+//	)
+//
+//	switch {
+//	case filepath.IsAbs(c.KeyStoreDir):
+//		keydir = c.KeyStoreDir
+//	case c.DataDir != "":
+//		if c.KeyStoreDir == "" {
+//			keydir = filepath.Join(c.DataDir, datadirDefaultKeyStore)
+//		} else {
+//			keydir, err = filepath.Abs(c.KeyStoreDir)
+//		}
+//	case c.KeyStoreDir != "":
+//		keydir, err = filepath.Abs(c.KeyStoreDir)
+//	}
+//
+//	return scryptN, scryptP, keydir, err
+//}
 
 
 //func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
