@@ -10,20 +10,20 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/srchain/srcd/common/common"
 	"github.com/srchain/srcd/consensus"
 	"github.com/srchain/srcd/consensus/misc"
 	"github.com/srchain/srcd/core"
 	"github.com/srchain/srcd/core/types"
-	"github.com/srchain/srcd/eth/downloader"
-	"github.com/srchain/srcd/eth/fetcher"
-	"github.com/srchain/srcd/database"
 	"github.com/srchain/srcd/event"
 	"github.com/srchain/srcd/log"
 	"github.com/srchain/srcd/p2p"
 	"github.com/srchain/srcd/p2p/discover"
 	"github.com/srchain/srcd/params"
 	"github.com/srchain/srcd/rlp"
+	"github.com/srchain/srcd/server/downloader"
+	"github.com/srchain/srcd/server/fetcher"
 )
 
 const (
