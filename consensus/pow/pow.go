@@ -3,8 +3,8 @@ package pow
 import (
 	"math/big"
 	"math/rand"
-	"srcd/core/types"
 	"sync"
+	"github.com/srchain/srcd/core/types"
 )
 
 // two256 is a big integer representing 2^256

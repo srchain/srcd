@@ -1,8 +1,8 @@
 package core
 
 import (
-	"srcd/common/common"
-	"srcd/core/types"
+	"github.com/srchain/srcd/core/types"
+	"github.com/srchain/srcd/common/common"
 )
 
 // NewTxsEvent is posted when a batch of transactions enter the transaction pool.

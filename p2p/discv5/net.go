@@ -10,7 +10,7 @@ import (
 
 	"github.com/srchain/srcd/common/common"
 	"github.com/srchain/srcd/common/mclock"
-	"github.com/srchain/srcd/crypto"
+	"github.com/srchain/srcd/crypto/crypto"
 	"github.com/srchain/srcd/crypto/sha3"
 	"github.com/srchain/srcd/log"
 	"github.com/srchain/srcd/p2p/netutil"

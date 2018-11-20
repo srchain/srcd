@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/srchain/srcd/crypto"
+	"github.com/srchain/srcd/crypto/crypto"
 	"github.com/srchain/srcd/log"
 	"github.com/srchain/srcd/rlp"
 

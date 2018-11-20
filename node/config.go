@@ -3,13 +3,11 @@ package node
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 
-	"github.com/srchain/srcd/accounts"
 	"github.com/srchain/srcd/accounts/keystore"
 	"github.com/srchain/srcd/common/common"
 	"github.com/srchain/srcd/crypto/crypto"
@@ -303,26 +301,27 @@ func (c *Config) AccountConfig() (int, int, string, error) {
 	return scryptN, scryptP, keydir, err
 }
 
-func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
-	scryptN, scryptP, keydir, err := conf.AccountConfig()
-	var ephemeral string
-	if keydir == "" {
-		// There is no datadir.
-		keydir, err = ioutil.TempDir("", "srcd-keystore")
-		ephemeral = keydir
-	}
 
-	if err != nil {
-		return nil, "", err
-	}
-	if err := os.MkdirAll(keydir, 0700); err != nil {
-		return nil, "", err
-	}
-
-	// Assemble the account manager and supported backends
-	backends := []accounts.Backend{
-		keystore.NewKeyStore(keydir, scryptN, scryptP),
-	}
-
-	return accounts.NewManager(backends...), ephemeral, nil
-}
+//func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
+//	scryptN, scryptP, keydir, err := conf.AccountConfig()
+//	var ephemeral string
+//	if keydir == "" {
+//		// There is no datadir.
+//		keydir, err = ioutil.TempDir("", "srcd-keystore")
+//		ephemeral = keydir
+//	}
+//
+//	if err != nil {
+//		return nil, "", err
+//	}
+//	if err := os.MkdirAll(keydir, 0700); err != nil {
+//		return nil, "", err
+//	}
+//
+//	// Assemble the account manager and supported backends
+//	backends := []accounts.Backend{
+//		keystore.NewKeyStore(keydir, scryptN, scryptP),
+//	}
+//
+//	return accounts.NewManager(backends...), ephemeral, nil
+//}

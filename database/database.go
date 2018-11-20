@@ -152,12 +152,12 @@ type table struct {
 
 // NewTable returns a Database object that prefixes all keys with a given
 // string.
-func NewTable(db Database, prefix string) Database {
-	return &table{
-		db:     db,
-		prefix: prefix,
-	}
-}
+//func NewTable(db Database, prefix string) Database {
+//	return &table{
+//		db:     db,
+//		prefix: prefix,
+//	}
+//}
 
 func (dt *table) Put(key []byte, value []byte) error {
 	return dt.db.Put(append([]byte(dt.prefix), key...), value)

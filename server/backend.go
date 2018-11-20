@@ -5,7 +5,6 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/srchain/srcd/accounts"
 	"github.com/srchain/srcd/common/common"
 	"github.com/srchain/srcd/common/hexutil"
 	"github.com/srchain/srcd/consensus"
@@ -18,6 +17,8 @@ import (
 	"github.com/srchain/srcd/node"
 	"github.com/srchain/srcd/params"
 	"github.com/srchain/srcd/rlp"
+	"github.com/srchain/srcd/p2p"
+	"github.com/srchain/srcd/account"
 )
 
 // Server implements the full node service.
@@ -38,7 +39,7 @@ type Server struct {
 
 	// eventMux       *event.TypeMux
 	engine         consensus.Engine
-	accountManager *accounts.Manager
+	accountManager *account.AccountManager
 
 	// bloomRequests chan chan *bloombits.Retrieval // Channel receiving bloom data retrieval requests
 	// bloomIndexer  *core.ChainIndexer             // Bloom indexer operating during block imports
@@ -133,18 +134,18 @@ func (s *Server) Coinbase() (cb common.Address, err error) {
 	if coinbase != (common.Address{}) {
 		return coinbase, nil
 	}
-	if wallets := s.AccountManager().Wallets(); len(wallets) > 0 {
-		if accounts := wallets[0].Accounts(); len(accounts) > 0 {
-			coinbase := accounts[0].Address
-
-			s.lock.Lock()
-			s.coinbase = coinbase
-			s.lock.Unlock()
-
-			log.Info("Coinbase automatically configured", "address", coinbase)
-			return coinbase, nil
-		}
-	}
+	//if wallets := s.AccountManager().Wallets(); len(wallets) > 0 {
+	//	if accounts := wallets[0].Accounts(); len(accounts) > 0 {
+	//		coinbase := accounts[0].Address
+	//
+	//		s.lock.Lock()
+	//		s.coinbase = coinbase
+	//		s.lock.Unlock()
+	//
+	//		log.Info("Coinbase automatically configured", "address", coinbase)
+	//		return coinbase, nil
+	//	}
+	//}
 	return common.Address{}, fmt.Errorf("coinbase must be explicitly specified")
 }
 
@@ -182,7 +183,7 @@ func (s *Server) StartMining(threads int) error {
 
 func (s *Server) IsMining() bool      { return s.miner.Mining() }
 
-func (s *Server) AccountManager() *accounts.Manager  { return s.accountManager }
+//func (s *Server) AccountManager() *accounts.Manager  { return s.accountManager }
 func (s *Server) BlockChain() *blockchain.BlockChain { return s.blockchain }
 func (s *Server) TxPool() *mempool.TxPool            { return s.txPool }
 func (s *Server) Engine() consensus.Engine           { return s.engine }

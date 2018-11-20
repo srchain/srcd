@@ -16,8 +16,8 @@ import (
 	"time"
 
 	"github.com/srchain/srcd/common/common"
-	"github.com/srchain/srcd/crypto"
 	"github.com/srchain/srcd/crypto/secp256k1"
+	"github.com/srchain/srcd/crypto/crypto"
 )
 
 const NodeIDBits = 512

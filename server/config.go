@@ -42,6 +42,7 @@ type Config struct {
 	// Transaction pool options
 	TxPool mempool.TxPoolConfig
 
+
 	// Gas Price Oracle options
 	// GPO gasprice.Config
 }

@@ -8,20 +8,20 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/srchain/srcd/accounts"
 	"github.com/srchain/srcd/database"
 	"github.com/srchain/srcd/log"
 	"github.com/srchain/srcd/p2p"
 	"github.com/prometheus/prometheus/util/flock"
+	"github.com/srchain/srcd/account"
 )
 
 // Node is a container on which services can be registered.
 type Node struct {
 	// eventmux *event.TypeMux		// Event multiplexer used between the services of a stack
 	config            *Config
-	accman            *accounts.Manager
-
-	ephemeralKeystore string                   // if non-empty, the key directory that will be removed by Stop
+	accman            *account.AccountManager
+	//
+	//ephemeralKeystore string                   // if non-empty, the key directory that will be removed by Stop
 	instanceDirLock   flock.Releaser           // prevents concurrent use of instance directory
 
 	serverConfig      p2p.Config
@@ -79,14 +79,15 @@ func New(conf *Config) (*Node, error) {
 	}
 
 	// Ensure that the AccountManager method works before the node has started.
-	am, ephemeralKeystore, err := makeAccountManager(conf)
-	if err != nil {
-		return nil, err
+	//am, ephemeralKeystore, err := makeAccountManaglser(conf)
+	db, err := database.NewLDBDatabase(DefaultDataDir() + "/srcd/walletdb", 768, 1024)
+	if err!=nil{
+		return nil,errors.New("walletdb create fail ")
 	}
-
+	am := account.NewAccountManager(db)
 	return &Node{
 		accman:            am,
-		ephemeralKeystore: ephemeralKeystore,
+		//ephemeralKeystore: ephemeralKeystore,
 		config:            conf,
 		serviceFuncs:      []ServiceConstructor{},
 		// ipcEndpoint:       conf.IPCEndpoint(),
@@ -147,7 +148,7 @@ func (n *Node) Start() error {
 		ctx := &ServiceContext{
 			config:         n.config,
 			services:       make(map[reflect.Type]Service),
-			AccountManager: n.accman,
+			//AccountManager: n.accman,
 		}
 		// copy needed for threaded access
 		for kind, s := range services {
@@ -259,9 +260,9 @@ func (n *Node) Stop() error {
 
 	// Remove the keystore if it was created ephemerally.
 	var keystoreErr error
-	if n.ephemeralKeystore != "" {
-		keystoreErr = os.RemoveAll(n.ephemeralKeystore)
-	}
+	//if n.ephemeralKeystore != "" {
+	//	keystoreErr = os.RemoveAll(n.ephemeralKeystore)
+	//}
 
 	if len(failure.Services) > 0 {
 		return failure
@@ -305,7 +306,7 @@ func (n *Node) Service(service interface{}) error {
 }
 
 // AccountManager retrieves the account manager used by the protocol stack.
-func (n *Node) AccountManager() *accounts.Manager {
+func (n *Node) AccountManager() *account.AccountManager {
 	return n.accman
 }
 

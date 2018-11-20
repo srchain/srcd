@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	"github.com/srchain/srcd/common/common"
-	"github.com/srchain/srcd/crypto"
+	"github.com/srchain/srcd/crypto/crypto"
 )
 
 // Node represents a host on the network.
