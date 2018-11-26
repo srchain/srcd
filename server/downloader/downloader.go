@@ -25,14 +25,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	ethereum "github.com/ethereum/go-ethereum"
+	srcd "github.com/srchain/srcd"
 	"github.com/srchain/srcd/common/common"
-	"github.com/srchain/srcd/core/rawdb"
-	"github.com/srchain/srcd/core/types"
-	"github.com/srchain/srcd/database"
-	"github.com/srchain/srcd/event"
+		"github.com/srchain/srcd/core/types"
+		"github.com/srchain/srcd/event"
 	"github.com/srchain/srcd/log"
 	"github.com/srchain/srcd/params"
+	"github.com/srchain/srcd/metrics"
 )
 
 var (
@@ -97,15 +96,15 @@ type Downloader struct {
 
 	queue   *queue   // Scheduler for selecting the hashes to download
 	peers   *peerSet // Set of active peers from which download can proceed
-	stateDB database.Database
+	//stateDB database.Database
 
 	rttEstimate   uint64 // Round trip time to target for download requests
 	rttConfidence uint64 // Confidence in the estimated RTT (unit: millionths to allow atomic ops)
 
-	// Statistics
+	// TODO: state relevant removed Statistics
 	syncStatsChainOrigin uint64 // Origin block number where syncing started at
 	syncStatsChainHeight uint64 // Highest block number known when syncing started
-	syncStatsState       stateSyncStats
+	//syncStatsState       stateSyncStats
 	syncStatsLock        sync.RWMutex // Lock protecting the sync stats fields
 
 	lightchain LightChain
@@ -129,8 +128,8 @@ type Downloader struct {
 	headerProcCh  chan []*types.Header // [eth/62] Channel to feed the header processor new tasks
 
 	// for stateFetcher
-	stateSyncStart chan *stateSync
-	trackStateReq  chan *stateReq
+	//stateSyncStart chan *stateSync
+	//trackStateReq  chan *stateReq
 	stateCh        chan dataPack // [eth/63] Channel receiving inbound node state data
 
 	// Cancellation and termination
@@ -198,14 +197,13 @@ type BlockChain interface {
 }
 
 // New creates a new downloader to fetch hashes and blocks from remote peers.
-func New(mode SyncMode, stateDb database.Database, mux *event.TypeMux, chain BlockChain, lightchain LightChain, dropPeer peerDropFn) *Downloader {
+func New(mode SyncMode, mux *event.TypeMux, chain BlockChain, lightchain LightChain, dropPeer peerDropFn) *Downloader {
 	if lightchain == nil {
 		lightchain = chain
 	}
 
 	dl := &Downloader{
 		mode:           mode,
-		stateDB:        stateDb,
 		mux:            mux,
 		queue:          newQueue(),
 		peers:          newPeerSet(),
@@ -222,14 +220,8 @@ func New(mode SyncMode, stateDb database.Database, mux *event.TypeMux, chain Blo
 		headerProcCh:   make(chan []*types.Header, 1),
 		quitCh:         make(chan struct{}),
 		stateCh:        make(chan dataPack),
-		stateSyncStart: make(chan *stateSync),
-		syncStatsState: stateSyncStats{
-			processed: rawdb.ReadFastTrieProgress(stateDb),
-		},
-		trackStateReq: make(chan *stateReq),
 	}
 	go dl.qosTuner()
-	go dl.stateFetcher()
 	return dl
 }
 
@@ -240,7 +232,7 @@ func New(mode SyncMode, stateDb database.Database, mux *event.TypeMux, chain Blo
 // In addition, during the state download phase of fast synchronisation the number
 // of processed and the total number of known states are also returned. Otherwise
 // these are zero.
-func (d *Downloader) Progress() ethereum.SyncProgress {
+func (d *Downloader) Progress() srcd.SyncProgress {
 	// Lock the current stats and return the progress
 	d.syncStatsLock.RLock()
 	defer d.syncStatsLock.RUnlock()
@@ -254,12 +246,10 @@ func (d *Downloader) Progress() ethereum.SyncProgress {
 	case LightSync:
 		current = d.lightchain.CurrentHeader().Number.Uint64()
 	}
-	return ethereum.SyncProgress{
+	return srcd.SyncProgress{
 		StartingBlock: d.syncStatsChainOrigin,
 		CurrentBlock:  current,
 		HighestBlock:  d.syncStatsChainHeight,
-		PulledStates:  d.syncStatsState.processed,
-		KnownStates:   d.syncStatsState.processed + d.syncStatsState.pending,
 	}
 }
 
@@ -466,11 +456,11 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td *big.I
 		func() error { return d.processHeaders(origin+1, pivot, td) },
 	}
 	// TODO: 这里处理账号的同步
-	if d.mode == FastSync {
-		fetchers = append(fetchers, func() error { return d.processFastSyncContent(latest) })
-	} else if d.mode == FullSync {
-		fetchers = append(fetchers, d.processFullSyncContent)
-	}
+	//if d.mode == FastSync {
+	//	fetchers = append(fetchers, func() error { return d.processFastSyncContent(latest) })
+	//} else if d.mode == FullSync {
+	//	fetchers = append(fetchers, d.processFullSyncContent)
+	//}
 	return d.spawnSync(fetchers)
 }
 
