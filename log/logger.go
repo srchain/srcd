@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/go-stack/stack"
-)
+	)
 
 const timeKey = "t"
 const lvlKey = "lvl"
@@ -123,6 +123,22 @@ type Logger interface {
 	Crit(msg string, ctx ...interface{})
 }
 
+
+func (l *logger) New(ctx ...interface{}) Logger {
+	child := &logger{newContext(l.ctx, ctx), new(swapHandler)}
+	child.SetHandler(l.h)
+	return child
+}
+
+func (l *logger) GetHandler() Handler {
+	return l.h.Get()
+}
+
+func (l *logger) SetHandler(h Handler) {
+	l.h.Swap(h)
+}
+
+
 type logger struct {
 	ctx []interface{}
 	h   *swapHandler
@@ -143,11 +159,6 @@ func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
 	})
 }
 
-func (l *logger) New(ctx ...interface{}) Logger {
-	child := &logger{newContext(l.ctx, ctx), new(swapHandler)}
-	child.SetHandler(l.h)
-	return child
-}
 
 func newContext(prefix []interface{}, suffix []interface{}) []interface{} {
 	normalizedSuffix := normalize(suffix)
@@ -182,13 +193,7 @@ func (l *logger) Crit(msg string, ctx ...interface{}) {
 	os.Exit(1)
 }
 
-func (l *logger) GetHandler() Handler {
-	return l.h.Get()
-}
 
-func (l *logger) SetHandler(h Handler) {
-	l.h.Swap(h)
-}
 
 func normalize(ctx []interface{}) []interface{} {
 	// if the caller passed a Ctx object, then expand it

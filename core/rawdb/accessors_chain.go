@@ -8,6 +8,7 @@ import (
 	"github.com/srchain/srcd/core/types"
 	"github.com/srchain/srcd/log"
 	"github.com/srchain/srcd/rlp"
+	"math/big"
 )
 
 // ReadCanonicalHash retrieves the hash assigned to a canonical block number.
@@ -102,6 +103,17 @@ func ReadHeader(db DatabaseReader, hash common.Hash, number uint64) *types.Heade
 	}
 	return header
 }
+
+// ReadFastTrieProgress retrieves the number of tries nodes fast synced to allow
+// reporting correct numbers across restarts.
+func ReadFastTrieProgress(db DatabaseReader) uint64 {
+	data, _ := db.Get(fastTrieProgressKey)
+	if len(data) == 0 {
+		return 0
+	}
+	return new(big.Int).SetBytes(data).Uint64()
+}
+
 
 // WriteHeader stores a block header into the database and also stores the hash-
 // to-number mapping.

@@ -46,6 +46,7 @@ type Header struct {
 	ParentHash common.Hash    `json:"parentHash"       gencodec:"required"`
 	Coinbase   common.Address `json:"miner"            gencodec:"required"`
 	TxHash     common.Hash    `json:"transactionsRoot" gencodec:"required"`
+
 	// Bloom       Bloom          `json:"logsBloom"        gencodec:"required"`
 	Difficulty *big.Int   `json:"difficulty"       gencodec:"required"`
 	Number     *big.Int   `json:"number"           gencodec:"required"`
