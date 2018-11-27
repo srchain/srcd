@@ -5,7 +5,6 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/srchain/srcd/accounts"
 	"github.com/srchain/srcd/common/common"
 	"github.com/srchain/srcd/common/hexutil"
 	"github.com/srchain/srcd/consensus"
@@ -19,6 +18,10 @@ import (
 	"github.com/srchain/srcd/params"
 	"github.com/srchain/srcd/rlp"
 	"github.com/srchain/srcd/p2p"
+
+	"github.com/srchain/srcd/account"
+
+	"github.com/srchain/srcd/accounts"
 )
 
 // SilkRoad implements the full node service.
@@ -27,7 +30,7 @@ type SilkRoad struct {
 	// chainConfig *params.ChainConfig
 
 	// Channel for shutting down the service
-	shutdownChan chan bool
+	// shutdownChan chan bool
 
 	// Handlers
 	txPool          *mempool.TxPool
@@ -39,7 +42,7 @@ type SilkRoad struct {
 
 	// eventMux       *event.TypeMux
 	engine         consensus.Engine
-	accountManager *accounts.Manager
+	accountManager *account.AccountManager
 
 	// bloomRequests chan chan *bloombits.Retrieval // Channel receiving bloom data retrieval requests
 	// bloomIndexer  *core.ChainIndexer             // Bloom indexer operating during block imports
@@ -67,7 +70,7 @@ func New(ctx *node.ServiceContext, config *Config) (*SilkRoad, error) {
 		chainDb:        chainDb,
 		accountManager: ctx.AccountManager,
 		engine:         CreateConsensusEngine(),
-		shutdownChan:   make(chan bool),
+		// shutdownChan:   make(chan bool),
 		coinbase:       config.Coinbase,
 	}
 
@@ -134,18 +137,18 @@ func (s *SilkRoad) Coinbase() (cb common.Address, err error) {
 	if coinbase != (common.Address{}) {
 		return coinbase, nil
 	}
-	if wallets := s.AccountManager().Wallets(); len(wallets) > 0 {
-		if accounts := wallets[0].Accounts(); len(accounts) > 0 {
-			coinbase := accounts[0].Address
-
-			s.lock.Lock()
-			s.coinbase = coinbase
-			s.lock.Unlock()
-
-			log.Info("Coinbase automatically configured", "address", coinbase)
-			return coinbase, nil
-		}
-	}
+	//if wallets := s.AccountManager().Wallets(); len(wallets) > 0 {
+	//	if accounts := wallets[0].Accounts(); len(accounts) > 0 {
+	//		coinbase := accounts[0].Address
+	//
+	//		s.lock.Lock()
+	//		s.coinbase = coinbase
+	//		s.lock.Unlock()
+	//
+	//		log.Info("Coinbase automatically configured", "address", coinbase)
+	//		return coinbase, nil
+	//	}
+	//}
 	return common.Address{}, fmt.Errorf("coinbase must be explicitly specified")
 }
 
@@ -183,11 +186,16 @@ func (s *SilkRoad) StartMining(threads int) error {
 
 func (s *SilkRoad) IsMining() bool { return s.miner.Mining() }
 
+
 func (s *SilkRoad) AccountManager() *accounts.Manager  { return s.accountManager }
 func (s *SilkRoad) BlockChain() *blockchain.BlockChain { return s.blockchain }
 func (s *SilkRoad) TxPool() *mempool.TxPool            { return s.txPool }
 func (s *SilkRoad) Engine() consensus.Engine           { return s.engine }
 func (s *SilkRoad) ChainDb() database.Database         { return s.chainDb }
+
+//func (s *Server) AccountManager() *accounts.Manager  { return s.accountManager }
+
+
 
 // Protocols implements node.Service, returning all the currently configured
 // network protocols to start.
@@ -196,26 +204,17 @@ func (s *SilkRoad) Protocols() []p2p.Protocol {
 }
 
 // Start implements node.Service, starting all internal goroutines needed by the
+
 // SilkRoad protocol implementation.
 // func (s *SilkRoad) Start(srvr *p2p.SilkRoad) error {
 func (s *SilkRoad) Start(server *p2p.Server) error {
-	// // Start the bloom bits servicing goroutines
-	// s.startBloomHandlers()
 
 	// // Start the RPC service
 	// s.netRPCService = ethapi.NewPublicNetAPI(srvr, s.NetVersion())
 
-	// // Figure out a max peers count based on the server limits
-	// maxPeers := srvr.MaxPeers
-	// if s.config.LightServ > 0 {
-	// if s.config.LightPeers >= srvr.MaxPeers {
-	// return fmt.Errorf("invalid peer config: light peer count (%d) >= total peer count (%d)", s.config.LightPeers, srvr.MaxPeers)
-	// }
-	// maxPeers -= s.config.LightPeers
-	// }
-
-	// Start the networking layer and the light server if requested
-	// s.protocolManager.Start(10)
+	// Start the networking layer
+	maxPeers := server.MaxPeers
+	s.protocolManager.Start(maxPeers)
 
 	return nil
 }
@@ -225,7 +224,7 @@ func (s *SilkRoad) Start(server *p2p.Server) error {
 func (s *SilkRoad) Stop() error {
 	// s.bloomIndexer.Close()
 	s.blockchain.Stop()
-	// s.protocolManager.Stop()
+	s.protocolManager.Stop()
 	// s.txPool.Stop()
 	s.miner.Stop()
 	// s.eventMux.Stop()

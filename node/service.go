@@ -3,9 +3,11 @@ package node
 import (
 	"reflect"
 
-	"github.com/srchain/srcd/accounts"
 	"github.com/srchain/srcd/database"
 	"github.com/srchain/srcd/p2p"
+
+	"github.com/srchain/srcd/account"
+
 )
 
 // ServiceContext is a collection of service independent options inherited from
@@ -15,7 +17,7 @@ type ServiceContext struct {
 	config         *Config
 	services       map[reflect.Type]Service // Index of the already constructed services
 	// EventMux       *event.TypeMux           // Event multiplexer used for decoupled notifications
-	AccountManager *accounts.Manager        // Account manager created by the node.
+	AccountManager *account.AccountManager       // Account manager created by the node.
 }
 
 // OpenDatabase opens an existing database with the given name (or creates one
@@ -53,7 +55,9 @@ type Service interface {
 	// Start is called after all services have been constructed and the networking
 	// layer was also initialized to spawn any goroutines required by the service.
 	// Start(server *p2p.Server) error
+
 	Start(server *p2p.Server) error
+
 
 	// Stop terminates all goroutines belonging to the service, blocking until they
 	// are all terminated.

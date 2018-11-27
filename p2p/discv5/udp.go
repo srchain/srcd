@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/srchain/srcd/common/common"
-	"github.com/srchain/srcd/crypto"
+	"github.com/srchain/srcd/crypto/crypto"
 	"github.com/srchain/srcd/log"
 	"github.com/srchain/srcd/p2p/nat"
 	"github.com/srchain/srcd/p2p/netutil"

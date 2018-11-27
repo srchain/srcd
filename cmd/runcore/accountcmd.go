@@ -71,73 +71,22 @@ Note, this is meant to be used for testing only, it is a bad idea to save your
 password to file or expose in any other way.
 `,
 			},
-			{
-				Name:   "import",
-				Usage:  "Import a private key into a new account",
-				Action: utils.MigrateFlags(accountImport),
-				Flags: []cli.Flag{
-					utils.DataDirFlag,
-					utils.KeyStoreDirFlag,
-				},
-				ArgsUsage: "<keyFile>",
-				Description: `
-    srcd account import <keyfile>
-
-Imports an unencrypted private key from <keyfile> and creates a new account.
-Prints the address.
-
-The keyfile is assumed to contain an unencrypted private key in hexadecimal format.
-
-The account is saved in encrypted format, you are prompted for a passphrase.
-
-You must remember this passphrase to unlock your account in the future.
-
-For non-interactive use the passphrase can be specified with the -password flag:
-
-    srcd account import [options] <keyfile>
-
-Note:
-As you can directly copy your encrypted accounts to another srcd instance,
-this import mechanism is not needed when you transfer an account between
-nodes.
-`,
-			},
 		},
 	}
 )
 
 func accountList(ctx *cli.Context) error {
-	stack, _ := makeConfigNode(ctx)
-	var index int
-	for _, wallet := range stack.AccountManager().Wallets() {
-		for _, account := range wallet.Accounts() {
-			fmt.Printf("Account #%d: {%x} %s\n", index, account.Address, &account.URL)
-			index++
-		}
-	}
+	//stack, _ := makeConfigNode(ctx)
+	//var index int
+	//for _, wallet := range stack.AccountManager().Wallets() {
+	//	for _, account := range wallet.Accounts() {
+	//		fmt.Printf("Account #%d: {%x} %s\n", index, account.Address, &account.URL)
+	//		index++
+	//	}
+	//}
 	return nil
 }
 
-// getPassPhrase retrieves the password associated with an account.
-func getPassPhrase(prompt string, confirmation bool) string {
-	if prompt != "" {
-		fmt.Println(prompt)
-	}
-	password, err := console.Stdin.PromptPassword("Passphrase: ")
-	if err != nil {
-		utils.Fatalf("Failed to read passphrase: %v", err)
-	}
-	if confirmation {
-		confirm, err := console.Stdin.PromptPassword("Repeat passphrase: ")
-		if err != nil {
-			utils.Fatalf("Failed to read passphrase confirmation: %v", err)
-		}
-		if password != confirm {
-			utils.Fatalf("Passphrases do not match")
-		}
-	}
-	return password
-}
 
 // accountCreate creates a new account into the keystore defined by the CLI flags.
 func accountCreate(ctx *cli.Context) error {
@@ -150,38 +99,6 @@ func accountCreate(ctx *cli.Context) error {
 	}
 
 	utils.SetNodeConfig(ctx, &cfg.Node)
-	scryptN, scryptP, keydir, err := cfg.Node.AccountConfig()
-	if err != nil {
-		utils.Fatalf("Failed to read configuration: %v", err)
-	}
-
-	password := getPassPhrase("Your new account is locked with a password. Please give a password. Do not forget this password.", true)
-
-	address, err := keystore.StoreKey(keydir, password, scryptN, scryptP)
-	if err != nil {
-		utils.Fatalf("Failed to create account: %v", err)
-	}
-	fmt.Printf("Address: {%x}\n", address)
 	return nil
 }
 
-func accountImport(ctx *cli.Context) error {
-	keyfile := ctx.Args().First()
-	if len(keyfile) == 0 {
-		utils.Fatalf("keyfile must be given as argument")
-	}
-	key, err := crypto.LoadECDSA(keyfile)
-	if err != nil {
-		utils.Fatalf("Failed to load the private key: %v", err)
-	}
-	stack, _ := makeConfigNode(ctx)
-	passphrase := getPassPhrase("Your new account is locked with a password. Please give a password. Do not forget this password.", true)
-
-	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
-	acct, err := ks.ImportECDSA(key, passphrase)
-	if err != nil {
-		utils.Fatalf("Could not create the account: %v", err)
-	}
-	fmt.Printf("Address: {%x}\n", acct.Address)
-	return nil
-}

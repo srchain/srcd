@@ -7,3 +7,7 @@ func P2WSHProgram(hash []byte)([]byte,error){
 
 	return builder.Build()
 }
+
+//func ProgramScriptBind(address common.Address)([]byte,error){
+//
+//}

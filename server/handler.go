@@ -10,21 +10,28 @@ import (
 	"sync/atomic"
 	"time"
 
+
 	"github.com/srchain/srcd/common/common"
 	"github.com/srchain/srcd/consensus"
 	"github.com/srchain/srcd/consensus/misc"
+
 	bc "github.com/srchain/srcd/core/blockchain"
-	"github.com/srchain/srcd/eth/downloader"
-	"github.com/srchain/srcd/eth/fetcher"
 	srcdb "github.com/srchain/srcd/database"
 	event "github.com/srchain/srcd/event"
+
+	"github.com/srchain/srcd/core"
+	"github.com/srchain/srcd/core/types"
+
+
 	"github.com/srchain/srcd/log"
 	"github.com/srchain/srcd/p2p"
 	"github.com/srchain/srcd/p2p/discover"
 	"github.com/srchain/srcd/params"
 	"github.com/srchain/srcd/rlp"
-	"github.com/srchain/srcd/core"
-	"github.com/srchain/srcd/core/types"
+
+	"github.com/srchain/srcd/server/downloader"
+	"github.com/srchain/srcd/server/fetcher"
+
 )
 
 const (
@@ -83,7 +90,7 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the Ethereum network.
-func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb srcdb.Database) (*ProtocolManager, error) {
+func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *bc.BlockChain, chaindb srcdb.Database) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkID:   networkID,
@@ -105,6 +112,7 @@ func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 	if mode == downloader.FastSync {
 		manager.fastSync = uint32(1)
 	}
+
 	// Initiate a sub-protocol for every implemented version we can handle
 	manager.SubProtocols = make([]p2p.Protocol, 0, len(ProtocolVersions))
 	for i, version := range ProtocolVersions {

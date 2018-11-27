@@ -85,6 +85,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, config) {
 
 	// Apply flags.
 	utils.SetNodeConfig(ctx, &cfg.Node)
+
 	node, err := node.New(&cfg.Node)
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol node: %v", err)

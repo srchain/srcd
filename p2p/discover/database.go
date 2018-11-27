@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/srchain/srcd/crypto"
 	"github.com/srchain/srcd/log"
 	"github.com/srchain/srcd/rlp"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/storage"
 	"github.com/syndtr/goleveldb/leveldb/util"
+	"github.com/srchain/srcd/crypto/crypto"
 )
 
 var (

@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/srchain/srcd/common/common"
+	"github.com/syndtr/goleveldb/leveldb/iterator"
 )
 
 // This is a test memory database. Do not use for any production it does not get persisted
@@ -75,7 +76,9 @@ func (db *MemDatabase) Close() {}
 func (db *MemDatabase) NewBatch() Batch {
 	return &memBatch{db: db}
 }
-
+func (db *MemDatabase) NewIteratorWithPrefix(prefix []byte) iterator.Iterator {
+	return iterator.NewEmptyIterator(nil)
+}
 func (db *MemDatabase) Len() int { return len(db.db) }
 
 type kv struct{ k, v []byte }
