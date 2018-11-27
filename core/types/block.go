@@ -10,6 +10,7 @@ import (
 	"github.com/srchain/srcd/common/hexutil"
 	"github.com/srchain/srcd/crypto/sha3"
 	"github.com/srchain/srcd/rlp"
+	"unsafe"
 )
 
 var EmptyRootHash = DeriveSha(Transactions{})
@@ -60,6 +61,13 @@ type Header struct {
 func (h *Header) Hash() common.Hash {
 	return rlpHash(h)
 }
+
+// Size returns the approximate memory used by all internal contents. It is used
+// to approximate and limit the memory consumption of various caches.
+func (h *Header) Size() common.StorageSize {
+	return common.StorageSize(unsafe.Sizeof(*h)) + common.StorageSize(len(h.Extra)+(h.Difficulty.BitLen()+h.Number.BitLen()+h.Time.BitLen())/8)
+}
+
 
 // HashNoNonce returns the hash which is used as input for the proof-of-work search.
 func (h *Header) HashNoNonce() common.Hash {

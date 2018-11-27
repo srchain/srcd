@@ -18,12 +18,12 @@ package downloader
 
 import (
 	"math/big"
+	"github.com/srchain/srcd/common/common"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethdb"
+	bc "github.com/srchain/srcd/core/blockchain"
+	"github.com/srchain/srcd/core/rawdb"
+	"github.com/srchain/srcd/core/types"
+	srcdb "github.com/srchain/srcd/database"
 )
 
 // FakePeer is a mock downloader peer that operates on a local database instance
@@ -31,13 +31,13 @@ import (
 // sync commands from an existing local database.
 type FakePeer struct {
 	id string
-	db ethdb.Database
-	hc *core.HeaderChain
+	db srcdb.Database
+	hc *bc.HeaderChain
 	dl *Downloader
 }
 
 // NewFakePeer creates a new mock downloader peer with the given data sources.
-func NewFakePeer(id string, db ethdb.Database, hc *core.HeaderChain, dl *Downloader) *FakePeer {
+func NewFakePeer(id string, db srcdb.Database, hc *bc.HeaderChain, dl *Downloader) *FakePeer {
 	return &FakePeer{id: id, db: db, hc: hc, dl: dl}
 }
 
@@ -124,38 +124,38 @@ func (p *FakePeer) RequestHeadersByNumber(number uint64, amount int, skip int, r
 func (p *FakePeer) RequestBodies(hashes []common.Hash) error {
 	var (
 		txs    [][]*types.Transaction
-		uncles [][]*types.Header
+
 	)
 	for _, hash := range hashes {
 		block := rawdb.ReadBlock(p.db, hash, *p.hc.GetBlockNumber(hash))
 
 		txs = append(txs, block.Transactions())
-		uncles = append(uncles, block.Uncles())
+
 	}
-	p.dl.DeliverBodies(p.id, txs, uncles)
+	p.dl.DeliverBodies(p.id, txs)
 	return nil
 }
 
-// RequestReceipts implements downloader.Peer, returning a batch of transaction
-// receipts corresponding to the specified block hashes.
-func (p *FakePeer) RequestReceipts(hashes []common.Hash) error {
-	var receipts [][]*types.Receipt
-	for _, hash := range hashes {
-		receipts = append(receipts, rawdb.ReadReceipts(p.db, hash, *p.hc.GetBlockNumber(hash)))
-	}
-	p.dl.DeliverReceipts(p.id, receipts)
-	return nil
-}
+//// RequestReceipts implements downloader.Peer, returning a batch of transaction
+//// receipts corresponding to the specified block hashes.
+//func (p *FakePeer) RequestReceipts(hashes []common.Hash) error {
+//	var receipts [][]*types.Receipt
+//	for _, hash := range hashes {
+//		receipts = append(receipts, rawdb.ReadReceipts(p.db, hash, *p.hc.GetBlockNumber(hash)))
+//	}
+//	p.dl.DeliverReceipts(p.id, receipts)
+//	return nil
+//}
 
 // RequestNodeData implements downloader.Peer, returning a batch of state trie
 // nodes corresponding to the specified trie hashes.
-func (p *FakePeer) RequestNodeData(hashes []common.Hash) error {
-	var data [][]byte
-	for _, hash := range hashes {
-		if entry, err := p.db.Get(hash.Bytes()); err == nil {
-			data = append(data, entry)
-		}
-	}
-	p.dl.DeliverNodeData(p.id, data)
-	return nil
-}
+//func (p *FakePeer) RequestNodeData(hashes []common.Hash) error {
+//	var data [][]byte
+//	for _, hash := range hashes {
+//		if entry, err := p.db.Get(hash.Bytes()); err == nil {
+//			data = append(data, entry)
+//		}
+//	}
+//	p.dl.DeliverNodeData(p.id, data)
+//	return nil
+//}
