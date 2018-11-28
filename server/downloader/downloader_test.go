@@ -115,13 +115,7 @@ func (dl *downloadTester) makeChain(n int, seed byte, parent *types.Block, paren
 			}
 			block.AddTx(tx)
 		}
-		// If the block number is a multiple of 5, add a bonus uncle to the block
-		if i > 0 && i%5 == 0 {
-			block.AddUncle(&types.Header{
-				ParentHash: block.PrevBlock(i - 1).Hash(),
-				Number:     big.NewInt(block.Number().Int64() - 1),
-			})
-		}
+
 	})
 	// Convert the block-chain into a hash-chain and header/block maps
 	hashes := make([]common.Hash, n+1)
@@ -330,37 +324,17 @@ func (dl *downloadTester) InsertChain(blocks types.Blocks) (int, error) {
 	for i, block := range blocks {
 		if parent, ok := dl.ownBlocks[block.ParentHash()]; !ok {
 			return i, errors.New("unknown parent")
-		} else if _, err := dl.stateDb.Get(parent.Root().Bytes()); err != nil {
-			return i, fmt.Errorf("unknown parent state %x: %v", parent.Root(), err)
 		}
 		if _, ok := dl.ownHeaders[block.Hash()]; !ok {
 			dl.ownHashes = append(dl.ownHashes, block.Hash())
 			dl.ownHeaders[block.Hash()] = block.Header()
 		}
 		dl.ownBlocks[block.Hash()] = block
-		dl.stateDb.Put(block.Root().Bytes(), []byte{0x00})
 		dl.ownChainTd[block.Hash()] = new(big.Int).Add(dl.ownChainTd[block.ParentHash()], block.Difficulty())
 	}
 	return len(blocks), nil
 }
 
-// InsertReceiptChain injects a new batch of receipts into the simulated chain.
-func (dl *downloadTester) InsertReceiptChain(blocks types.Blocks, receipts []types.Receipts) (int, error) {
-	dl.lock.Lock()
-	defer dl.lock.Unlock()
-
-	for i := 0; i < len(blocks) && i < len(receipts); i++ {
-		if _, ok := dl.ownHeaders[blocks[i].Hash()]; !ok {
-			return i, errors.New("unknown owner")
-		}
-		if _, ok := dl.ownBlocks[blocks[i].ParentHash()]; !ok {
-			return i, errors.New("unknown parent")
-		}
-		dl.ownBlocks[blocks[i].Hash()] = blocks[i]
-		dl.ownReceipts[blocks[i].Hash()] = receipts[i]
-	}
-	return len(blocks), nil
-}
 
 // Rollback removes some recently added elements from the chain.
 func (dl *downloadTester) Rollback(hashes []common.Hash) {
@@ -373,20 +347,19 @@ func (dl *downloadTester) Rollback(hashes []common.Hash) {
 		}
 		delete(dl.ownChainTd, hashes[i])
 		delete(dl.ownHeaders, hashes[i])
-		delete(dl.ownReceipts, hashes[i])
 		delete(dl.ownBlocks, hashes[i])
 	}
 }
 
 // newPeer registers a new block download source into the downloader.
 func (dl *downloadTester) newPeer(id string, version int, hashes []common.Hash, headers map[common.Hash]*types.Header, blocks map[common.Hash]*types.Block, receipts map[common.Hash]types.Receipts) error {
-	return dl.newSlowPeer(id, version, hashes, headers, blocks, receipts, 0)
+	return dl.newSlowPeer(id, version, hashes, headers, blocks, 0)
 }
 
 // newSlowPeer registers a new block download source into the downloader, with a
 // specific delay time on processing the network packets sent to it, simulating
 // potentially slow network IO.
-func (dl *downloadTester) newSlowPeer(id string, version int, hashes []common.Hash, headers map[common.Hash]*types.Header, blocks map[common.Hash]*types.Block, receipts map[common.Hash]types.Receipts, delay time.Duration) error {
+func (dl *downloadTester) newSlowPeer(id string, version int, hashes []common.Hash, headers map[common.Hash]*types.Header, blocks map[common.Hash]*types.Block, delay time.Duration) error {
 	dl.lock.Lock()
 	defer dl.lock.Unlock()
 
@@ -398,7 +371,6 @@ func (dl *downloadTester) newSlowPeer(id string, version int, hashes []common.Ha
 
 		dl.peerHeaders[id] = make(map[common.Hash]*types.Header)
 		dl.peerBlocks[id] = make(map[common.Hash]*types.Block)
-		dl.peerReceipts[id] = make(map[common.Hash]types.Receipts)
 		dl.peerChainTds[id] = make(map[common.Hash]*big.Int)
 		dl.peerMissingStates[id] = make(map[common.Hash]bool)
 
@@ -427,9 +399,7 @@ func (dl *downloadTester) newSlowPeer(id string, version int, hashes []common.Ha
 					dl.peerChainTds[id][hash] = new(big.Int).Add(block.Difficulty(), dl.peerChainTds[id][block.ParentHash()])
 				}
 			}
-			if receipt, ok := receipts[hash]; ok {
-				dl.peerReceipts[id][hash] = receipt
-			}
+
 		}
 	}
 	return err
@@ -453,6 +423,11 @@ type downloadTesterPeer struct {
 	id    string
 	delay time.Duration
 	lock  sync.RWMutex
+}
+
+
+func (dlp *downloadTesterPeer) RequestNodeData([]common.Hash) error {
+	panic("implement me")
 }
 
 // setDelay is a thread safe setter for the network delay value.
@@ -538,62 +513,20 @@ func (dlp *downloadTesterPeer) RequestBodies(hashes []common.Hash) error {
 	blocks := dlp.dl.peerBlocks[dlp.id]
 
 	transactions := make([][]*types.Transaction, 0, len(hashes))
-	uncles := make([][]*types.Header, 0, len(hashes))
+
 
 	for _, hash := range hashes {
 		if block, ok := blocks[hash]; ok {
 			transactions = append(transactions, block.Transactions())
-			uncles = append(uncles, block.Uncles())
+
 		}
 	}
-	go dlp.dl.downloader.DeliverBodies(dlp.id, transactions, uncles)
+	go dlp.dl.downloader.DeliverBodies(dlp.id, transactions)
 
 	return nil
 }
 
-// RequestReceipts constructs a getReceipts method associated with a particular
-// peer in the download tester. The returned function can be used to retrieve
-// batches of block receipts from the particularly requested peer.
-func (dlp *downloadTesterPeer) RequestReceipts(hashes []common.Hash) error {
-	dlp.waitDelay()
 
-	dlp.dl.lock.RLock()
-	defer dlp.dl.lock.RUnlock()
-
-	receipts := dlp.dl.peerReceipts[dlp.id]
-
-	results := make([][]*types.Receipt, 0, len(hashes))
-	for _, hash := range hashes {
-		if receipt, ok := receipts[hash]; ok {
-			results = append(results, receipt)
-		}
-	}
-	go dlp.dl.downloader.DeliverReceipts(dlp.id, results)
-
-	return nil
-}
-
-// RequestNodeData constructs a getNodeData method associated with a particular
-// peer in the download tester. The returned function can be used to retrieve
-// batches of node state data from the particularly requested peer.
-func (dlp *downloadTesterPeer) RequestNodeData(hashes []common.Hash) error {
-	dlp.waitDelay()
-
-	dlp.dl.lock.RLock()
-	defer dlp.dl.lock.RUnlock()
-
-	results := make([][]byte, 0, len(hashes))
-	for _, hash := range hashes {
-		if data, err := dlp.dl.peerDb.Get(hash.Bytes()); err == nil {
-			if !dlp.dl.peerMissingStates[dlp.id][hash] {
-				results = append(results, data)
-			}
-		}
-	}
-	go dlp.dl.downloader.DeliverNodeData(dlp.id, results)
-
-	return nil
-}
 
 // assertOwnChain checks if the local chain contains the correct number of items
 // of the various chain components.
@@ -628,9 +561,7 @@ func assertOwnForkedChain(t *testing.T, tester *downloadTester, common int, leng
 	if bs := len(tester.ownBlocks); bs != blocks {
 		t.Fatalf("synchronised blocks mismatch: have %v, want %v", bs, blocks)
 	}
-	if rs := len(tester.ownReceipts); rs != receipts {
-		t.Fatalf("synchronised receipts mismatch: have %v, want %v", rs, receipts)
-	}
+
 	// Verify the state trie too for fast syncs
 	/*if tester.downloader.mode == FastSync {
 		pivot := uint64(0)
@@ -915,7 +846,7 @@ func TestInactiveDownloader62(t *testing.T) {
 	if err := tester.downloader.DeliverHeaders("bad peer", []*types.Header{}); err != errNoSyncActive {
 		t.Errorf("error mismatch: have %v, want %v", err, errNoSyncActive)
 	}
-	if err := tester.downloader.DeliverBodies("bad peer", [][]*types.Transaction{}, [][]*types.Header{}); err != errNoSyncActive {
+	if err := tester.downloader.DeliverBodies("bad peer", [][]*types.Transaction{}); err != errNoSyncActive {
 		t.Errorf("error mismatch: have %v, want %v", err, errNoSyncActive)
 	}
 }
@@ -932,12 +863,10 @@ func TestInactiveDownloader63(t *testing.T) {
 	if err := tester.downloader.DeliverHeaders("bad peer", []*types.Header{}); err != errNoSyncActive {
 		t.Errorf("error mismatch: have %v, want %v", err, errNoSyncActive)
 	}
-	if err := tester.downloader.DeliverBodies("bad peer", [][]*types.Transaction{}, [][]*types.Header{}); err != errNoSyncActive {
+	if err := tester.downloader.DeliverBodies("bad peer", [][]*types.Transaction{}); err != errNoSyncActive {
 		t.Errorf("error mismatch: have %v, want %v", err, errNoSyncActive)
 	}
-	if err := tester.downloader.DeliverReceipts("bad peer", [][]*types.Receipt{}); err != errNoSyncActive {
-		t.Errorf("error mismatch: have %v, want %v", err, errNoSyncActive)
-	}
+
 }
 
 // Tests that a canceled download wipes all previously accumulated state.
@@ -1085,23 +1014,17 @@ func testEmptyShortCircuit(t *testing.T, protocol int, mode SyncMode) {
 	assertOwnChain(t, tester, targetBlocks+1)
 
 	// Validate the number of block bodies that should have been requested
-	bodiesNeeded, receiptsNeeded := 0, 0
+	bodiesNeeded := 0
 	for _, block := range blocks {
-		if mode != LightSync && block != tester.genesis && (len(block.Transactions()) > 0 || len(block.Uncles()) > 0) {
+		if mode != LightSync && block != tester.genesis && (len(block.Transactions()) > 0) {
 			bodiesNeeded++
 		}
 	}
-	for _, receipt := range receipts {
-		if mode == FastSync && len(receipt) > 0 {
-			receiptsNeeded++
-		}
-	}
+
 	if int(bodiesHave) != bodiesNeeded {
 		t.Errorf("body retrieval count mismatch: have %v, want %v", bodiesHave, bodiesNeeded)
 	}
-	if int(receiptsHave) != receiptsNeeded {
-		t.Errorf("receipt retrieval count mismatch: have %v, want %v", receiptsHave, receiptsNeeded)
-	}
+
 }
 
 // Tests that headers are enqueued continuously, preventing malicious nodes from
@@ -1162,7 +1085,6 @@ func testShiftedHeaderAttack(t *testing.T, protocol int, mode SyncMode) {
 	tester.newPeer("attack", protocol, hashes, headers, blocks, receipts)
 	delete(tester.peerHeaders["attack"], hashes[len(hashes)-2])
 	delete(tester.peerBlocks["attack"], hashes[len(hashes)-2])
-	delete(tester.peerReceipts["attack"], hashes[len(hashes)-2])
 
 	if err := tester.sync("attack", nil, mode); err == nil {
 		t.Fatalf("succeeded attacker synchronisation")
@@ -1530,7 +1452,6 @@ func testFailedSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 	missing := targetBlocks / 2
 	delete(tester.peerHeaders["faulty"], hashes[missing])
 	delete(tester.peerBlocks["faulty"], hashes[missing])
-	delete(tester.peerReceipts["faulty"], hashes[missing])
 
 	pending := new(sync.WaitGroup)
 	pending.Add(1)
@@ -1607,7 +1528,6 @@ func testFakedSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 	for i := 1; i < 3; i++ {
 		delete(tester.peerHeaders["attack"], hashes[i])
 		delete(tester.peerBlocks["attack"], hashes[i])
-		delete(tester.peerReceipts["attack"], hashes[i])
 	}
 
 	pending := new(sync.WaitGroup)
@@ -1684,12 +1604,6 @@ func (ftp *floodingTestPeer) RequestHeadersByHash(hash common.Hash, count int, s
 }
 func (ftp *floodingTestPeer) RequestBodies(hashes []common.Hash) error {
 	return ftp.peer.RequestBodies(hashes)
-}
-func (ftp *floodingTestPeer) RequestReceipts(hashes []common.Hash) error {
-	return ftp.peer.RequestReceipts(hashes)
-}
-func (ftp *floodingTestPeer) RequestNodeData(hashes []common.Hash) error {
-	return ftp.peer.RequestNodeData(hashes)
 }
 
 func (ftp *floodingTestPeer) RequestHeadersByNumber(from uint64, count, skip int, reverse bool) error {

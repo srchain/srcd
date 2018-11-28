@@ -86,8 +86,8 @@ type LightPeer interface {
 type Peer interface {
 	LightPeer
 	RequestBodies([]common.Hash) error
-	RequestReceipts([]common.Hash) error
-	RequestNodeData([]common.Hash) error
+	//RequestReceipts([]common.Hash) error
+	//RequestNodeData([]common.Hash) error
 }
 
 // lightPeerWrapper wraps a LightPeer struct, stubbing out the Peer-only methods.
@@ -183,44 +183,44 @@ func (p *peerConnection) FetchBodies(request *fetchRequest) error {
 	return nil
 }
 
-// FetchReceipts sends a receipt retrieval request to the remote peer.
-func (p *peerConnection) FetchReceipts(request *fetchRequest) error {
-	// Sanity check the protocol version
-	if p.version < 63 {
-		panic(fmt.Sprintf("body fetch [eth/63+] requested on eth/%d", p.version))
-	}
-	// Short circuit if the peer is already fetching
-	if !atomic.CompareAndSwapInt32(&p.receiptIdle, 0, 1) {
-		return errAlreadyFetching
-	}
-	p.receiptStarted = time.Now()
-
-	// Convert the header set to a retrievable slice
-	hashes := make([]common.Hash, 0, len(request.Headers))
-	for _, header := range request.Headers {
-		hashes = append(hashes, header.Hash())
-	}
-	go p.peer.RequestReceipts(hashes)
-
-	return nil
-}
-
-// FetchNodeData sends a node state data retrieval request to the remote peer.
-func (p *peerConnection) FetchNodeData(hashes []common.Hash) error {
-	// Sanity check the protocol version
-	if p.version < 63 {
-		panic(fmt.Sprintf("node data fetch [eth/63+] requested on eth/%d", p.version))
-	}
-	// Short circuit if the peer is already fetching
-	if !atomic.CompareAndSwapInt32(&p.stateIdle, 0, 1) {
-		return errAlreadyFetching
-	}
-	p.stateStarted = time.Now()
-
-	go p.peer.RequestNodeData(hashes)
-
-	return nil
-}
+//// FetchReceipts sends a receipt retrieval request to the remote peer.
+//func (p *peerConnection) FetchReceipts(request *fetchRequest) error {
+//	// Sanity check the protocol version
+//	if p.version < 63 {
+//		panic(fmt.Sprintf("body fetch [eth/63+] requested on eth/%d", p.version))
+//	}
+//	// Short circuit if the peer is already fetching
+//	if !atomic.CompareAndSwapInt32(&p.receiptIdle, 0, 1) {
+//		return errAlreadyFetching
+//	}
+//	p.receiptStarted = time.Now()
+//
+//	// Convert the header set to a retrievable slice
+//	hashes := make([]common.Hash, 0, len(request.Headers))
+//	for _, header := range request.Headers {
+//		hashes = append(hashes, header.Hash())
+//	}
+//	go p.peer.RequestReceipts(hashes)
+//
+//	return nil
+//}
+//
+//// FetchNodeData sends a node state data retrieval request to the remote peer.
+//func (p *peerConnection) FetchNodeData(hashes []common.Hash) error {
+//	// Sanity check the protocol version
+//	if p.version < 63 {
+//		panic(fmt.Sprintf("node data fetch [eth/63+] requested on eth/%d", p.version))
+//	}
+//	// Short circuit if the peer is already fetching
+//	if !atomic.CompareAndSwapInt32(&p.stateIdle, 0, 1) {
+//		return errAlreadyFetching
+//	}
+//	p.stateStarted = time.Now()
+//
+//	go p.peer.RequestNodeData(hashes)
+//
+//	return nil
+//}
 
 // SetHeadersIdle sets the peer to idle, allowing it to execute new header retrieval
 // requests. Its estimated header retrieval throughput is updated with that measured
