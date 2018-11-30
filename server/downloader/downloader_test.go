@@ -52,6 +52,7 @@ type downloadTester struct {
 	downloader *Downloader
 
 	genesis *types.Block   // Genesis blocks used by the tester and peers
+	stateDb database.Database // Database used by the tester for syncing from peers
 	peerDb  database.Database // Database of the peers containing all data
 
 	ownHashes   []common.Hash                  // Hash chain belonging to the tester
@@ -87,7 +88,8 @@ func newTester() *downloadTester {
 		peerChainTds:      make(map[string]map[common.Hash]*big.Int),
 		peerMissingStates: make(map[string]map[common.Hash]bool),
 	}
-
+	tester.stateDb = database.NewMemDatabase()
+	tester.stateDb.Put(genesis.Root().Bytes(), []byte{0x00})
 	tester.downloader = New(FullSync,  new(event.TypeMux), tester, nil, tester.dropPeer)
 
 	return tester
@@ -334,7 +336,6 @@ func (dl *downloadTester) InsertChain(blocks types.Blocks) (int, error) {
 	}
 	return len(blocks), nil
 }
-
 
 // Rollback removes some recently added elements from the chain.
 func (dl *downloadTester) Rollback(hashes []common.Hash) {
