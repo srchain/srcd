@@ -10,8 +10,34 @@ import (
 // two256 is a big integer representing 2^256
 var two256 = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
 
+// Mode defines the type and amount of PoW verification an ethash engine makes.
+type Mode uint
+
+
+const (
+	ModeNormal Mode = iota
+	ModeShared
+	ModeTest
+	ModeFake
+	ModeFullFake
+)
+
+
+// Config are the configuration parameters of the ethash.
+type Config struct {
+	CacheDir       string
+	CachesInMem    int
+	CachesOnDisk   int
+	DatasetDir     string
+	DatasetsInMem  int
+	DatasetsOnDisk int
+	PowMode        Mode
+}
+
+
 // Pow is a consensus engine based on proot-of-work
 type Pow struct {
+	config Config
 	rand     *rand.Rand        // Properly seeded random source for nonces
 	threads  int               // Number of threads to mine on if mining
 	update   chan struct{}     // Notification channel to update mining parameters
@@ -34,6 +60,15 @@ func New() *Pow {
 
 	return pow
 }
+
+func NewFaker() *Pow {
+	return &Pow{
+		config: Config{
+			PowMode: ModeFake,
+		},
+	}
+}
+
 
 // Threads returns the number of mining threads currently enabled. This doesn't
 // necessarily mean that mining is running!

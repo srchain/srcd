@@ -27,13 +27,17 @@ import (
 	"github.com/srchain/srcd/common/common"
 	pow "github.com/srchain/srcd/consensus/pow"
 	blockchain "github.com/srchain/srcd/core/blockchain"
-	"github.com/srchain/srcd/core"
+	account "github.com/srchain/srcd/account"
 	"github.com/srchain/srcd/core/types"
 	"github.com/srchain/srcd/crypto/crypto"
 	"github.com/srchain/srcd/database"
 	"github.com/srchain/srcd/event"
 	"github.com/srchain/srcd/params"
-	"github.com/srchain/srcd/trie"
+	"github.com/srchain/srcd/core/transaction"
+	"github.com/srchain/srcd/core/vm"
+	"encoding/json"
+	"github.com/srchain/srcd/crypto/ed25519/chainkd"
+	"crypto/rand"
 )
 
 var (
@@ -100,9 +104,50 @@ func newTester() *downloadTester {
 // the returned hash chain is ordered head->parent. In addition, every 3rd block
 // contains a transaction and every 5th an uncle to allow testing correct block
 // reassembly.
+
+func (dl *downloadTester) createTestSignedTx() (*types.Transaction, error) {
+	xpubs := []chainkd.XPub{}
+	xprv, xpub, err := chainkd.NewXKeys(rand.Reader)
+	//fmt.Println(err)
+	//fmt.Println(xprv, xpubs)
+	program,_, err := account.CreateP2PKH(xpub)
+	//must(err)
+	//fmt.Printf("%x\n", program.Address)
+
+	utxo := &transaction.UTXO{}
+	utxo.SourceID = transaction.Hash{V0: 2}
+	utxo.AssetID = *transaction.SRCAssetID
+	utxo.Amount = 1000000000
+	utxo.SourcePos = 0
+	utxo.ControlProgram = program.ControlProgram
+	utxo.Address = program.Address
+
+	inst, err := transaction.UtxoInputs(xpubs, utxo)
+	out := transaction.UtxoOutputs(*transaction.SRCAssetID, 100, []byte{byte(vm.OP_FAIL)})
+
+	utxoTpl, _, err := transaction.BuildUtxoTemplate([]transaction.InputAndSigInst{inst}, []*transaction.TxOutput{&out})
+	if err != nil {
+		return  nil, err
+	}
+	//fmt.Printf("%x\n",txData.Inputs)
+	if b, err := json.Marshal(utxoTpl); err == nil {
+		fmt.Println(string(b))
+	}
+
+	transaction.TxSign(utxoTpl, xprv, xpub)
+
+	if tx, err := json.Marshal(utxoTpl); err == nil {
+		fmt.Println(string(tx))
+	}
+
+	return &utxoTpl.Transaction, nil
+
+}
+
 func (dl *downloadTester) makeChain(n int, seed byte, parent *types.Block,  heavy bool) ([]common.Hash, map[common.Hash]*types.Header, map[common.Hash]*types.Block) {
 	// Generate the block chain
-	blocks, receipts := core.GenerateChain(params.TestChainConfig, parent, ethash.NewFaker(), dl.peerDb, n, func(i int, block *core.BlockGen) {
+
+	blocks := blockchain.GenerateChain(params.TestChainConfig, parent, pow.NewFaker(), dl.peerDb, n, func(i int, block *blockchain.BlockGen) {
 		block.SetCoinbase(common.Address{seed})
 
 		// If a heavy chain is requested, delay blocks to raise difficulty
@@ -111,8 +156,8 @@ func (dl *downloadTester) makeChain(n int, seed byte, parent *types.Block,  heav
 		}
 		// If the block number is multiple of 3, send a bonus transaction to the miner
 		if parent == dl.genesis && i%3 == 0 {
-			signer := types.MakeSigner(params.TestChainConfig, block.Number())
-			tx, err := types.SignTx(types.NewTransaction(block.TxNonce(testAddress), common.Address{seed}, big.NewInt(1000), params.TxGas, nil, nil), signer, testKey)
+
+			tx, err := dl.createTestSignedTx()
 			if err != nil {
 				panic(err)
 			}
@@ -140,19 +185,19 @@ func (dl *downloadTester) makeChain(n int, seed byte, parent *types.Block,  heav
 
 // makeChainFork creates two chains of length n, such that h1[:f] and
 // h2[:f] are different but have a common suffix of length n-f.
-func (dl *downloadTester) makeChainFork(n, f int, parent *types.Block, parentReceipts types.Receipts, balanced bool) ([]common.Hash, []common.Hash, map[common.Hash]*types.Header, map[common.Hash]*types.Header, map[common.Hash]*types.Block, map[common.Hash]*types.Block, map[common.Hash]types.Receipts, map[common.Hash]types.Receipts) {
+func (dl *downloadTester) makeChainFork(n, f int, parent *types.Block, balanced bool) ([]common.Hash, []common.Hash, map[common.Hash]*types.Header, map[common.Hash]*types.Header, map[common.Hash]*types.Block, map[common.Hash]*types.Block) {
 	// Create the common suffix
-	hashes, headers, blocks, receipts := dl.makeChain(n-f, 0, parent, parentReceipts, false)
+	hashes, headers, blocks := dl.makeChain(n-f, 0, parent, false)
 
 	// Create the forks, making the second heavier if non balanced forks were requested
-	hashes1, headers1, blocks1, receipts1 := dl.makeChain(f, 1, blocks[hashes[0]], receipts[hashes[0]], false)
+	hashes1, headers1, blocks1 := dl.makeChain(f, 1, blocks[hashes[0]],  false)
 	hashes1 = append(hashes1, hashes[1:]...)
 
 	heavy := false
 	if !balanced {
 		heavy = true
 	}
-	hashes2, headers2, blocks2, receipts2 := dl.makeChain(f, 2, blocks[hashes[0]], receipts[hashes[0]], heavy)
+	hashes2, headers2, blocks2 := dl.makeChain(f, 2, blocks[hashes[0]], heavy)
 	hashes2 = append(hashes2, hashes[1:]...)
 
 	for hash, header := range headers {
@@ -163,11 +208,8 @@ func (dl *downloadTester) makeChainFork(n, f int, parent *types.Block, parentRec
 		blocks1[hash] = block
 		blocks2[hash] = block
 	}
-	for hash, receipt := range receipts {
-		receipts1[hash] = receipt
-		receipts2[hash] = receipt
-	}
-	return hashes1, hashes2, headers1, headers2, blocks1, blocks2, receipts1, receipts2
+
+	return hashes1, hashes2, headers1, headers2, blocks1, blocks2
 }
 
 // terminate aborts any operations on the embedded downloader and releases all
@@ -247,9 +289,11 @@ func (dl *downloadTester) CurrentBlock() *types.Block {
 
 	for i := len(dl.ownHashes) - 1; i >= 0; i-- {
 		if block := dl.ownBlocks[dl.ownHashes[i]]; block != nil {
-			if _, err := dl.stateDb.Get(block.Root().Bytes()); err == nil {
-				return block
-			}
+
+			return block
+			//if _, err := dl.stateDb.Get(block.Root().Bytes()); err == nil {
+			//	return block
+			//}
 		}
 	}
 	return dl.genesis
@@ -272,8 +316,8 @@ func (dl *downloadTester) CurrentFastBlock() *types.Block {
 func (dl *downloadTester) FastSyncCommitHead(hash common.Hash) error {
 	// For now only check that the state trie is correct
 	if block := dl.GetBlockByHash(hash); block != nil {
-		_, err := trie.NewSecure(block.Root(), trie.NewDatabase(dl.stateDb), 0)
-		return err
+		//_, err := trie.NewSecure(block.Root(), trie.NewDatabase(dl.stateDb), 0)
+		return nil
 	}
 	return fmt.Errorf("non existent block: %x", hash[:4])
 }
@@ -350,7 +394,7 @@ func (dl *downloadTester) Rollback(hashes []common.Hash) {
 }
 
 // newPeer registers a new block download source into the downloader.
-func (dl *downloadTester) newPeer(id string, version int, hashes []common.Hash, headers map[common.Hash]*types.Header, blocks map[common.Hash]*types.Block, receipts map[common.Hash]types.Receipts) error {
+func (dl *downloadTester) newPeer(id string, version int, hashes []common.Hash, headers map[common.Hash]*types.Header, blocks map[common.Hash]*types.Block) error {
 	return dl.newSlowPeer(id, version, hashes, headers, blocks, 0)
 }
 
@@ -595,9 +639,9 @@ func testCanonicalSynchronisation(t *testing.T, protocol int, mode SyncMode) {
 
 	// Create a small enough block chain to download
 	targetBlocks := blockCacheItems - 15
-	hashes, headers, blocks, receipts := tester.makeChain(targetBlocks, 0, tester.genesis, nil, false)
+	hashes, headers, blocks := tester.makeChain(targetBlocks, 0, tester.genesis, false)
 
-	tester.newPeer("peer", protocol, hashes, headers, blocks, receipts)
+	tester.newPeer("peer", protocol, hashes, headers, blocks)
 
 	// Synchronise with the peer and make sure all relevant data was retrieved
 	if err := tester.sync("peer", nil, mode); err != nil {
@@ -621,9 +665,9 @@ func testThrottling(t *testing.T, protocol int, mode SyncMode) {
 
 	// Create a long block chain to download and the tester
 	targetBlocks := 8 * blockCacheItems
-	hashes, headers, blocks, receipts := tester.makeChain(targetBlocks, 0, tester.genesis, nil, false)
+	hashes, headers, blocks := tester.makeChain(targetBlocks, 0, tester.genesis,false)
 
-	tester.newPeer("peer", protocol, hashes, headers, blocks, receipts)
+	tester.newPeer("peer", protocol, hashes, headers, blocks)
 
 	// Wrap the importer to allow stepping
 	blocked, proceed := uint32(0), make(chan struct{})
@@ -709,10 +753,10 @@ func testForkedSync(t *testing.T, protocol int, mode SyncMode) {
 
 	// Create a long enough forked chain
 	common, fork := MaxHashFetch, 2*MaxHashFetch
-	hashesA, hashesB, headersA, headersB, blocksA, blocksB, receiptsA, receiptsB := tester.makeChainFork(common+fork, fork, tester.genesis, nil, true)
+	hashesA, hashesB, headersA, headersB, blocksA, blocksB := tester.makeChainFork(common+fork, fork, tester.genesis,true)
 
-	tester.newPeer("fork A", protocol, hashesA, headersA, blocksA, receiptsA)
-	tester.newPeer("fork B", protocol, hashesB, headersB, blocksB, receiptsB)
+	tester.newPeer("fork A", protocol, hashesA, headersA, blocksA)
+	tester.newPeer("fork B", protocol, hashesB, headersB, blocksB)
 
 	// Synchronise with the peer and make sure all blocks were retrieved
 	if err := tester.sync("fork A", nil, mode); err != nil {
@@ -744,10 +788,10 @@ func testHeavyForkedSync(t *testing.T, protocol int, mode SyncMode) {
 
 	// Create a long enough forked chain
 	common, fork := MaxHashFetch, 4*MaxHashFetch
-	hashesA, hashesB, headersA, headersB, blocksA, blocksB, receiptsA, receiptsB := tester.makeChainFork(common+fork, fork, tester.genesis, nil, false)
+	hashesA, hashesB, headersA, headersB, blocksA, blocksB := tester.makeChainFork(common+fork, fork, tester.genesis, false)
 
-	tester.newPeer("light", protocol, hashesA, headersA, blocksA, receiptsA)
-	tester.newPeer("heavy", protocol, hashesB[fork/2:], headersB, blocksB, receiptsB)
+	tester.newPeer("light", protocol, hashesA, headersA, blocksA)
+	tester.newPeer("heavy", protocol, hashesB[fork/2:], headersB, blocksB)
 
 	// Synchronise with the peer and make sure all blocks were retrieved
 	if err := tester.sync("light", nil, mode); err != nil {
@@ -780,10 +824,10 @@ func testBoundedForkedSync(t *testing.T, protocol int, mode SyncMode) {
 
 	// Create a long enough forked chain
 	common, fork := 13, int(MaxForkAncestry+17)
-	hashesA, hashesB, headersA, headersB, blocksA, blocksB, receiptsA, receiptsB := tester.makeChainFork(common+fork, fork, tester.genesis, nil, true)
+	hashesA, hashesB, headersA, headersB, blocksA, blocksB := tester.makeChainFork(common+fork, fork, tester.genesis, true)
 
-	tester.newPeer("original", protocol, hashesA, headersA, blocksA, receiptsA)
-	tester.newPeer("rewriter", protocol, hashesB, headersB, blocksB, receiptsB)
+	tester.newPeer("original", protocol, hashesA, headersA, blocksA)
+	tester.newPeer("rewriter", protocol, hashesB, headersB, blocksB)
 
 	// Synchronise with the peer and make sure all blocks were retrieved
 	if err := tester.sync("original", nil, mode); err != nil {
@@ -815,10 +859,10 @@ func testBoundedHeavyForkedSync(t *testing.T, protocol int, mode SyncMode) {
 
 	// Create a long enough forked chain
 	common, fork := 13, int(MaxForkAncestry+17)
-	hashesA, hashesB, headersA, headersB, blocksA, blocksB, receiptsA, receiptsB := tester.makeChainFork(common+fork, fork, tester.genesis, nil, false)
+	hashesA, hashesB, headersA, headersB, blocksA, blocksB := tester.makeChainFork(common+fork, fork, tester.genesis,false)
 
-	tester.newPeer("original", protocol, hashesA, headersA, blocksA, receiptsA)
-	tester.newPeer("heavy-rewriter", protocol, hashesB[MaxForkAncestry-17:], headersB, blocksB, receiptsB) // Root the fork below the ancestor limit
+	tester.newPeer("original", protocol, hashesA, headersA, blocksA)
+	tester.newPeer("heavy-rewriter", protocol, hashesB[MaxForkAncestry-17:], headersB, blocksB) // Root the fork below the ancestor limit
 
 	// Synchronise with the peer and make sure all blocks were retrieved
 	if err := tester.sync("original", nil, mode); err != nil {
@@ -889,9 +933,9 @@ func testCancel(t *testing.T, protocol int, mode SyncMode) {
 	if targetBlocks >= MaxHeaderFetch {
 		targetBlocks = MaxHeaderFetch - 15
 	}
-	hashes, headers, blocks, receipts := tester.makeChain(targetBlocks, 0, tester.genesis, nil, false)
+	hashes, headers, blocks := tester.makeChain(targetBlocks, 0, tester.genesis,false)
 
-	tester.newPeer("peer", protocol, hashes, headers, blocks, receipts)
+	tester.newPeer("peer", protocol, hashes, headers, blocks)
 
 	// Make sure canceling works with a pristine downloader
 	tester.downloader.Cancel()
@@ -925,11 +969,11 @@ func testMultiSynchronisation(t *testing.T, protocol int, mode SyncMode) {
 	// Create various peers with various parts of the chain
 	targetPeers := 8
 	targetBlocks := targetPeers*blockCacheItems - 15
-	hashes, headers, blocks, receipts := tester.makeChain(targetBlocks, 0, tester.genesis, nil, false)
+	hashes, headers, blocks := tester.makeChain(targetBlocks, 0, tester.genesis, false)
 
 	for i := 0; i < targetPeers; i++ {
 		id := fmt.Sprintf("peer #%d", i)
-		tester.newPeer(id, protocol, hashes[i*blockCacheItems:], headers, blocks, receipts)
+		tester.newPeer(id, protocol, hashes[i*blockCacheItems:], headers, blocks)
 	}
 	if err := tester.sync("peer #0", nil, mode); err != nil {
 		t.Fatalf("failed to synchronise blocks: %v", err)
@@ -954,12 +998,12 @@ func testMultiProtoSync(t *testing.T, protocol int, mode SyncMode) {
 
 	// Create a small enough block chain to download
 	targetBlocks := blockCacheItems - 15
-	hashes, headers, blocks, receipts := tester.makeChain(targetBlocks, 0, tester.genesis, nil, false)
+	hashes, headers, blocks := tester.makeChain(targetBlocks, 0, tester.genesis, false)
 
 	// Create peers of every type
-	tester.newPeer("peer 62", 62, hashes, headers, blocks, nil)
-	tester.newPeer("peer 63", 63, hashes, headers, blocks, receipts)
-	tester.newPeer("peer 64", 64, hashes, headers, blocks, receipts)
+	tester.newPeer("peer 62", 62, hashes, headers, blocks)
+	tester.newPeer("peer 63", 63, hashes, headers, blocks)
+	tester.newPeer("peer 64", 64, hashes, headers, blocks)
 
 	// Synchronise with the requested peer and make sure all blocks were retrieved
 	if err := tester.sync(fmt.Sprintf("peer %d", protocol), nil, mode); err != nil {
@@ -993,9 +1037,9 @@ func testEmptyShortCircuit(t *testing.T, protocol int, mode SyncMode) {
 
 	// Create a block chain to download
 	targetBlocks := 2*blockCacheItems - 15
-	hashes, headers, blocks, receipts := tester.makeChain(targetBlocks, 0, tester.genesis, nil, false)
+	hashes, headers, blocks := tester.makeChain(targetBlocks, 0, tester.genesis,  false)
 
-	tester.newPeer("peer", protocol, hashes, headers, blocks, receipts)
+	tester.newPeer("peer", protocol, hashes, headers, blocks)
 
 	// Instrument the downloader to signal body requests
 	bodiesHave, receiptsHave := int32(0), int32(0)
@@ -1042,10 +1086,10 @@ func testMissingHeaderAttack(t *testing.T, protocol int, mode SyncMode) {
 
 	// Create a small enough block chain to download
 	targetBlocks := blockCacheItems - 15
-	hashes, headers, blocks, receipts := tester.makeChain(targetBlocks, 0, tester.genesis, nil, false)
+	hashes, headers, blocks := tester.makeChain(targetBlocks, 0, tester.genesis, false)
 
 	// Attempt a full sync with an attacker feeding gapped headers
-	tester.newPeer("attack", protocol, hashes, headers, blocks, receipts)
+	tester.newPeer("attack", protocol, hashes, headers, blocks)
 	missing := targetBlocks / 2
 	delete(tester.peerHeaders["attack"], hashes[missing])
 
@@ -1053,7 +1097,7 @@ func testMissingHeaderAttack(t *testing.T, protocol int, mode SyncMode) {
 		t.Fatalf("succeeded attacker synchronisation")
 	}
 	// Synchronise with the valid peer and make sure sync succeeds
-	tester.newPeer("valid", protocol, hashes, headers, blocks, receipts)
+	tester.newPeer("valid", protocol, hashes, headers, blocks)
 	if err := tester.sync("valid", nil, mode); err != nil {
 		t.Fatalf("failed to synchronise blocks: %v", err)
 	}
@@ -1077,10 +1121,10 @@ func testShiftedHeaderAttack(t *testing.T, protocol int, mode SyncMode) {
 
 	// Create a small enough block chain to download
 	targetBlocks := blockCacheItems - 15
-	hashes, headers, blocks, receipts := tester.makeChain(targetBlocks, 0, tester.genesis, nil, false)
+	hashes, headers, blocks := tester.makeChain(targetBlocks, 0, tester.genesis,  false)
 
 	// Attempt a full sync with an attacker feeding shifted headers
-	tester.newPeer("attack", protocol, hashes, headers, blocks, receipts)
+	tester.newPeer("attack", protocol, hashes, headers, blocks)
 	delete(tester.peerHeaders["attack"], hashes[len(hashes)-2])
 	delete(tester.peerBlocks["attack"], hashes[len(hashes)-2])
 
@@ -1088,7 +1132,7 @@ func testShiftedHeaderAttack(t *testing.T, protocol int, mode SyncMode) {
 		t.Fatalf("succeeded attacker synchronisation")
 	}
 	// Synchronise with the valid peer and make sure sync succeeds
-	tester.newPeer("valid", protocol, hashes, headers, blocks, receipts)
+	tester.newPeer("valid", protocol, hashes, headers, blocks)
 	if err := tester.sync("valid", nil, mode); err != nil {
 		t.Fatalf("failed to synchronise blocks: %v", err)
 	}
@@ -1110,11 +1154,11 @@ func testInvalidHeaderRollback(t *testing.T, protocol int, mode SyncMode) {
 
 	// Create a small enough block chain to download
 	targetBlocks := 3*fsHeaderSafetyNet + 256 + fsMinFullBlocks
-	hashes, headers, blocks, receipts := tester.makeChain(targetBlocks, 0, tester.genesis, nil, false)
+	hashes, headers, blocks := tester.makeChain(targetBlocks, 0, tester.genesis, false)
 
 	// Attempt to sync with an attacker that feeds junk during the fast sync phase.
 	// This should result in the last fsHeaderSafetyNet headers being rolled back.
-	tester.newPeer("fast-attack", protocol, hashes, headers, blocks, receipts)
+	tester.newPeer("fast-attack", protocol, hashes, headers, blocks)
 	missing := fsHeaderSafetyNet + MaxHeaderFetch + 1
 	delete(tester.peerHeaders["fast-attack"], hashes[len(hashes)-missing])
 
@@ -1127,7 +1171,7 @@ func testInvalidHeaderRollback(t *testing.T, protocol int, mode SyncMode) {
 	// Attempt to sync with an attacker that feeds junk during the block import phase.
 	// This should result in both the last fsHeaderSafetyNet number of headers being
 	// rolled back, and also the pivot point being reverted to a non-block status.
-	tester.newPeer("block-attack", protocol, hashes, headers, blocks, receipts)
+	tester.newPeer("block-attack", protocol, hashes, headers, blocks)
 	missing = 3*fsHeaderSafetyNet + MaxHeaderFetch + 1
 	delete(tester.peerHeaders["fast-attack"], hashes[len(hashes)-missing]) // Make sure the fast-attacker doesn't fill in
 	delete(tester.peerHeaders["block-attack"], hashes[len(hashes)-missing])
@@ -1146,7 +1190,7 @@ func testInvalidHeaderRollback(t *testing.T, protocol int, mode SyncMode) {
 	// Attempt to sync with an attacker that withholds promised blocks after the
 	// fast sync pivot point. This could be a trial to leave the node with a bad
 	// but already imported pivot block.
-	tester.newPeer("withhold-attack", protocol, hashes, headers, blocks, receipts)
+	tester.newPeer("withhold-attack", protocol, hashes, headers, blocks)
 	missing = 3*fsHeaderSafetyNet + MaxHeaderFetch + 1
 
 	tester.downloader.syncInitHook = func(uint64, uint64) {
@@ -1171,7 +1215,7 @@ func testInvalidHeaderRollback(t *testing.T, protocol int, mode SyncMode) {
 	// rollback should also disable fast syncing for this process, verify that we
 	// did a fresh full sync. Note, we can't assert anything about the receipts
 	// since we won't purge the database of them, hence we can't use assertOwnChain.
-	tester.newPeer("valid", protocol, hashes, headers, blocks, receipts)
+	tester.newPeer("valid", protocol, hashes, headers, blocks)
 	if err := tester.sync("valid", nil, mode); err != nil {
 		t.Fatalf("failed to synchronise blocks: %v", err)
 	}
@@ -1200,8 +1244,8 @@ func testHighTDStarvationAttack(t *testing.T, protocol int, mode SyncMode) {
 	tester := newTester()
 	defer tester.terminate()
 
-	hashes, headers, blocks, receipts := tester.makeChain(0, 0, tester.genesis, nil, false)
-	tester.newPeer("attack", protocol, []common.Hash{hashes[0]}, headers, blocks, receipts)
+	hashes, headers, blocks := tester.makeChain(0, 0, tester.genesis,  false)
+	tester.newPeer("attack", protocol, []common.Hash{hashes[0]}, headers, blocks)
 
 	if err := tester.sync("attack", big.NewInt(1000000), mode); err != errStallingPeer {
 		t.Fatalf("synchronisation error mismatch: have %v, want %v", err, errStallingPeer)
@@ -1249,7 +1293,7 @@ func testBlockHeaderAttackerDropping(t *testing.T, protocol int) {
 	for i, tt := range tests {
 		// Register a new peer and ensure it's presence
 		id := fmt.Sprintf("test %d", i)
-		if err := tester.newPeer(id, protocol, []common.Hash{tester.genesis.Hash()}, nil, nil, nil); err != nil {
+		if err := tester.newPeer(id, protocol, []common.Hash{tester.genesis.Hash()}, nil, nil); err != nil {
 			t.Fatalf("test %d: failed to register new peer: %v", i, err)
 		}
 		if _, ok := tester.peerHashes[id]; !ok {
@@ -1282,7 +1326,7 @@ func testSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 
 	// Create a small enough block chain to download
 	targetBlocks := blockCacheItems - 15
-	hashes, headers, blocks, receipts := tester.makeChain(targetBlocks, 0, tester.genesis, nil, false)
+	hashes, headers, blocks := tester.makeChain(targetBlocks, 0, tester.genesis, false)
 
 	// Set a sync init hook to catch progress changes
 	starting := make(chan struct{})
@@ -1297,7 +1341,7 @@ func testSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 		t.Fatalf("Pristine progress mismatch: have %v/%v/%v, want %v/%v/%v", progress.StartingBlock, progress.CurrentBlock, progress.HighestBlock, 0, 0, 0)
 	}
 	// Synchronise half the blocks and check initial progress
-	tester.newPeer("peer-half", protocol, hashes[targetBlocks/2:], headers, blocks, receipts)
+	tester.newPeer("peer-half", protocol, hashes[targetBlocks/2:], headers, blocks)
 	pending := new(sync.WaitGroup)
 	pending.Add(1)
 
@@ -1315,7 +1359,7 @@ func testSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 	pending.Wait()
 
 	// Synchronise all the blocks and check continuation progress
-	tester.newPeer("peer-full", protocol, hashes, headers, blocks, receipts)
+	tester.newPeer("peer-full", protocol, hashes, headers, blocks)
 	pending.Add(1)
 
 	go func() {
@@ -1355,7 +1399,7 @@ func testForkedSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 
 	// Create a forked chain to simulate origin revertal
 	common, fork := MaxHashFetch, 2*MaxHashFetch
-	hashesA, hashesB, headersA, headersB, blocksA, blocksB, receiptsA, receiptsB := tester.makeChainFork(common+fork, fork, tester.genesis, nil, true)
+	hashesA, hashesB, headersA, headersB, blocksA, blocksB := tester.makeChainFork(common+fork, fork, tester.genesis,  true)
 
 	// Set a sync init hook to catch progress changes
 	starting := make(chan struct{})
@@ -1370,7 +1414,7 @@ func testForkedSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 		t.Fatalf("Pristine progress mismatch: have %v/%v/%v, want %v/%v/%v", progress.StartingBlock, progress.CurrentBlock, progress.HighestBlock, 0, 0, 0)
 	}
 	// Synchronise with one of the forks and check progress
-	tester.newPeer("fork A", protocol, hashesA, headersA, blocksA, receiptsA)
+	tester.newPeer("fork A", protocol, hashesA, headersA, blocksA)
 	pending := new(sync.WaitGroup)
 	pending.Add(1)
 
@@ -1391,7 +1435,7 @@ func testForkedSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 	tester.downloader.syncStatsChainOrigin = tester.downloader.syncStatsChainHeight
 
 	// Synchronise with the second fork and check progress resets
-	tester.newPeer("fork B", protocol, hashesB, headersB, blocksB, receiptsB)
+	tester.newPeer("fork B", protocol, hashesB, headersB, blocksB)
 	pending.Add(1)
 
 	go func() {
@@ -1431,7 +1475,7 @@ func testFailedSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 
 	// Create a small enough block chain to download
 	targetBlocks := blockCacheItems - 15
-	hashes, headers, blocks, receipts := tester.makeChain(targetBlocks, 0, tester.genesis, nil, false)
+	hashes, headers, blocks := tester.makeChain(targetBlocks, 0, tester.genesis, false)
 
 	// Set a sync init hook to catch progress changes
 	starting := make(chan struct{})
@@ -1446,7 +1490,7 @@ func testFailedSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 		t.Fatalf("Pristine progress mismatch: have %v/%v/%v, want %v/%v/%v", progress.StartingBlock, progress.CurrentBlock, progress.HighestBlock, 0, 0, 0)
 	}
 	// Attempt a full sync with a faulty peer
-	tester.newPeer("faulty", protocol, hashes, headers, blocks, receipts)
+	tester.newPeer("faulty", protocol, hashes, headers, blocks)
 	missing := targetBlocks / 2
 	delete(tester.peerHeaders["faulty"], hashes[missing])
 	delete(tester.peerBlocks["faulty"], hashes[missing])
@@ -1468,7 +1512,7 @@ func testFailedSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 	pending.Wait()
 
 	// Synchronise with a good peer and check that the progress origin remind the same after a failure
-	tester.newPeer("valid", protocol, hashes, headers, blocks, receipts)
+	tester.newPeer("valid", protocol, hashes, headers, blocks)
 	pending.Add(1)
 
 	go func() {
@@ -1507,7 +1551,7 @@ func testFakedSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 
 	// Create a small block chain
 	targetBlocks := blockCacheItems - 15
-	hashes, headers, blocks, receipts := tester.makeChain(targetBlocks+3, 0, tester.genesis, nil, false)
+	hashes, headers, blocks := tester.makeChain(targetBlocks+3, 0, tester.genesis,  false)
 
 	// Set a sync init hook to catch progress changes
 	starting := make(chan struct{})
@@ -1522,7 +1566,7 @@ func testFakedSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 		t.Fatalf("Pristine progress mismatch: have %v/%v/%v, want %v/%v/%v", progress.StartingBlock, progress.CurrentBlock, progress.HighestBlock, 0, 0, 0)
 	}
 	//  Create and sync with an attacker that promises a higher chain than available
-	tester.newPeer("attack", protocol, hashes, headers, blocks, receipts)
+	tester.newPeer("attack", protocol, hashes, headers, blocks)
 	for i := 1; i < 3; i++ {
 		delete(tester.peerHeaders["attack"], hashes[i])
 		delete(tester.peerBlocks["attack"], hashes[i])
@@ -1545,7 +1589,7 @@ func testFakedSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 	pending.Wait()
 
 	// Synchronise with a good peer and check that the progress height has been reduced to the true value
-	tester.newPeer("valid", protocol, hashes[3:], headers, blocks, receipts)
+	tester.newPeer("valid", protocol, hashes[3:], headers, blocks)
 	pending.Add(1)
 
 	go func() {
@@ -1636,12 +1680,12 @@ func testDeliverHeadersHang(t *testing.T, protocol int, mode SyncMode) {
 	master := newTester()
 	defer master.terminate()
 
-	hashes, headers, blocks, receipts := master.makeChain(5, 0, master.genesis, nil, false)
+	hashes, headers, blocks := master.makeChain(5, 0, master.genesis, false)
 	for i := 0; i < 200; i++ {
 		tester := newTester()
 		tester.peerDb = master.peerDb
 
-		tester.newPeer("peer", protocol, hashes, headers, blocks, receipts)
+		tester.newPeer("peer", protocol, hashes, headers, blocks)
 		// Whenever the downloader requests headers, flood it with
 		// a lot of unrequested header deliveries.
 		tester.downloader.peers.peers["peer"].peer = &floodingTestPeer{

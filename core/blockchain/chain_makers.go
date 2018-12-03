@@ -17,13 +17,11 @@
 package blockchain
 
 import (
-	"fmt"
-	"math/big"
+		"math/big"
 	"github.com/srchain/srcd/common/common"
 	"github.com/srchain/srcd/consensus"
 	"github.com/srchain/srcd/core/types"
-	"github.com/srchain/srcd/core/vm"
-	"github.com/srchain/srcd/database"
+		"github.com/srchain/srcd/database"
 	"github.com/srchain/srcd/params"
 )
 
@@ -191,7 +189,7 @@ func makeHeaderChain(parent *types.Header, n int, engine consensus.Engine, db da
 
 // makeBlockChain creates a deterministic chain of blocks rooted at parent.
 func makeBlockChain(parent *types.Block, n int, engine consensus.Engine, db database.Database, seed int) []*types.Block {
-	blocks, _ := GenerateChain(params.TestChainConfig, parent, engine, db, n, func(i int, b *BlockGen) {
+	blocks := GenerateChain(params.TestChainConfig, parent, engine, db, n, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{0: byte(seed), 19: byte(i)})
 	})
 	return blocks

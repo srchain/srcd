@@ -24,7 +24,6 @@ type ChainConfig struct {
 
 var (
 	TestChainConfig = &ChainConfig{ChainID:big.NewInt(9527),Pow:new(PowConfig)}
-
 )
 
 
