@@ -125,7 +125,7 @@ func (dl *downloadTester) createTestSignedTx() (*types.Transaction, error) {
 	inst, err := transaction.UtxoInputs(xpubs, utxo)
 	out := transaction.UtxoOutputs(*transaction.SRCAssetID, 100, []byte{byte(vm.OP_FAIL)})
 
-	utxoTpl, _, err := transaction.BuildUtxoTemplate([]transaction.InputAndSigInst{inst}, []*transaction.TxOutput{&out})
+	utxoTpl, tx, err := transaction.BuildUtxoTemplate([]transaction.InputAndSigInst{inst}, []*transaction.TxOutput{&out})
 	if err != nil {
 		return  nil, err
 	}
@@ -140,7 +140,7 @@ func (dl *downloadTester) createTestSignedTx() (*types.Transaction, error) {
 		fmt.Println(string(tx))
 	}
 
-	return &utxoTpl.Transaction, nil
+	return &types.Transaction{Tx:tx}, nil
 
 }
 
