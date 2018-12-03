@@ -191,6 +191,18 @@ func (b *Block) Size() common.StorageSize {
 	return common.StorageSize(c)
 }
 
+// Hash returns the keccak256 hash of b's header.
+// The hash is computed on the first call and cached thereafter.
+func (b *Block) Hash() common.Hash {
+	if hash := b.hash.Load(); hash != nil {
+		return hash.(common.Hash)
+	}
+	v := b.header.Hash()
+	b.hash.Store(v)
+	return v
+}
+
+
 type writeCounter common.StorageSize
 
 func (c *writeCounter) Write(b []byte) (int, error) {
@@ -218,17 +230,6 @@ func (b *Block) WithBody(transactions []*Transaction) *Block {
 	copy(block.transactions, transactions)
 
 	return block
-}
-
-// Hash returns the keccak256 hash of b's header.
-// The hash is computed on the first call and cached thereafter.
-func (b *Block) Hash() common.Hash {
-	if hash := b.hash.Load(); hash != nil {
-		return hash.(common.Hash)
-	}
-	v := b.header.Hash()
-	b.hash.Store(v)
-	return v
 }
 
 type Blocks []*Block

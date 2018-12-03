@@ -95,6 +95,19 @@ func (g *Genesis) ToBlock() *types.Block {
 	return types.NewBlock(head, nil)
 }
 
+func GenesisBlockForTesting(db database.Database) *types.Block {
+	g := Genesis{}
+	return g.MustCommit(db)
+}
+
+func (g *Genesis) MustCommit(db database.Database) *types.Block {
+	block, err := g.Commit(db)
+	if err != nil {
+		panic(err)
+	}
+	return block
+}
+
 // Commit writes the block and state of a genesis specification to the database.
 func (g *Genesis) Commit(db database.Database) (*types.Block, error) {
 	block := g.ToBlock()

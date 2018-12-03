@@ -22,6 +22,12 @@ type ChainConfig struct {
 	Pow *PowConfig
 }
 
+var (
+	TestChainConfig = &ChainConfig{ChainID:big.NewInt(9527),Pow:new(PowConfig)}
+
+)
+
+
 // PowConfig is the consensus engine configs for proof-of-work based sealing.
 type PowConfig struct{}
 

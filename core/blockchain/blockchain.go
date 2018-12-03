@@ -17,6 +17,7 @@ import (
 	"github.com/srchain/srcd/log"
 	"github.com/srchain/srcd/event"
 	"github.com/hashicorp/golang-lru"
+	"github.com/srchain/srcd/params"
 )
 
 var ErrNoGenesis = errors.New("Genesis not found in chain")
@@ -31,7 +32,7 @@ const (
 )
 
 type BlockChain struct {
-	// chainConfig *params.ChainConfig // Chain & network configuration
+	chainConfig *params.ChainConfig // Chain & network configuration
 	// cacheConfig *CacheConfig        // Cache configuration for pruning
 
 	db database.Database // Low level persistent database to store final content in
@@ -73,7 +74,7 @@ type BlockChain struct {
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database.
-func NewBlockChain(db database.Database, engine consensus.Engine) (*BlockChain, error) {
+func NewBlockChain(db database.Database, engine consensus.Engine, config *params.ChainConfig) (*BlockChain, error) {
 	bodyCache, _ := lru.New(bodyCacheLimit)
 	bodyRLPCache, _ := lru.New(bodyCacheLimit)
 	blockCache, _ := lru.New(blockCacheLimit)
@@ -81,6 +82,7 @@ func NewBlockChain(db database.Database, engine consensus.Engine) (*BlockChain, 
 	badBlocks, _ := lru.New(badBlockLimit)
 
 	bc := &BlockChain{
+		chainConfig : config,
 		db:           db,
 		quit:         make(chan struct{}),
 		bodyCache:    bodyCache,
@@ -94,13 +96,16 @@ func NewBlockChain(db database.Database, engine consensus.Engine) (*BlockChain, 
 
 	var err error
 	bc.hc, err = NewHeaderChain(db, engine, bc.getProcInterrupt)
+
 	if err != nil {
 		return nil, err
 	}
+
 	bc.genesisBlock = bc.GetBlockByNumber(0)
 	if bc.genesisBlock == nil {
 		return nil, ErrNoGenesis
 	}
+
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}

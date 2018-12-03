@@ -25,7 +25,8 @@ import (
 	"testing"
 	"time"
 	"github.com/srchain/srcd/common/common"
-	"github.com/srchain/srcd/consensus/ethash"
+	pow "github.com/srchain/srcd/consensus/pow"
+	blockchain "github.com/srchain/srcd/core/blockchain"
 	"github.com/srchain/srcd/core"
 	"github.com/srchain/srcd/core/types"
 	"github.com/srchain/srcd/crypto/crypto"
@@ -73,7 +74,7 @@ type downloadTester struct {
 // newTester creates a new downloader test mocker.
 func newTester() *downloadTester {
 	testdb := database.NewMemDatabase()
-	genesis := core.GenesisBlockForTesting(testdb, testAddress, big.NewInt(1000000000))
+	genesis := blockchain.GenesisBlockForTesting(testdb)
 
 	tester := &downloadTester{
 		genesis:           genesis,
@@ -89,7 +90,7 @@ func newTester() *downloadTester {
 		peerMissingStates: make(map[string]map[common.Hash]bool),
 	}
 	tester.stateDb = database.NewMemDatabase()
-	tester.stateDb.Put(genesis.Root().Bytes(), []byte{0x00})
+	//tester.stateDb.Put(genesis.Root().Bytes(), []byte{0x00})
 	tester.downloader = New(FullSync,  new(event.TypeMux), tester, nil, tester.dropPeer)
 
 	return tester
@@ -99,7 +100,7 @@ func newTester() *downloadTester {
 // the returned hash chain is ordered head->parent. In addition, every 3rd block
 // contains a transaction and every 5th an uncle to allow testing correct block
 // reassembly.
-func (dl *downloadTester) makeChain(n int, seed byte, parent *types.Block, parentReceipts types.Receipts, heavy bool) ([]common.Hash, map[common.Hash]*types.Header, map[common.Hash]*types.Block, map[common.Hash]types.Receipts) {
+func (dl *downloadTester) makeChain(n int, seed byte, parent *types.Block,  heavy bool) ([]common.Hash, map[common.Hash]*types.Header, map[common.Hash]*types.Block) {
 	// Generate the block chain
 	blocks, receipts := core.GenerateChain(params.TestChainConfig, parent, ethash.NewFaker(), dl.peerDb, n, func(i int, block *core.BlockGen) {
 		block.SetCoinbase(common.Address{seed})
@@ -129,16 +130,12 @@ func (dl *downloadTester) makeChain(n int, seed byte, parent *types.Block, paren
 	blockm := make(map[common.Hash]*types.Block, n+1)
 	blockm[parent.Hash()] = parent
 
-	receiptm := make(map[common.Hash]types.Receipts, n+1)
-	receiptm[parent.Hash()] = parentReceipts
-
 	for i, b := range blocks {
 		hashes[len(hashes)-i-2] = b.Hash()
 		headerm[b.Hash()] = b.Header()
 		blockm[b.Hash()] = b
-		receiptm[b.Hash()] = receipts[i]
 	}
-	return hashes, headerm, blockm, receiptm
+	return hashes, headerm, blockm
 }
 
 // makeChainFork creates two chains of length n, such that h1[:f] and
@@ -324,7 +321,7 @@ func (dl *downloadTester) InsertChain(blocks types.Blocks) (int, error) {
 	defer dl.lock.Unlock()
 
 	for i, block := range blocks {
-		if parent, ok := dl.ownBlocks[block.ParentHash()]; !ok {
+		if _, ok := dl.ownBlocks[block.ParentHash()]; !ok {
 			return i, errors.New("unknown parent")
 		}
 		if _, ok := dl.ownHeaders[block.Hash()]; !ok {
