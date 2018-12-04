@@ -8,7 +8,7 @@ import (
 	"github.com/srchain/srcd/errors"
 	"github.com/srchain/srcd/params"
 
-	"github.com/bytom/common/bech32"
+
 )
 
 type Address interface {
@@ -100,7 +100,7 @@ func DecodeAddress(addr string,param params.NetParams)(Address, error){
 func encodeSegWitAddress(hrp string, witnessVersion byte, witnessProgram []byte) (string, error) {
 	// Group the address bytes into 5 bit groups, as this is what is used to
 	// encode each character in the address string.
-	converted, err := bech32.ConvertBits(witnessProgram, 8, 5, true)
+	converted, err := ConvertBits(witnessProgram, 8, 5, true)
 	if err != nil {
 		return "", err
 	}
@@ -110,7 +110,7 @@ func encodeSegWitAddress(hrp string, witnessVersion byte, witnessProgram []byte)
 	combined := make([]byte, len(converted)+1)
 	combined[0] = witnessVersion
 	copy(combined[1:], converted)
-	bech, err := bech32.Bech32Encode(hrp, combined)
+	bech, err := Bech32Encode(hrp, combined)
 	if err != nil {
 		return "", err
 	}
@@ -132,7 +132,7 @@ func encodeSegWitAddress(hrp string, witnessVersion byte, witnessProgram []byte)
 // returns the witness version and witness program byte representation.
 func decodeSegWitAddress(address string) (byte, []byte, error) {
 	// Decode the bech32 encoded address.
-	_, data, err := bech32.Bech32Decode(address)
+	_, data, err := Bech32Decode(address)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -152,7 +152,7 @@ func decodeSegWitAddress(address string) (byte, []byte, error) {
 	// The remaining characters of the address returned are grouped into
 	// words of 5 bits. In order to restore the original witness program
 	// bytes, we'll need to regroup into 8 bit words.
-	regrouped, err := bech32.ConvertBits(data[1:], 5, 8, false)
+	regrouped, err := ConvertBits(data[1:], 5, 8, false)
 	if err != nil {
 		return 0, nil, err
 	}

@@ -154,15 +154,16 @@ func (dl *downloadTester) makeChain(n int, seed byte, parent *types.Block,  heav
 		if heavy {
 			block.OffsetTime(-1)
 		}
-		// If the block number is multiple of 3, send a bonus transaction to the miner
-		if parent == dl.genesis && i%3 == 0 {
-
-			tx, err := dl.createTestSignedTx()
-			if err != nil {
-				panic(err)
-			}
-			block.AddTx(tx)
-		}
+		//TODO: add tx
+		//// If the block number is multiple of 3, send a bonus transaction to the miner
+		//if parent == dl.genesis && i%3 == 0 {
+		//
+		//	tx, err := dl.createTestSignedTx()
+		//	if err != nil {
+		//		panic(err)
+		//	}
+		//	block.AddTx(tx)
+		//}
 
 	})
 	// Convert the block-chain into a hash-chain and header/block maps
