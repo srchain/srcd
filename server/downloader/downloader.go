@@ -456,11 +456,12 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td *big.I
 		func() error { return d.processHeaders(origin+1, pivot, td) },
 	}
 	// TODO: 这里处理账号的同步
-	//if d.mode == FastSync {
-	//	fetchers = append(fetchers, func() error { return d.processFastSyncContent(latest) })
-	//} else if d.mode == FullSync {
-	//	fetchers = append(fetchers, d.processFullSyncContent)
-	//}
+	if d.mode == FastSync {
+		fetchers = append(fetchers, d.processFullSyncContent)
+		//fetchers = append(fetchers, func() error { return d.processFastSyncContent(latest) })
+	} else if d.mode == FullSync {
+		fetchers = append(fetchers, d.processFullSyncContent)
+	}
 	return d.spawnSync(fetchers)
 }
 

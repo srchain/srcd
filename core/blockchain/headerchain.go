@@ -17,6 +17,7 @@ import (
 
 const (
 	headerCacheLimit = 512
+	tdCacheLimit     = 1024
 	numberCacheLimit = 2048
 )
 
@@ -31,6 +32,7 @@ type HeaderChain struct {
 	currentHeaderHash common.Hash  // Hash of the current head of the header chain (prevent recomputing all the time)
 
 	headerCache *lru.Cache // Cache for the most recent block headers
+	tdCache     *lru.Cache // Cache for the most recent block total difficulties
 	numberCache *lru.Cache // Cache for the most recent block numbers
 
 	procInterrupt func() bool
@@ -43,6 +45,7 @@ type HeaderChain struct {
 func NewHeaderChain(chainDb database.Database, engine consensus.Engine, procInterrupt func() bool) (*HeaderChain, error) {
 	headerCache, _ := lru.New(headerCacheLimit)
 	numberCache, _ := lru.New(numberCacheLimit)
+	tdCache, _ := lru.New(tdCacheLimit)
 
 	// Seed a fast but crypto originating random generator
 	seed, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
@@ -54,6 +57,7 @@ func NewHeaderChain(chainDb database.Database, engine consensus.Engine, procInte
 		chainDb:       chainDb,
 		headerCache:   headerCache,
 		numberCache:   numberCache,
+		tdCache:       tdCache,
 		procInterrupt: procInterrupt,
 		rand:          mrand.New(mrand.NewSource(seed.Int64())),
 		engine:        engine,
@@ -147,6 +151,23 @@ func (hc *HeaderChain) GetBlockHashesFromHash(hash common.Hash, max uint64) []co
 	}
 	return chain
 }
+
+// GetTd retrieves a block's total difficulty in the canonical chain from the
+// database by hash and number, caching it if found.
+func (hc *HeaderChain) GetTd(hash common.Hash, number uint64) *big.Int {
+	// Short circuit if the td's already in the cache, retrieve otherwise
+	if cached, ok := hc.tdCache.Get(hash); ok {
+		return cached.(*big.Int)
+	}
+	td := rawdb.ReadTd(hc.chainDb, hash, number)
+	if td == nil {
+		return nil
+	}
+	// Cache the found body for next time and return
+	hc.tdCache.Add(hash, td)
+	return td
+}
+
 
 
 

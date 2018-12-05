@@ -411,7 +411,6 @@ func (dl *downloadTester) newSlowPeer(id string, version int, hashes []common.Ha
 		// Assign the owned hashes, headers and blocks to the peer (deep copy)
 		dl.peerHashes[id] = make([]common.Hash, len(hashes))
 		copy(dl.peerHashes[id], hashes)
-
 		dl.peerHeaders[id] = make(map[common.Hash]*types.Header)
 		dl.peerBlocks[id] = make(map[common.Hash]*types.Block)
 		dl.peerChainTds[id] = make(map[common.Hash]*big.Int)

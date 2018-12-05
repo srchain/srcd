@@ -104,6 +104,21 @@ func ReadHeader(db DatabaseReader, hash common.Hash, number uint64) *types.Heade
 	return header
 }
 
+// ReadTd retrieves a block's total difficulty corresponding to the hash.
+func ReadTd(db DatabaseReader, hash common.Hash, number uint64) *big.Int {
+	data, _ := db.Get(headerTDKey(number, hash))
+	if len(data) == 0 {
+		return nil
+	}
+	td := new(big.Int)
+	if err := rlp.Decode(bytes.NewReader(data), td); err != nil {
+		log.Error("Invalid block total difficulty RLP", "hash", hash, "err", err)
+		return nil
+	}
+	return td
+}
+
+
 // ReadFastTrieProgress retrieves the number of tries nodes fast synced to allow
 // reporting correct numbers across restarts.
 func ReadFastTrieProgress(db DatabaseReader) uint64 {

@@ -32,11 +32,13 @@ func Root() Logger {
 
 // Trace is a convenient alias for Root().Trace
 func Trace(msg string, ctx ...interface{}) {
+	fmt.Println(msg)
 	root.write(msg, LvlTrace, ctx, skipLevel)
 }
 
 // Debug is a convenient alias for Root().Debug
 func Debug(msg string, ctx ...interface{}) {
+	fmt.Println(msg)
 	root.write(msg, LvlDebug, ctx, skipLevel)
 }
 
@@ -48,11 +50,13 @@ func Info(msg string, ctx ...interface{}) {
 
 // Warn is a convenient alias for Root().Warn
 func Warn(msg string, ctx ...interface{}) {
+	fmt.Println(msg)
 	root.write(msg, LvlWarn, ctx, skipLevel)
 }
 
 // Error is a convenient alias for Root().Error
 func Error(msg string, ctx ...interface{}) {
+	fmt.Println(msg)
 	root.write(msg, LvlError, ctx, skipLevel)
 }
 
