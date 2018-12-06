@@ -1278,11 +1278,9 @@ func testBlockHeaderAttackerDropping(t *testing.T, protocol int) {
 		{errInvalidChain, true},             // Hash chain was detected as invalid, definitely drop
 		{errInvalidBlock, false},            // A bad peer was detected, but not the sync origin
 		{errInvalidBody, false},             // A bad peer was detected, but not the sync origin
-		{errInvalidReceipt, false},          // A bad peer was detected, but not the sync origin
 		{errCancelBlockFetch, false},        // Synchronisation was canceled, origin may be innocent, don't drop
 		{errCancelHeaderFetch, false},       // Synchronisation was canceled, origin may be innocent, don't drop
 		{errCancelBodyFetch, false},         // Synchronisation was canceled, origin may be innocent, don't drop
-		{errCancelReceiptFetch, false},      // Synchronisation was canceled, origin may be innocent, don't drop
 		{errCancelHeaderProcessing, false},  // Synchronisation was canceled, origin may be innocent, don't drop
 		{errCancelContentProcessing, false}, // Synchronisation was canceled, origin may be innocent, don't drop
 	}

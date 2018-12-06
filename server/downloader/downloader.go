@@ -78,11 +78,9 @@ var (
 	errInvalidChain            = errors.New("retrieved hash chain is invalid")
 	errInvalidBlock            = errors.New("retrieved block is invalid")
 	errInvalidBody             = errors.New("retrieved block body is invalid")
-	errInvalidReceipt          = errors.New("retrieved receipt is invalid")
 	errCancelBlockFetch        = errors.New("block download canceled (requested)")
 	errCancelHeaderFetch       = errors.New("block header download canceled (requested)")
 	errCancelBodyFetch         = errors.New("block body download canceled (requested)")
-	errCancelReceiptFetch      = errors.New("receipt download canceled (requested)")
 	errCancelStateFetch        = errors.New("state data download canceled (requested)")
 	errCancelHeaderProcessing  = errors.New("header processing canceled (requested)")
 	errCancelContentProcessing = errors.New("content processing canceled (requested)")
@@ -122,9 +120,7 @@ type Downloader struct {
 	// Channels
 	headerCh      chan dataPack        // [eth/62] Channel receiving inbound block headers
 	bodyCh        chan dataPack        // [eth/62] Channel receiving inbound block bodies
-	receiptCh     chan dataPack        // [eth/63] Channel receiving inbound receipts
 	bodyWakeCh    chan bool            // [eth/62] Channel to signal the block body fetcher of new tasks
-	receiptWakeCh chan bool            // [eth/63] Channel to signal the receipt fetcher of new tasks
 	headerProcCh  chan []*types.Header // [eth/62] Channel to feed the header processor new tasks
 
 	// for stateFetcher
@@ -214,9 +210,7 @@ func New(mode SyncMode, mux *event.TypeMux, chain BlockChain, lightchain LightCh
 		dropPeer:       dropPeer,
 		headerCh:       make(chan dataPack, 1),
 		bodyCh:         make(chan dataPack, 1),
-		receiptCh:      make(chan dataPack, 1),
 		bodyWakeCh:     make(chan bool, 1),
-		receiptWakeCh:  make(chan bool, 1),
 		headerProcCh:   make(chan []*types.Header, 1),
 		quitCh:         make(chan struct{}),
 		stateCh:        make(chan dataPack),
@@ -348,13 +342,13 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td *big.Int, mode 
 	d.queue.Reset()
 	d.peers.Reset()
 
-	for _, ch := range []chan bool{d.bodyWakeCh, d.receiptWakeCh} {
+	for _, ch := range []chan bool{d.bodyWakeCh} {
 		select {
 		case <-ch:
 		default:
 		}
 	}
-	for _, ch := range []chan dataPack{d.headerCh, d.bodyCh, d.receiptCh} {
+	for _, ch := range []chan dataPack{d.headerCh, d.bodyCh} {
 		for empty := false; !empty; {
 			select {
 			case <-ch:
@@ -569,7 +563,6 @@ func (d *Downloader) fetchHeight(p *peerConnection) (*types.Header, error) {
 			return nil, errTimeout
 
 		case <-d.bodyCh:
-		case <-d.receiptCh:
 			// Out of bounds delivery, ignore
 		}
 	}
@@ -666,7 +659,6 @@ func (d *Downloader) findAncestor(p *peerConnection, height uint64) (uint64, err
 			return 0, errTimeout
 
 		case <-d.bodyCh:
-		case <-d.receiptCh:
 			// Out of bounds delivery, ignore
 		}
 	}
@@ -730,7 +722,6 @@ func (d *Downloader) findAncestor(p *peerConnection, height uint64) (uint64, err
 				return 0, errTimeout
 
 			case <-d.bodyCh:
-			case <-d.receiptCh:
 				// Out of bounds delivery, ignore
 			}
 		}
@@ -860,7 +851,7 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, pivot uint64) 
 			d.dropPeer(p.id)
 
 			// Finish the sync gracefully instead of dumping the gathered data though
-			for _, ch := range []chan bool{d.bodyWakeCh, d.receiptWakeCh} {
+			for _, ch := range []chan bool{d.bodyWakeCh} {
 				select {
 				case ch <- false:
 				case <-d.cancelCh:
@@ -1190,7 +1181,7 @@ func (d *Downloader) processHeaders(origin uint64, pivot uint64, td *big.Int) er
 			// Terminate header processing if we synced up
 			if len(headers) == 0 {
 				// Notify everyone that headers are fully processed
-				for _, ch := range []chan bool{d.bodyWakeCh, d.receiptWakeCh} {
+				for _, ch := range []chan bool{d.bodyWakeCh} {
 					select {
 					case ch <- false:
 					case <-d.cancelCh:
@@ -1305,7 +1296,7 @@ func (d *Downloader) processHeaders(origin uint64, pivot uint64, td *big.Int) er
 			d.syncStatsLock.Unlock()
 
 			// Signal the content downloaders of the availablility of new tasks
-			for _, ch := range []chan bool{d.bodyWakeCh, d.receiptWakeCh} {
+			for _, ch := range []chan bool{d.bodyWakeCh} {
 				select {
 				case ch <- true:
 				default:
