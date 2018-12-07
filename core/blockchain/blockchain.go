@@ -54,6 +54,7 @@ type BlockChain struct {
 
 	checkpoint   int          // checkpoint counts towards the new checkpoint
 	currentBlock atomic.Value // Current head of the block chain
+	currentFastBlock atomic.Value // Current head of the fast-sync chain (may be above the block chain!)
 
 	bodyCache    *lru.Cache // Cache for the most recent block bodies
 	bodyRLPCache *lru.Cache // Cache for the most recent block bodies in RLP encoded format
@@ -149,13 +150,24 @@ func (bc *BlockChain) loadLastState() error {
 	}
 	bc.hc.SetCurrentHeader(currentHeader)
 
+	// Restore the last known head fast block
+	bc.currentFastBlock.Store(currentBlock)
+	if head := rawdb.ReadHeadFastBlockHash(bc.db); head != (common.Hash{}) {
+		if block := bc.GetBlockByHash(head); block != nil {
+			bc.currentFastBlock.Store(block)
+		}
+	}
+
+	// Issue a status log for the user
+	currentFastBlock := bc.CurrentFastBlock()
+
 	headerTd := bc.GetTd(currentHeader.Hash(), currentHeader.Number.Uint64())
 	blockTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
-	//fastTd := bc.GetTd(currentFastBlock.Hash(), currentFastBlock.NumberU64())
+	fastTd := bc.GetTd(currentFastBlock.Hash(), currentFastBlock.NumberU64())
 
 	log.Info("Loaded most recent local header", "number", currentHeader.Number, "hash", currentHeader.Hash(), "td", headerTd)
 	log.Info("Loaded most recent local full block", "number", currentBlock.Number(), "hash", currentBlock.Hash(), "td", blockTd)
-	//log.Info("Loaded most recent local fast block", "number", currentFastBlock.Number(), "hash", currentFastBlock.Hash(), "td", fastTd)
+	log.Info("Loaded most recent local fast block", "number", currentFastBlock.Number(), "hash", currentFastBlock.Hash(), "td", fastTd, "age", common.PrettyAge(time.Unix(currentFastBlock.Time().Int64(), 0)))
 	return nil
 }
 
@@ -190,9 +202,24 @@ func (bc *BlockChain) SetHead(head uint64) error {
 	if currentBlock := bc.CurrentBlock(); currentBlock == nil {
 		bc.currentBlock.Store(bc.genesisBlock)
 	}
+
+	// Rewind the fast block in a simpleton way to the target head
+	if currentFastBlock := bc.CurrentFastBlock(); currentFastBlock != nil && currentHeader.Number.Uint64() < currentFastBlock.NumberU64() {
+		bc.currentFastBlock.Store(bc.GetBlock(currentHeader.Hash(), currentHeader.Number.Uint64()))
+	}
+	// If either blocks reached nil, reset to the genesis state
+	if currentBlock := bc.CurrentBlock(); currentBlock == nil {
+		bc.currentBlock.Store(bc.genesisBlock)
+	}
+	if currentFastBlock := bc.CurrentFastBlock(); currentFastBlock == nil {
+		bc.currentFastBlock.Store(bc.genesisBlock)
+	}
+
 	currentBlock := bc.CurrentBlock()
+	currentFastBlock := bc.CurrentFastBlock()
 
 	rawdb.WriteHeadBlockHash(bc.db, currentBlock.Hash())
+	rawdb.WriteHeadFastBlockHash(bc.db, currentFastBlock.Hash())
 
 	return bc.loadLastState()
 }
@@ -240,6 +267,7 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 	bc.currentBlock.Store(bc.genesisBlock)
 	bc.hc.SetGenesis(bc.genesisBlock.Header())
 	bc.hc.SetCurrentHeader(bc.genesisBlock.Header())
+	bc.currentFastBlock.Store(bc.genesisBlock)
 
 	return nil
 }
@@ -260,6 +288,9 @@ func (bc *BlockChain) insert(block *types.Block) {
 	// If the block is better than our head or is on a different chain, force update heads
 	if updateHeads {
 		bc.hc.SetCurrentHeader(block.Header())
+		rawdb.WriteHeadFastBlockHash(bc.db, block.Hash())
+
+		bc.currentFastBlock.Store(block)
 	}
 }
 
@@ -269,6 +300,33 @@ func (bc *BlockChain) HasBlock(hash common.Hash, number uint64) bool {
 		return true
 	}
 	return rawdb.HasBody(bc.db, hash, number)
+}
+
+
+// Rollback is designed to remove a chain of links from the database that aren't
+// certain enough to be valid.
+func (bc *BlockChain) Rollback(chain []common.Hash) {
+	bc.mu.Lock()
+	defer bc.mu.Unlock()
+
+	for i := len(chain) - 1; i >= 0; i-- {
+		hash := chain[i]
+
+		currentHeader := bc.hc.CurrentHeader()
+		if currentHeader.Hash() == hash {
+			bc.hc.SetCurrentHeader(bc.GetHeader(currentHeader.ParentHash, currentHeader.Number.Uint64()-1))
+		}
+		if currentFastBlock := bc.CurrentFastBlock(); currentFastBlock.Hash() == hash {
+			newFastBlock := bc.GetBlock(currentFastBlock.ParentHash(), currentFastBlock.NumberU64()-1)
+			bc.currentFastBlock.Store(newFastBlock)
+			rawdb.WriteHeadFastBlockHash(bc.db, newFastBlock.Hash())
+		}
+		if currentBlock := bc.CurrentBlock(); currentBlock.Hash() == hash {
+			newBlock := bc.GetBlock(currentBlock.ParentHash(), currentBlock.NumberU64()-1)
+			bc.currentBlock.Store(newBlock)
+			rawdb.WriteHeadBlockHash(bc.db, newBlock.Hash())
+		}
+	}
 }
 
 // GetBlock retrieves a block from the database by hash and number,
@@ -551,6 +609,12 @@ func (bc *BlockChain) GetHeaderByHash(hash common.Hash) *types.Header {
 // caching it (associated with its hash) if found.
 func (bc *BlockChain) GetHeaderByNumber(number uint64) *types.Header {
 	return bc.hc.GetHeaderByNumber(number)
+}
+
+// CurrentFastBlock retrieves the current fast-sync head block of the canonical
+// chain. The block is retrieved from the blockchain's internal cache.
+func (bc *BlockChain) CurrentFastBlock() *types.Block {
+	return bc.currentFastBlock.Load().(*types.Block)
 }
 
 // SubscribeChainEvent registers a subscription of ChainEvent.

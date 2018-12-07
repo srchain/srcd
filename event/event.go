@@ -1,6 +1,7 @@
 package event
 
 import (
+	"fmt"
 	"time"
 	"sync"
 	"reflect"
@@ -39,6 +40,105 @@ type TypeMuxSubscription struct {
 	postMu sync.RWMutex
 	readC  <-chan *TypeMuxEvent
 	postC  chan<- *TypeMuxEvent
+}
+
+
+
+// Subscribe creates a subscription for events of the given types. The
+// subscription's channel is closed when it is unsubscribed
+// or the mux is closed.
+func (mux *TypeMux) Subscribe(types ...interface{}) *TypeMuxSubscription {
+	sub := newsub(mux)
+	mux.mutex.Lock()
+	defer mux.mutex.Unlock()
+	if mux.stopped {
+		// set the status to closed so that calling Unsubscribe after this
+		// call will short circuit.
+		sub.closed = true
+		close(sub.postC)
+	} else {
+		if mux.subm == nil {
+			mux.subm = make(map[reflect.Type][]*TypeMuxSubscription)
+		}
+		for _, t := range types {
+			rtyp := reflect.TypeOf(t)
+			oldsubs := mux.subm[rtyp]
+			if find(oldsubs, sub) != -1 {
+				panic(fmt.Sprintf("event: duplicate type %s in Subscribe", rtyp))
+			}
+			subs := make([]*TypeMuxSubscription, len(oldsubs)+1)
+			copy(subs, oldsubs)
+			subs[len(oldsubs)] = sub
+			mux.subm[rtyp] = subs
+		}
+	}
+	return sub
+}
+
+
+func find(slice []*TypeMuxSubscription, item *TypeMuxSubscription) int {
+	for i, v := range slice {
+		if v == item {
+			return i
+		}
+	}
+	return -1
+}
+
+
+func newsub(mux *TypeMux) *TypeMuxSubscription {
+	c := make(chan *TypeMuxEvent)
+	return &TypeMuxSubscription{
+		mux:     mux,
+		created: time.Now(),
+		readC:   c,
+		postC:   c,
+		closing: make(chan struct{}),
+	}
+}
+
+func (s *TypeMuxSubscription) Unsubscribe() {
+	s.mux.del(s)
+	s.closewait()
+}
+
+func (mux *TypeMux) del(s *TypeMuxSubscription) {
+	mux.mutex.Lock()
+	for typ, subs := range mux.subm {
+		if pos := find(subs, s); pos >= 0 {
+			if len(subs) == 1 {
+				delete(mux.subm, typ)
+			} else {
+				mux.subm[typ] = posdelete(subs, pos)
+			}
+		}
+	}
+	s.mux.mutex.Unlock()
+}
+
+
+
+func (s *TypeMuxSubscription) closewait() {
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+	if s.closed {
+		return
+	}
+	close(s.closing)
+	s.closed = true
+
+	s.postMu.Lock()
+	close(s.postC)
+	s.postC = nil
+	s.postMu.Unlock()
+}
+
+
+func posdelete(slice []*TypeMuxSubscription, pos int) []*TypeMuxSubscription {
+	news := make([]*TypeMuxSubscription, len(slice)-1)
+	copy(news[:pos], slice[:pos])
+	copy(news[pos:], slice[pos+1:])
+	return news
 }
 
 

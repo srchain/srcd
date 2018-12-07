@@ -27,6 +27,13 @@ func WriteCanonicalHash(db DatabaseWriter, hash common.Hash, number uint64) {
 	}
 }
 
+func WriteHeadFastBlockHash(db DatabaseWriter, hash common.Hash) {
+	if err := db.Put(headFastBlockKey, hash.Bytes()); err != nil {
+		log.Crit("Failed to store last fast block's hash", "err", err)
+	}
+}
+
+
 // DeleteCanonicalHash removes the number to hash canonical mapping.
 func DeleteCanonicalHash(db DatabaseDeleter, number uint64) {
 	if err := db.Delete(headerHashKey(number)); err != nil {
@@ -52,6 +59,16 @@ func ReadHeadHeaderHash(db DatabaseReader) common.Hash {
 	}
 	return common.BytesToHash(data)
 }
+
+// ReadHeadFastBlockHash retrieves the hash of the current fast-sync head block.
+func ReadHeadFastBlockHash(db DatabaseReader) common.Hash {
+	data, _ := db.Get(headFastBlockKey)
+	if len(data) == 0 {
+		return common.Hash{}
+	}
+	return common.BytesToHash(data)
+}
+
 
 // WriteHeadHeaderHash stores the hash of the current canonical head header.
 func WriteHeadHeaderHash(db DatabaseWriter, hash common.Hash) {

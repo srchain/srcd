@@ -12,6 +12,8 @@ const (
 	src63 = 63
 )
 
+type errCode int
+
 // ProtocolName is the official short name of the protocol used during capability negotiation.
 var ProtocolName = "src"
 
