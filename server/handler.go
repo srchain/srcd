@@ -13,7 +13,6 @@ import (
 
 	"github.com/srchain/srcd/common/common"
 	"github.com/srchain/srcd/consensus"
-	"github.com/srchain/srcd/consensus/misc"
 
 	bc "github.com/srchain/srcd/core/blockchain"
 	srcdb "github.com/srchain/srcd/database"
