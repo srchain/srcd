@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/srchain/srcd/errors"
+	"github.com/srchain/srcd/rlp"
 	"time"
 	"math/big"
 	"github.com/srchain/srcd/core/types"
@@ -99,6 +100,27 @@ func (ps *peerSet) Peer(id string) *peer {
 	return ps.peers[id]
 }
 
+
+// Register injects a new peer into the working set, or returns an error if the
+// peer is already known. If a new peer it registered, its broadcast loop is also
+// started.
+func (ps *peerSet) Register(p *peer) error {
+	ps.lock.Lock()
+	defer ps.lock.Unlock()
+
+	if ps.closed {
+		return errClosed
+	}
+	if _, ok := ps.peers[p.id]; ok {
+		return errAlreadyRegistered
+	}
+	ps.peers[p.id] = p
+	go p.broadcast()
+
+	return nil
+}
+
+
 // Unregister removes a remote peer from the active set, disabling any further
 // actions to/from that particular entity.
 func (ps *peerSet) Unregister(id string) error {
@@ -136,6 +158,101 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 	}
 }
 
+
+// broadcast is a write loop that multiplexes block propagations, announcements
+// and transaction broadcasts into the remote peer. The goal is to have an async
+// writer that does not lock up node internals.
+func (p *peer) broadcast() {
+	for {
+		select {
+		case txs := <-p.queuedTxs:
+			if err := p.SendTransactions(txs); err != nil {
+				return
+			}
+			p.Log().Trace("Broadcast transactions", "count", len(txs))
+
+		case prop := <-p.queuedProps:
+			if err := p.SendNewBlock(prop.block, prop.td); err != nil {
+				return
+			}
+			p.Log().Trace("Propagated block", "number", prop.block.Number(), "hash", prop.block.Hash(), "td", prop.td)
+
+		case block := <-p.queuedAnns:
+			if err := p.SendNewBlockHashes([]common.Hash{block.Hash()}, []uint64{block.NumberU64()}); err != nil {
+				return
+			}
+			p.Log().Trace("Announced block", "number", block.Number(), "hash", block.Hash())
+
+		case <-p.term:
+			return
+		}
+	}
+}
+
+
+// Handshake executes the eth protocol handshake, negotiating version number,
+// network IDs, difficulties, head and genesis blocks.
+func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis common.Hash) error {
+	// Send out own handshake in a new thread
+	errc := make(chan error, 2)
+	var status statusData // safe to read after two values have been received from errc
+
+	go func() {
+		errc <- p2p.Send(p.rw, StatusMsg, &statusData{
+			ProtocolVersion: uint32(p.version),
+			NetworkId:       network,
+			TD:              td,
+			CurrentBlock:    head,
+			GenesisBlock:    genesis,
+		})
+	}()
+	go func() {
+		errc <- p.readStatus(network, &status, genesis)
+	}()
+	timeout := time.NewTimer(handshakeTimeout)
+	defer timeout.Stop()
+	for i := 0; i < 2; i++ {
+		select {
+		case err := <-errc:
+			if err != nil {
+				return err
+			}
+		case <-timeout.C:
+			return p2p.DiscReadTimeout
+		}
+	}
+	p.td, p.head = status.TD, status.CurrentBlock
+	return nil
+}
+
+func (p *peer) readStatus(network uint64, status *statusData, genesis common.Hash) (err error) {
+	msg, err := p.rw.ReadMsg()
+	if err != nil {
+		return err
+	}
+	if msg.Code != StatusMsg {
+		return errResp(ErrNoStatusMsg, "first msg has code %x (!= %x)", msg.Code, StatusMsg)
+	}
+	if msg.Size > ProtocolMaxMsgSize {
+		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, ProtocolMaxMsgSize)
+	}
+	// Decode the handshake and make sure everything matches
+	if err := msg.Decode(&status); err != nil {
+		return errResp(ErrDecode, "msg %v: %v", msg, err)
+	}
+	if status.GenesisBlock != genesis {
+		return errResp(ErrGenesisBlockMismatch, "%x (!= %x)", status.GenesisBlock[:8], genesis[:8])
+	}
+	if status.NetworkId != network {
+		return errResp(ErrNetworkIdMismatch, "%d (!= %d)", status.NetworkId, network)
+	}
+	if int(status.ProtocolVersion) != p.version {
+		return errResp(ErrProtocolVersionMismatch, "%d (!= %d)", status.ProtocolVersion, p.version)
+	}
+	return nil
+}
+
+
 // broadcast is a write loop that multiplexes block propagations, announcements
 // and transaction broadcasts into the remote peer. The goal is to have an async
 // writer that does not lock up node internals
@@ -164,6 +281,149 @@ func (p *peer) brocast() {
 			return
 		}
 	}
+}
+
+// MarkBlock marks a block as known for the peer, ensuring that the block will
+// never be propagated to this particular peer.
+func (p *peer) MarkBlock(hash common.Hash) {
+	// If we reached the memory allowance, drop a previously known block hash
+	for p.knownBlocks.Cardinality() >= maxKnownBlocks {
+		p.knownBlocks.Pop()
+	}
+	p.knownBlocks.Add(hash)
+}
+
+// SetHead updates the head hash and total difficulty of the peer.
+func (p *peer) SetHead(hash common.Hash, td *big.Int) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	copy(p.head[:], hash[:])
+	p.td.Set(td)
+}
+
+// MarkTransaction marks a transaction as known for the peer, ensuring that it
+// will never be propagated to this particular peer.
+func (p *peer) MarkTransaction(hash common.Hash) {
+	// If we reached the memory allowance, drop a previously known transaction hash
+	for p.knownTxs.Cardinality() >= maxKnownTxs {
+		p.knownTxs.Pop()
+	}
+	p.knownTxs.Add(hash)
+}
+
+// AsyncSendNewBlock queues an entire block for propagation to a remote peer. If
+// the peer's broadcast queue is full, the event is silently dropped.
+func (p *peer) AsyncSendNewBlock(block *types.Block, td *big.Int) {
+	select {
+	case p.queuedProps <- &propEvent{block: block, td: td}:
+		p.knownBlocks.Add(block.Hash())
+	default:
+		p.Log().Debug("Dropping block propagation", "number", block.NumberU64(), "hash", block.Hash())
+	}
+}
+
+// AsyncSendNewBlockHash queues the availability of a block for propagation to a
+// remote peer. If the peer's broadcast queue is full, the event is silently
+// dropped.
+func (p *peer) AsyncSendNewBlockHash(block *types.Block) {
+	select {
+	case p.queuedAnns <- block:
+		p.knownBlocks.Add(block.Hash())
+	default:
+		p.Log().Debug("Dropping block announcement", "number", block.NumberU64(), "hash", block.Hash())
+	}
+}
+
+// AsyncSendTransactions queues list of transactions propagation to a remote
+// peer. If the peer's broadcast queue is full, the event is silently dropped.
+func (p *peer) AsyncSendTransactions(txs []*types.Transaction) {
+	select {
+	case p.queuedTxs <- txs:
+		for _, tx := range txs {
+			p.knownTxs.Add(tx.Hash())
+		}
+	default:
+		p.Log().Debug("Dropping transaction propagation", "count", len(txs))
+	}
+}
+
+
+
+
+// PeersWithoutBlock retrieves a list of peers that do not have a given block in
+// their set of known hashes.
+func (ps *peerSet) PeersWithoutBlock(hash common.Hash) []*peer {
+	ps.lock.RLock()
+	defer ps.lock.RUnlock()
+
+	list := make([]*peer, 0, len(ps.peers))
+	for _, p := range ps.peers {
+		if !p.knownBlocks.Contains(hash) {
+			list = append(list, p)
+		}
+	}
+	return list
+}
+
+
+// PeersWithoutTx retrieves a list of peers that do not have a given transaction
+// in their set of known hashes.
+func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
+	ps.lock.RLock()
+	defer ps.lock.RUnlock()
+
+	list := make([]*peer, 0, len(ps.peers))
+	for _, p := range ps.peers {
+		if !p.knownTxs.Contains(hash) {
+			list = append(list, p)
+		}
+	}
+	return list
+}
+
+
+// RequestOneHeader is a wrapper around the header query functions to fetch a
+// single header. It is used solely by the fetcher.
+func (p *peer) RequestOneHeader(hash common.Hash) error {
+	p.Log().Debug("Fetching single header", "hash", hash)
+	return p2p.Send(p.rw, GetBlockHeadersMsg, &getBlockHeadersData{Origin: hashOrNumber{Hash: hash}, Amount: uint64(1), Skip: uint64(0), Reverse: false})
+}
+
+
+// RequestBodies fetches a batch of blocks' bodies corresponding to the hashes
+// specified.
+func (p *peer) RequestBodies(hashes []common.Hash) error {
+	p.Log().Debug("Fetching batch of block bodies", "count", len(hashes))
+	return p2p.Send(p.rw, GetBlockBodiesMsg, hashes)
+}
+
+
+// SendBlockHeaders sends a batch of block headers to the remote peer.
+func (p *peer) SendBlockHeaders(headers []*types.Header) error {
+	return p2p.Send(p.rw, BlockHeadersMsg, headers)
+}
+
+// RequestHeadersByHash fetches a batch of blocks' headers corresponding to the
+// specified header query, based on the hash of an origin block.
+func (p *peer) RequestHeadersByHash(origin common.Hash, amount int, skip int, reverse bool) error {
+	p.Log().Debug("Fetching batch of headers", "count", amount, "fromhash", origin, "skip", skip, "reverse", reverse)
+	return p2p.Send(p.rw, GetBlockHeadersMsg, &getBlockHeadersData{Origin: hashOrNumber{Hash: origin}, Amount: uint64(amount), Skip: uint64(skip), Reverse: reverse})
+}
+
+// RequestHeadersByNumber fetches a batch of blocks' headers corresponding to the
+// specified header query, based on the number of an origin block.
+func (p *peer) RequestHeadersByNumber(origin uint64, amount int, skip int, reverse bool) error {
+	p.Log().Debug("Fetching batch of headers", "count", amount, "fromnum", origin, "skip", skip, "reverse", reverse)
+	return p2p.Send(p.rw, GetBlockHeadersMsg, &getBlockHeadersData{Origin: hashOrNumber{Number: origin}, Amount: uint64(amount), Skip: uint64(skip), Reverse: reverse})
+}
+
+
+
+// SendBlockBodiesRLP sends a batch of block contents to the remote peer from
+// an already RLP encoded format.
+func (p *peer) SendBlockBodiesRLP(bodies []rlp.RawValue) error {
+	return p2p.Send(p.rw, BlockBodiesMsg, bodies)
 }
 
 // SendTransactions sends transactions to the peer and includes the hashes
@@ -211,6 +471,19 @@ func (ps *peerSet) Len() int {
 
 	return len(ps.peers)
 }
+
+// Close disconnects all peers.
+// No new peers can be registered after Close has returned.
+func (ps *peerSet) Close() {
+	ps.lock.Lock()
+	defer ps.lock.Unlock()
+
+	for _, p := range ps.peers {
+		p.Disconnect(p2p.DiscQuitting)
+	}
+	ps.closed = true
+}
+
 
 // BestPeer retrieves the known peer with the currently highest total difficulty.
 func (ps *peerSet) BestPeer() *peer {

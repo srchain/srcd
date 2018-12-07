@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"sort"
 	"sync/atomic"
+	"time"
 
 	"github.com/srchain/srcd/common/common"
 	"github.com/srchain/srcd/common/hexutil"
@@ -105,8 +106,8 @@ type Block struct {
 
 	// These fields are used by package eth to track
 	// inter-peer block relay.
-	// ReceivedAt   time.Time
-	// ReceivedFrom interface{}
+	ReceivedAt   time.Time
+	ReceivedFrom interface{}
 }
 
 // NewBlock creates a new block.

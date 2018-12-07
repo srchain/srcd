@@ -79,6 +79,15 @@ func NewHeaderChain(chainDb database.Database, engine consensus.Engine, procInte
 	return hc, nil
 }
 
+// HasHeader checks if a block header is present in the database or not.
+func (hc *HeaderChain) HasHeader(hash common.Hash, number uint64) bool {
+	if hc.numberCache.Contains(hash) || hc.headerCache.Contains(hash) {
+		return true
+	}
+	return rawdb.HasHeader(hc.chainDb, hash, number)
+}
+
+
 // GetBlockNumber retrieves the block number belonging to the given hash
 // from the cache or database
 func (hc *HeaderChain) GetBlockNumber(hash common.Hash) *uint64 {
@@ -168,6 +177,53 @@ func (hc *HeaderChain) GetTd(hash common.Hash, number uint64) *big.Int {
 	return td
 }
 
+
+// GetTdByHash retrieves a block's total difficulty in the canonical chain from the
+// database by hash, caching it if found.
+func (hc *HeaderChain) GetTdByHash(hash common.Hash) *big.Int {
+	number := hc.GetBlockNumber(hash)
+	if number == nil {
+		return nil
+	}
+	return hc.GetTd(hash, *number)
+}
+
+// GetAncestor retrieves the Nth ancestor of a given block. It assumes that either the given block or
+// a close ancestor of it is canonical. maxNonCanonical points to a downwards counter limiting the
+// number of blocks to be individually checked before we reach the canonical chain.
+//
+// Note: ancestor == 0 returns the same block, 1 returns its parent and so on.
+func (hc *HeaderChain) GetAncestor(hash common.Hash, number, ancestor uint64, maxNonCanonical *uint64) (common.Hash, uint64) {
+	if ancestor > number {
+		return common.Hash{}, 0
+	}
+	if ancestor == 1 {
+		// in this case it is cheaper to just read the header
+		if header := hc.GetHeader(hash, number); header != nil {
+			return header.ParentHash, number - 1
+		} else {
+			return common.Hash{}, 0
+		}
+	}
+	for ancestor != 0 {
+		if rawdb.ReadCanonicalHash(hc.chainDb, number) == hash {
+			number -= ancestor
+			return rawdb.ReadCanonicalHash(hc.chainDb, number), number
+		}
+		if *maxNonCanonical == 0 {
+			return common.Hash{}, 0
+		}
+		*maxNonCanonical--
+		ancestor--
+		header := hc.GetHeader(hash, number)
+		if header == nil {
+			return common.Hash{}, 0
+		}
+		hash = header.ParentHash
+		number--
+	}
+	return hash, number
+}
 
 
 

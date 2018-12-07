@@ -116,6 +116,10 @@ func (mux *TypeMux) del(s *TypeMuxSubscription) {
 	s.mux.mutex.Unlock()
 }
 
+func (s *TypeMuxSubscription) Chan() <-chan *TypeMuxEvent {
+	return s.readC
+}
+
 
 
 func (s *TypeMuxSubscription) closewait() {

@@ -22,10 +22,10 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/consensus"
+	"github.com/srchain/srcd/core/types"
+	"github.com/srchain/srcd/log"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
 
@@ -459,7 +459,7 @@ func (f *Fetcher) loop() {
 						announce.time = task.time
 
 						// If the block is empty (header only), short circuit into the final import queue
-						if header.TxHash == types.DeriveSha(types.Transactions{}) && header.UncleHash == types.CalcUncleHash([]*types.Header{}) {
+						if header.TxHash == types.DeriveSha(types.Transactions{})  {
 							log.Trace("Block empty, skipping body retrieval", "peer", announce.origin, "number", header.Number, "hash", header.Hash())
 
 							block := types.NewBlockWithHeader(header)
@@ -515,21 +515,21 @@ func (f *Fetcher) loop() {
 			bodyFilterInMeter.Mark(int64(len(task.transactions)))
 
 			blocks := []*types.Block{}
-			for i := 0; i < len(task.transactions) && i < len(task.uncles); i++ {
+			for i := 0; i < len(task.transactions) ; i++ {
 				// Match up a body to any possible completion request
 				matched := false
 
 				for hash, announce := range f.completing {
 					if f.queued[hash] == nil {
 						txnHash := types.DeriveSha(types.Transactions(task.transactions[i]))
-						uncleHash := types.CalcUncleHash(task.uncles[i])
 
-						if txnHash == announce.header.TxHash && uncleHash == announce.header.UncleHash && announce.origin == task.peer {
+
+						if txnHash == announce.header.TxHash  && announce.origin == task.peer {
 							// Mark the body matched, reassemble if still unknown
 							matched = true
 
 							if f.getBlock(hash) == nil {
-								block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i], task.uncles[i])
+								block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i])
 								block.ReceivedAt = task.time
 
 								blocks = append(blocks, block)
@@ -541,7 +541,6 @@ func (f *Fetcher) loop() {
 				}
 				if matched {
 					task.transactions = append(task.transactions[:i], task.transactions[i+1:]...)
-					task.uncles = append(task.uncles[:i], task.uncles[i+1:]...)
 					i--
 					continue
 				}

@@ -3,6 +3,7 @@ package blockchain
 import (
 	"errors"
 	"fmt"
+	"github.com/srchain/srcd/rlp"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -119,6 +120,12 @@ func NewBlockChain(db database.Database, engine consensus.Engine, config *params
 func (bc *BlockChain) getProcInterrupt() bool {
 	return atomic.LoadInt32(&bc.procInterrupt) == 1
 }
+
+// Genesis retrieves the chain's genesis block.
+func (bc *BlockChain) Genesis() *types.Block {
+	return bc.genesisBlock
+}
+
 
 // loadLastState loads the last known chain state from the database. This method
 // assumes that the chain manager mutex is held.
@@ -303,6 +310,14 @@ func (bc *BlockChain) HasBlock(hash common.Hash, number uint64) bool {
 }
 
 
+// HasHeader checks if a block header is present in the database or not, caching
+// it if present.
+func (bc *BlockChain) HasHeader(hash common.Hash, number uint64) bool {
+	return bc.hc.HasHeader(hash, number)
+}
+
+
+
 // Rollback is designed to remove a chain of links from the database that aren't
 // certain enough to be valid.
 func (bc *BlockChain) Rollback(chain []common.Hash) {
@@ -328,6 +343,28 @@ func (bc *BlockChain) Rollback(chain []common.Hash) {
 		}
 	}
 }
+
+
+// GetBodyRLP retrieves a block body in RLP encoding from the database by hash,
+// caching it if found.
+func (bc *BlockChain) GetBodyRLP(hash common.Hash) rlp.RawValue {
+	// Short circuit if the body's already in the cache, retrieve otherwise
+	if cached, ok := bc.bodyRLPCache.Get(hash); ok {
+		return cached.(rlp.RawValue)
+	}
+	number := bc.hc.GetBlockNumber(hash)
+	if number == nil {
+		return nil
+	}
+	body := rawdb.ReadBodyRLP(bc.db, hash, *number)
+	if len(body) == 0 {
+		return nil
+	}
+	// Cache the found body for next time and return
+	bc.bodyRLPCache.Add(hash, body)
+	return body
+}
+
 
 // GetBlock retrieves a block from the database by hash and number,
 // caching it if found.
@@ -362,6 +399,21 @@ func (bc *BlockChain) GetBlockByNumber(number uint64) *types.Block {
 	}
 	return bc.GetBlock(hash, number)
 }
+
+
+
+// GetAncestor retrieves the Nth ancestor of a given block. It assumes that either the given block or
+// a close ancestor of it is canonical. maxNonCanonical points to a downwards counter limiting the
+// number of blocks to be individually checked before we reach the canonical chain.
+//
+// Note: ancestor == 0 returns the same block, 1 returns its parent and so on.
+func (bc *BlockChain) GetAncestor(hash common.Hash, number, ancestor uint64, maxNonCanonical *uint64) (common.Hash, uint64) {
+	bc.chainmu.Lock()
+	defer bc.chainmu.Unlock()
+
+	return bc.hc.GetAncestor(hash, number, ancestor, maxNonCanonical)
+}
+
 
 // Stop stops the blockchain service. If any imports are currently in progress
 // it will abort them using the procInterrupt.
@@ -467,6 +519,40 @@ func (bc *BlockChain) WriteBlock(block *types.Block) {
 
 	bc.insert(block)
 	bc.futureBlocks.Remove(block.Hash())
+}
+
+
+
+// InsertHeaderChain attempts to insert the given header chain in to the local
+// chain, possibly creating a reorg. If an error is returned, it will return the
+// index number of the failing header as well an error describing what went wrong.
+//
+// The verify parameter can be used to fine tune whether nonce verification
+// should be done or not. The reason behind the optional check is because some
+// of the header retrieval mechanisms already need to verify nonces, as well as
+// because nonces can be verified sparsely, not needing to check each.
+func (bc *BlockChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (int, error) {
+	start := time.Now()
+	if i, err := bc.hc.ValidateHeaderChain(chain, checkFreq); err != nil {
+		return i, err
+	}
+
+	// Make sure only one thread manipulates the chain at once
+	bc.chainmu.Lock()
+	defer bc.chainmu.Unlock()
+
+	bc.wg.Add(1)
+	defer bc.wg.Done()
+
+	whFunc := func(header *types.Header) error {
+		bc.mu.Lock()
+		defer bc.mu.Unlock()
+
+		_, err := bc.hc.WriteHeader(header)
+		return err
+	}
+
+	return bc.hc.InsertHeaderChain(chain, whFunc, start)
 }
 
 // InsertChain attempts to insert the given batch of blocks in to the canonical
@@ -586,6 +672,9 @@ func (bc *BlockChain) CurrentHeader() *types.Header {
 	return bc.hc.CurrentHeader()
 }
 
+// Config retrieves the blockchain's chain configuration.
+func (bc *BlockChain) Config() *params.ChainConfig { return bc.chainConfig }
+
 // GetHeader retrieves a block header from the database by hash and number,
 // caching it if found.
 func (bc *BlockChain) GetHeader(hash common.Hash, number uint64) *types.Header {
@@ -596,6 +685,12 @@ func (bc *BlockChain) GetHeader(hash common.Hash, number uint64) *types.Header {
 // database by hash and number, caching it if found.
 func (bc *BlockChain) GetTd(hash common.Hash, number uint64) *big.Int {
 	return bc.hc.GetTd(hash, number)
+}
+
+// GetTdByHash retrieves a block's total difficulty in the canonical chain from the
+// database by hash, caching it if found.
+func (bc *BlockChain) GetTdByHash(hash common.Hash) *big.Int {
+	return bc.hc.GetTdByHash(hash)
 }
 
 
