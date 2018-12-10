@@ -16,6 +16,7 @@ import (
 
 // Genesis specifies the header fields, state of a genesis block.
 type Genesis struct {
+	Config     *params.ChainConfig `json:"config"`
 	Nonce      uint64         `json:"nonce"`
 	Timestamp  uint64         `json:"timestamp"`
 	ExtraData  []byte         `json:"extraData"`
@@ -107,6 +108,7 @@ func (g *Genesis) MustCommit(db database.Database) *types.Block {
 	}
 	return block
 }
+
 
 // Commit writes the block and state of a genesis specification to the database.
 func (g *Genesis) Commit(db database.Database) (*types.Block, error) {

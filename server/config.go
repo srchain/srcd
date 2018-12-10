@@ -9,7 +9,7 @@ import (
 // DefaultConfig contains default settings for use on main net.
 var DefaultConfig = Config{
 	// SyncMode: downloader.FastSync,
-	// NetworkId:     1,
+	NetworkId:     1,
 	// LightPeers:    100,
 	DatabaseCache: 768,
 	// TrieCache:     256,
@@ -24,7 +24,7 @@ type Config struct {
 	Genesis         *blockchain.Genesis `toml:",omitempty"`
 
 	// Protocol options
-	// NetworkId uint64 // Network ID to use for selecting peers to connect to
+	NetworkId uint64 // Network ID to use for selecting peers to connect to
 	// SyncMode  downloader.SyncMode
 	// NoPruning bool
 
