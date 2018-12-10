@@ -25,8 +25,16 @@ var (
 	headerTDSuffix     = []byte("t") // headerPrefix + num (uint64 big endian) + hash + headerTDSuffix -> td
 	// fastTrieProgressKey tracks the number of trie entries imported during fast sync.
 	fastTrieProgressKey = []byte("TrieSync")
+	configPrefix   = []byte("silkroad-config-") // config prefix for the db
 
 )
+
+// configKey = configPrefix + hash
+func configKey(hash common.Hash) []byte {
+	return append(configPrefix, hash.Bytes()...)
+}
+
+
 
 // encodeBlockNumber encodes a block number as big endian uint64
 func encodeBlockNumber(number uint64) []byte {

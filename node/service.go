@@ -1,6 +1,7 @@
 package node
 
 import (
+	"github.com/srchain/srcd/event"
 	"reflect"
 
 	"github.com/srchain/srcd/database"
@@ -16,7 +17,7 @@ import (
 type ServiceContext struct {
 	config         *Config
 	services       map[reflect.Type]Service // Index of the already constructed services
-	// EventMux       *event.TypeMux           // Event multiplexer used for decoupled notifications
+	EventMux       *event.TypeMux           // Event multiplexer used for decoupled notifications
 	AccountManager *account.AccountManager       // Account manager created by the node.
 }
 

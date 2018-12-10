@@ -1,6 +1,10 @@
 package transaction
 
 import (
+	"github.com/srchain/srcd/common/common"
+	"github.com/srchain/srcd/core"
+	"github.com/srchain/srcd/core/types"
+	"github.com/srchain/srcd/event"
 	"sync"
 	"time"
 
@@ -21,6 +25,19 @@ type TxPool struct {
 	Mtx    sync.RWMutex
 	MsgCh  chan *TxPoolMsg
 	Pool   map[Hash]*TxPoolMsg
+}
+
+//TODO: 有请张先生现身说法
+func (tp *TxPool) AddRemotes([]*types.Transaction) []error {
+	panic("implement me")
+}
+
+func (tp *TxPool) Pending() (map[common.Address]types.Transactions, error) {
+	panic("implement me")
+}
+
+func (tp *TxPool) SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription {
+	panic("implement me")
 }
 
 type TxPoolMsg struct {

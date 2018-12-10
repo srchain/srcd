@@ -1,6 +1,8 @@
 package mempool
 
 import (
+	"github.com/srchain/srcd/core"
+	"github.com/srchain/srcd/event"
 	"sync"
 	"time"
 
@@ -50,6 +52,18 @@ type TxPool struct {
 
 	mu sync.RWMutex
 	wg sync.WaitGroup // for shutdown sync
+}
+
+func (pool *TxPool) AddRemotes([]*types.Transaction) []error {
+	panic("implement me")
+}
+
+func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
+	panic("implement me")
+}
+
+func (pool *TxPool) SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription {
+	panic("implement me")
 }
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound

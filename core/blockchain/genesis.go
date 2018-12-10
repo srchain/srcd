@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"fmt"
+	"github.com/srchain/srcd/errors"
 	"math/big"
 	"time"
 
@@ -13,6 +14,11 @@ import (
 	"github.com/srchain/srcd/log"
 	"github.com/srchain/srcd/params"
 )
+
+
+
+var errGenesisNoConfig = errors.New("genesis has no chain configuration")
+
 
 // Genesis specifies the header fields, state of a genesis block.
 type Genesis struct {
@@ -52,8 +58,26 @@ func (e *GenesisMismatchError) Error() string {
 	return fmt.Sprintf("database already contains an incompatible genesis block (have %x, new %x)", e.Stored[:8], e.New[:8])
 }
 
+
 // SetupGenesisBlock writes or updates the genesis block in db.
-func SetupGenesisBlock(db database.Database, genesis *Genesis) (common.Hash, error) {
+// The block that will be used is:
+//
+//                          genesis == nil       genesis != nil
+//                       +------------------------------------------
+//     db has no genesis |  main-net default  |  genesis
+//     db has genesis    |  from DB           |  genesis (if compatible)
+//
+// The stored chain configuration will be updated if it is compatible (i.e. does not
+// specify a fork block below the local head block). In case of a conflict, the
+// error is a *params.ConfigCompatError and the new, unwritten config is returned.
+//
+// The returned chain configuration is never nil.
+
+func SetupGenesisBlock(db database.Database, genesis *Genesis) (*params.ChainConfig, common.Hash, error) {
+	if genesis != nil && genesis.Config == nil {
+		return params.AllPowProtocolChanges, common.Hash{}, errGenesisNoConfig
+	}
+
 	// Just commit the new block if there is no stored genesis block.
 	stored := rawdb.ReadCanonicalHash(db, 0)
 	if (stored == common.Hash{}) {
@@ -64,19 +88,47 @@ func SetupGenesisBlock(db database.Database, genesis *Genesis) (common.Hash, err
 			log.Info("Writing custom genesis block")
 		}
 		block, err := genesis.Commit(db)
-		return block.Hash(), err
+		return genesis.Config, block.Hash(), err
 	}
 
 	// Check whether the genesis block is already written.
 	if genesis != nil {
 		hash := genesis.ToBlock().Hash()
 		if hash != stored {
-			return hash, &GenesisMismatchError{stored, hash}
+			return genesis.Config, hash, &GenesisMismatchError{stored, hash}
 		}
 	}
 
-	return stored, nil
+	// Get the existing chain configuration.
+	newcfg := genesis.configOrDefault(stored)
+	storedcfg := rawdb.ReadChainConfig(db, stored)
+	if storedcfg == nil {
+		log.Warn("Found genesis block without chain config")
+		rawdb.WriteChainConfig(db, stored, newcfg)
+		return newcfg, stored, nil
+	}
+	// Special case: don't change the existing config of a non-mainnet chain if no new
+	// config is supplied. These chains would get AllProtocolChanges (and a compat error)
+	// if we just continued here.
+	if genesis == nil && stored != params.MainnetGenesisHash {
+		return storedcfg, stored, nil
+	}
+
+	// Check config compatibility and write the config. Compatibility errors
+	// are returned to the caller unless we're already at block zero.
+	height := rawdb.ReadHeaderNumber(db, rawdb.ReadHeadHeaderHash(db))
+	if height == nil {
+		return newcfg, stored, fmt.Errorf("missing block number for head header hash")
+	}
+	compatErr := storedcfg.CheckCompatible(newcfg, *height)
+	if compatErr != nil && *height != 0 && compatErr.RewindTo != 0 {
+		return newcfg, stored, compatErr
+	}
+	rawdb.WriteChainConfig(db, stored, newcfg)
+	return newcfg, stored, nil
 }
+
+
 
 // ToBlock creates the genesis block.
 func (g *Genesis) ToBlock() *types.Block {
@@ -123,6 +175,19 @@ func (g *Genesis) Commit(db database.Database) (*types.Block, error) {
 	rawdb.WriteHeadHeaderHash(db, block.Hash())
 
 	return block, nil
+}
+
+func (g *Genesis) configOrDefault(ghash common.Hash) *params.ChainConfig {
+	switch {
+	case g != nil:
+		return g.Config
+	case ghash == params.MainnetChainConfig:
+		return params.MainnetChainConfig
+	case ghash == params.TestnetGenesisHash:
+		return params.TestnetChainConfig
+	default:
+		return params.AllEthashProtocolChanges
+	}
 }
 
 // DefaultGenesisBlock returns main net genesis block.

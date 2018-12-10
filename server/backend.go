@@ -2,6 +2,9 @@ package server
 
 import (
 	"fmt"
+	"github.com/srchain/srcd/core/rawdb"
+	"github.com/srchain/srcd/event"
+	"github.com/srchain/srcd/server/downloader"
 	"runtime"
 	"sync"
 
@@ -18,7 +21,7 @@ import (
 	"github.com/srchain/srcd/params"
 	"github.com/srchain/srcd/rlp"
 	"github.com/srchain/srcd/p2p"
-
+	"github.com/srchain/srcd/core/transaction"
 	"github.com/srchain/srcd/account"
 
 	"github.com/srchain/srcd/accounts"
@@ -27,20 +30,20 @@ import (
 // SilkRoad implements the full node service.
 type SilkRoad struct {
 	config *Config
-	// chainConfig *params.ChainConfig
+	chainConfig *params.ChainConfig
 
 	// Channel for shutting down the service
 	// shutdownChan chan bool
 
 	// Handlers
-	txPool          *mempool.TxPool
+	txPool          *transaction.TxPool
 	blockchain      *blockchain.BlockChain
 	protocolManager *ProtocolManager
 
 	// DB interfaces
 	chainDb database.Database // Block chain database
 
-	// eventMux       *event.TypeMux
+	eventMux       *event.TypeMux
 	engine         consensus.Engine
 	accountManager *account.AccountManager
 
@@ -64,32 +67,42 @@ func New(ctx *node.ServiceContext, config *Config) (*SilkRoad, error) {
 	if err != nil {
 		return nil, err
 	}
+	chainConfig, genesisHash, genesisErr := blockchain.SetupGenesisBlock(chainDb, config.Genesis)
+	if _, ok := genesisErr.(*params.ConfigCompatError); genesisErr != nil && !ok {
+		return nil, genesisErr
+	}
+
+	log.Info("Initialised chain configuration", "config", chainConfig)
 
 	silk := &SilkRoad{
 		config:         config,
 		chainDb:        chainDb,
 		accountManager: ctx.AccountManager,
 		engine:         CreateConsensusEngine(),
+		eventMux: ctx.EventMux,
 		// shutdownChan:   make(chan bool),
 		coinbase:       config.Coinbase,
 	}
 
-	if _, genesisErr := blockchain.SetupGenesisBlock(chainDb, config.Genesis); genesisErr != nil {
-		return nil, genesisErr
-	}
-	silk.blockchain, err = blockchain.NewBlockChain(chainDb, silk.engine)
+
+	silk.blockchain, err = blockchain.NewBlockChain(chainDb, silk.engine,chainConfig)
 	if err != nil {
 		return nil, err
 	}
-
+	// Rewind the chain in case of an incompatible config upgrade.
+	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
+		log.Warn("Rewinding chain to upgrade configuration", "err", compat)
+		silk.blockchain.SetHead(compat.RewindTo)
+		rawdb.WriteChainConfig(chainDb, genesisHash, chainConfig)
+	}
 	// silk.bloomIndexer.Start(eth.blockchain)
 
 	// if config.TxPool.Journal != "" {
 	// config.TxPool.Journal = ctx.ResolvePath(config.TxPool.Journal)
 	// }
-	silk.txPool = mempool.NewTxPool(config.TxPool, silk.blockchain)
+	silk.txPool = transaction.NewTxPool()
 
-	if silk.protocolManager, err = NewProtocolManager(silk.chainConfig, config.SyncMode, config.NetworkId, silk.eventMux, silk.txPool, silk.engine, silk.blockchain, chainDb); err != nil {
+	if silk.protocolManager, err = NewProtocolManager(silk.chainConfig, downloader.FullSync, config.NetworkId, silk.eventMux, silk.txPool, silk.engine, silk.blockchain, chainDb); err != nil {
 		return nil, err
 	}
 
@@ -189,7 +202,7 @@ func (s *SilkRoad) IsMining() bool { return s.miner.Mining() }
 
 func (s *SilkRoad) AccountManager() *accounts.Manager  { return s.accountManager }
 func (s *SilkRoad) BlockChain() *blockchain.BlockChain { return s.blockchain }
-func (s *SilkRoad) TxPool() *mempool.TxPool            { return s.txPool }
+func (s *SilkRoad) TxPool() *transaction.TxPool            { return s.txPool }
 func (s *SilkRoad) Engine() consensus.Engine           { return s.engine }
 func (s *SilkRoad) ChainDb() database.Database         { return s.chainDb }
 
