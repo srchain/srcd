@@ -2,12 +2,12 @@ package miner
 
 import (
 	"fmt"
+	"github.com/srchain/srcd/core/transaction"
 	"sync/atomic"
 
 	"github.com/srchain/srcd/common/common"
 	"github.com/srchain/srcd/consensus"
 	"github.com/srchain/srcd/core/blockchain"
-	"github.com/srchain/srcd/core/mempool"
 	"github.com/srchain/srcd/log"
 	"github.com/srchain/srcd/params"
 )
@@ -15,7 +15,7 @@ import (
 // Backend wraps all methods required for mining.
 type Backend interface {
 	BlockChain() *blockchain.BlockChain
-	TxPool()     *mempool.TxPool
+	TxPool()     *transaction.TxPool
 }
 
 // Miner creates blocks and searches for proof-of-work values.
