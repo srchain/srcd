@@ -8,23 +8,20 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/srchain/srcd/account"
 	"github.com/srchain/srcd/common/common"
 	"github.com/srchain/srcd/common/hexutil"
 	"github.com/srchain/srcd/consensus"
 	"github.com/srchain/srcd/consensus/pow"
 	"github.com/srchain/srcd/core/blockchain"
-	"github.com/srchain/srcd/core/mempool"
+	"github.com/srchain/srcd/core/transaction"
 	"github.com/srchain/srcd/database"
 	"github.com/srchain/srcd/log"
 	"github.com/srchain/srcd/miner"
 	"github.com/srchain/srcd/node"
+	"github.com/srchain/srcd/p2p"
 	"github.com/srchain/srcd/params"
 	"github.com/srchain/srcd/rlp"
-	"github.com/srchain/srcd/p2p"
-	"github.com/srchain/srcd/core/transaction"
-	"github.com/srchain/srcd/account"
-
-	"github.com/srchain/srcd/accounts"
 )
 
 // SilkRoad implements the full node service.
@@ -200,7 +197,7 @@ func (s *SilkRoad) StartMining(threads int) error {
 func (s *SilkRoad) IsMining() bool { return s.miner.Mining() }
 
 
-func (s *SilkRoad) AccountManager() *accounts.Manager  { return s.accountManager }
+func (s *SilkRoad) AccountManager() *account.AccountManager { return s.accountManager }
 func (s *SilkRoad) BlockChain() *blockchain.BlockChain { return s.blockchain }
 func (s *SilkRoad) TxPool() *transaction.TxPool            { return s.txPool }
 func (s *SilkRoad) Engine() consensus.Engine           { return s.engine }
