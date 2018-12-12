@@ -10,7 +10,6 @@ import (
 	"github.com/srchain/srcd/core/transaction"
 	"github.com/srchain/srcd/core/vm"
 	"github.com/srchain/srcd/database"
-	"github.com/srchain/srcd/trie"
 )
 
 func must(err error) {
@@ -18,21 +17,28 @@ func must(err error) {
 }
 
 func mockAM() *AccountManager {
-
-	diskdb, err := database.NewLDBDatabase("/Users/zhangrongxing/Downloads/srcd_wallet", 768, 1280)
-	trie.NewDatabase(diskdb)
+	db, err := database.NewLDBDatabase("/Users/zhangrongxing/Downloads/srcd_wallet/", 128, 1024)
+	//trie.NewDatabase(db)
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary database: %v", err))
 	}
-	return NewAccountManager(diskdb)
+	return NewAccountManager(db)
 }
 
 
 func TestCreateAccount(t *testing.T) {
 	am := mockAM()
 	account, e := am.CreateAccount()
-	must(e)
 	fmt.Println(account)
+
+	accounts, e := am.GetCurrentNodeAccounts(nil)
+	fmt.Println(accounts)
+	must(e)
+
+}
+
+func TestGetAccount(t *testing.T){
+
 }
 
 func TestBuildUtxoTemplate(t *testing.T) {
@@ -98,6 +104,7 @@ func TestSignTx(t *testing.T) {
 
 	transaction.TxSign(utxoTpl, xprv, xpub)
 
+
 	//fmt.Printf("%x\n", txData.Inputs)
 	if b, err := json.Marshal(utxoTpl); err == nil {
 		fmt.Println(string(b))
@@ -115,10 +122,13 @@ func TestAddTransaction(t *testing.T) {
 	//chain := blockchain.BlockChain{}
 
 	//height := chain.CurrentBlock().Header().Number.Uint64()
-	response, e := tp.TxSubmit(cliJsonStr,uint64(100))
+	response, e := tp.TxSubmit(cliJsonStr)
 	if e != nil {
 		t.Fatal(e)
 	}
+	//0d214e97b47bc278e3ace851324ac82784a6a4e6755df65fcefb4923bd2e20ed
+	//
+	//5967d7196de9e6bd3313bf08b93bdefa755eaba962f0396ffa5b135804e5126d
 	fmt.Printf("TxID:%x\n", response.TxID)
 	//fmt.Println(tp)
 }

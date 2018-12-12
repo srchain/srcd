@@ -44,7 +44,6 @@ type TxPoolMsg struct {
 	Tx      Tx
 	Added   time.Time
 	Weight  uint64
-	Height  uint64
 	Fee     uint64
 	MsgType int
 }
@@ -65,11 +64,11 @@ func (tp *TxPool) GetMsgCh() <-chan *TxPoolMsg {
 	return tp.MsgCh
 }
 
-func (tp *TxPool) AddTransaction(tx Tx, height, fee uint64) error {
+func (tp *TxPool) AddTransaction(tx Tx, fee uint64) error {
 	tp.Mtx.Lock()
 	defer tp.Mtx.Unlock()
 
-	msg := &TxPoolMsg{tx, time.Now(), tx.SerializedSize, height, fee, MsgNewTx}
+	msg := &TxPoolMsg{tx, time.Now(), tx.SerializedSize, fee, MsgNewTx}
 	for _, id := range tx.ResultIds {
 		tp.Utxo[*id] = tx
 	}

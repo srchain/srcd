@@ -16,7 +16,7 @@ const (
 )
 
 
-func (tp *TxPool)TxSubmit(raw_transaction string,height uint64)(TxSubmitResponse,error)  {
+func (tp *TxPool)TxSubmit(raw_transaction string)(TxSubmitResponse,error)  {
 
 	var entity= struct {
 		Tx Tx `json:"raw_transaction"`
@@ -25,8 +25,7 @@ func (tp *TxPool)TxSubmit(raw_transaction string,height uint64)(TxSubmitResponse
 	err := json.Unmarshal([]byte(raw_transaction), &entity)
 	if err != nil {}
 
-
-	err = tp.AddTransaction(entity.Tx, height, 2)
+	err = tp.AddTransaction(entity.Tx, 2)
 	if err != nil {
 		return TxSubmitResponse{nil,FAIL},errors.New("add tx to pool fail")
 	}
